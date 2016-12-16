@@ -4,8 +4,8 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.3
-// @date        2016.09.02 - 2016.09.20
+// @version     1.6.4
+// @date        2016.09.02 - 2016.09.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -332,7 +332,8 @@ function addUsersSortingButton() {
 
 function embedLinks(aNodes, container) {
   var anyEmbed = false;
-  var imgRe = /\.(jpeg|jpg|gif|png)$/;
+  var imgRe = /\.(jpeg|jpg|gif|png)(:large)?$/;
+  var webmRe = /\.(webm)$/;
   var youtubeRe = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
   [].forEach.call(aNodes, function(aNode, i, arr) {
     var linkToImage = (aNode.href.split('?')[0].toLowerCase().match(imgRe) != null);
@@ -345,6 +346,15 @@ function embedLinks(aNodes, container) {
       aNode2.href = aNode.href;
       aNode2.appendChild(imgNode);
       container.appendChild(aNode2);
+    }
+    var linkToWebm = (aNode.href.split('?')[0].toLowerCase().match(webmRe) != null);
+    if(linkToWebm) {
+      anyEmbed = true;
+      aNode.className += ' embedLink';
+      var video = document.createElement("video");
+      video.src = aNode.href;
+      video.setAttribute('controls', '');
+      container.appendChild(video);
     }
     var yresult = youtubeRe.exec(aNode.href);
     var linkToYoutube = (yresult != null);
@@ -392,7 +402,7 @@ function embedLinksToPost() {
 function addStyle() {
   GM_addStyle(
     ".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; } " + // min-width for tags accessibility
-    ".embedContainer img { max-width: 100%; max-height: 80vh; } " +
+    ".embedContainer img, .embedContainer video { max-width: 100%; max-height: 80vh; } " +
     ".embedLink:after { content: ' ↓' } "
   );
 }
