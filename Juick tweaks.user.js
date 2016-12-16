@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.0.0
+// @version     1.0.1
 // @date        2.9.2016
 // @run-at      document-end
 // @grant none
@@ -59,6 +59,15 @@ function addEasyTagsUnderPostEditorSharp() {
   messageform.getElementsByTagName('div')[0].appendChild(clone);
 }
 
+function removeSegoe() {
+  var css = document.createElement("style");
+  css.type = "text/css";
+  css.innerHTML = 
+    //"@import 'https://fonts.googleapis.com/css?family=Open+Sans&subset=cyrillic,cyrillic-ext';" + 
+    "article > p, .msg-txt, input, textarea {font-family: -apple-system,BlinkMacSystemFont,Open Sans,Roboto,Oxygen,Droid Sans,Helvetica Neue,Verdana,sans-serif; font-size: 11pt;}";
+  document.body.appendChild(css);
+}
+
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
@@ -73,3 +82,4 @@ if(isFeed) {
 if(isPostEditorSharp) {
   addEasyTagsUnderPostEditorSharp();
 }
+removeSegoe();
