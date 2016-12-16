@@ -4,8 +4,8 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.4.1
-// @date        2016.09.02 - 2016.09.06
+// @version     1.5.0
+// @date        2016.09.02 - 2016.09.07
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -13,22 +13,22 @@
 
 
 function updateTagsOnAPostPage() {
-  var tagsDiv = document.getElementsByClassName("msg-tags")[0];
+  var tagsDiv = document.querySelector("div.msg-tags");
   if(tagsDiv == null) { return; }
-  var userId = document.getElementsByClassName("msg-avatar")[0].childNodes[0].childNodes[0].alt;
-  tagsDiv.childNodes.forEach(function(item, i, arr) {
+  var userId = document.querySelector("div.msg-avatar > a > img").alt;
+  [].forEach.call(tagsDiv.childNodes, function(item, i, arr) {
     var link = item.href;
     item.href = link.replace("tag/", userId + "/?tag=");
   });
 }
 
 function updateTagsInFeed() {
-  document.getElementById("content").getElementsByTagName('article').forEach(function(article, i, arr) {
+  [].forEach.call(document.getElementById("content").getElementsByTagName('article'), function(article, i, arr) {
     if(!article.hasAttribute('data-mid')) { return; }
-    var userId = article.getElementsByClassName('msg-avatar')[0].getElementsByTagName('img')[0].alt;
+    var userId = article.querySelector("div.msg-avatar > a > img").alt;
     var tagsDiv = article.getElementsByClassName("msg-tags")[0];
     if(tagsDiv == null) { return; }
-    tagsDiv.childNodes.forEach(function(item, j, arrj) {
+    [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
       var link = item.href;
       item.href = link.replace("tag/", userId + "/?tag=");
     });
@@ -37,7 +37,7 @@ function updateTagsInFeed() {
 
 function addTagEditingLinkUnderPost() {
   var mtoolbar = document.getElementById("mtoolbar").childNodes[0];
-  var canEdit = (mtoolbar.innerText.indexOf('Удалить') > -1) ? true : false;
+  var canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
   if(!canEdit) { return; }
   var linode = document.createElement("li");
   var anode = document.createElement("a");
@@ -48,8 +48,28 @@ function addTagEditingLinkUnderPost() {
   mtoolbar.appendChild(linode);
 }
 
+function addCommentRemovalLinks() {
+  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").textContent.replace('@', '');
+  var commentsBlock = document.querySelector("ul#replies");
+  [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+    var postUserId = linode.querySelector("div.msg-avatar > a > img").alt;
+    if(postUserId == userId) {
+      var linksBlock = linode.querySelector("div.msg-links");
+      var commentLink = linode.querySelector("div.msg-ts > a");
+      var postId = commentLink.pathname.replace('/','');
+      var commentId = commentLink.hash.replace('#','');
+      var anode = document.createElement("a");
+      anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
+      anode.innerHTML = "Удалить";
+      anode.style.cssFloat = "right";
+      linksBlock.appendChild(anode);
+    }
+  });
+  
+}
+
 function addYearLinks() {
-  var userId = document.querySelector("div#ctitle a").innerText;
+  var userId = document.querySelector("div#ctitle a").textContent;
   var asideColumn = document.querySelector("aside#column");
   var hr1 = asideColumn.querySelector("p.tags + hr");
   var hr2 = document.createElement("hr");
@@ -65,7 +85,7 @@ function addYearLinks() {
   years.forEach(function(item, i, arr) {
     var anode = document.createElement("a");
     anode.href = "/" + userId + "/" + item.b;
-    anode.innerText = item.y;
+    anode.textContent = item.y;
     linksContainer.appendChild(anode);
     linksContainer.appendChild(document.createTextNode (" "));
   });
@@ -94,14 +114,14 @@ function loadTags(userId, doneCallback) {
 }
 
 function addEasyTagsUnderPostEditorSharp() {
-  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").innerText.replace('@', '');
+  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").textContent.replace('@', '');
   loadTags(userId, function(tagsContainer){
     var messageform = document.getElementById("newmessage");
     var tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName("tags")[0];
     messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
     sortAndColorizeTagsInContainer(tagsContainer, 50);
-    tagsContainer.childNodes.forEach(function(item, i, arr) {
-      var text = item.innerText;
+    [].forEach.call(tagsContainer.childNodes, function(item, i, arr) {
+      var text = item.textContent;
       item.onclick = function() { tagsfield.value = (tagsfield.value + " " + text).trim() };
       item.href = "#";
     });
@@ -127,11 +147,11 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
   var p0 = 0.7; // 70% of color range is used for color coding
   var maxC = 0.1;
   var sortedTags = [];
-  tagsContainer.children.forEach(function(item, i, arr) {
+  [].forEach.call(tagsContainer.children, function(item, i, arr) {
     var anode = (item.tagName == 'A') ? item : item.getElementsByTagName('a')[0];
     var c = Math.log(parseInt(anode.title));
     maxC = (c > maxC) ? c : maxC;
-    sortedTags.push({ c: c, a: anode, text: anode.innerText.toLowerCase()});
+    sortedTags.push({ c: c, a: anode, text: anode.textContent.toLowerCase()});
   });
   if((numberLimit != null) && (sortedTags.length > numberLimit)) {
     sortedTags = sortedTags.slice(0, numberLimit);
@@ -169,15 +189,20 @@ function loadUsers(unprocessedUsers, processedUsers, doneCallback) {
       //url: "http://api.juick.com/messages?uname=" + user.id,
       url: "http://juick.com/" + user.id + "/",
       onload: function(response) {
-        var re = /datetime\=\"([^\"]+)\"/;
-        var result = re.exec(response.responseText);
-        if(result != null) {
-          var dateStr = result[1];
-          var date = new Date(dateStr);
-          user.date = date;
-          user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
+        if(response.status != 200) {
+          console.log("" + user.id + ": failed with " + response.status + ", " + response.statusText);
         } else {
-          console.log("got null for " + user.id);
+          var re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
+          //var re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
+          var result = re.exec(response.responseText);
+          if(result != null) {
+            var dateStr = "" + result[1] + "T" + result[2];// + "Z";
+            var date = new Date(dateStr);
+            user.date = date;
+            user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
+          } else {
+            console.log("" + user.id + ": no posts found");
+          }
         }
         processedUsers.push(user);
         setTimeout(function(){ loadUsers(unprocessedUsers, processedUsers, doneCallback); }, 100);
@@ -193,8 +218,8 @@ function sortUsers() {
   var usersTable = document.querySelector("table.users");
   var unsortedUsers = [];
   var sortedUsers = [];
-  usersTable.firstChild.children.forEach(function(tr, i, arr){
-    tr.children.forEach(function(td, j, arrj){
+  [].forEach.call(usersTable.firstChild.children, function(tr, i, arr){
+    [].forEach.call(tr.children, function(td, j, arrj){
       var anode = td.firstChild;
       var userId = anode.pathname.replace(/\//g, '');
       unsortedUsers.push({a: anode, id: userId, date: (new Date(1970, 1, 1))});
@@ -221,7 +246,7 @@ function addUsersSortingButton() {
   var usersTable = document.querySelector("table.users");
   var button = document.createElement("button");
   button.id = 'usersSortingButton';
-  button.innerText="Sort by date";
+  button.textContent="Sort by date";
   button.onclick = sortUsers;
   contentBlock.insertBefore(button, usersTable);
 }
@@ -243,6 +268,7 @@ addStyle();
 if(isPost) {
   updateTagsOnAPostPage();
   addTagEditingLinkUnderPost();
+  addCommentRemovalLinks();
 }
 if(isFeed) {
   updateTagsInFeed();
