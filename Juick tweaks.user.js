@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.1.1
+// @version     1.2.0
 // @date        2.9.2016
 // @run-at      document-end
 // @grant none
@@ -60,6 +60,29 @@ function addEasyTagsUnderPostEditorSharp() {
   messageform.getElementsByTagName('div')[0].appendChild(clone);
 }
 
+function addYearLinks() {
+  var asideColumn = document.querySelector("aside#column");
+  var hr1 = asideColumn.querySelector("p.tags + hr");
+  var hr2 = document.createElement("hr");
+  var linksContainer = document.createElement("p");
+  var years = [
+    {y: (new Date()).getFullYear(), b: ""},
+    {y: 2015, b: "?before=2816362"},
+    {y: 2014, b: "?before=2761245"},
+    {y: 2013, b: "?before=2629477"},
+    {y: 2012, b: "?before=2183986"}
+  ];
+  years.forEach(function(item, i, arr) {
+    var anode = document.createElement("a");
+    anode.href = window.location.pathname + item.b;
+    anode.innerText = item.y;
+    linksContainer.appendChild(anode);
+    linksContainer.appendChild(document.createTextNode (" "));
+  });
+  asideColumn.insertBefore(hr2, hr1);
+  asideColumn.insertBefore(linksContainer, hr1);
+}
+
 function parseRgbColor(colorStr){
   colorStr = colorStr.replace(/ /g,'');
   colorStr = colorStr.toLowerCase();
@@ -93,7 +116,7 @@ function sortTags() {
   }
   sortedTags.forEach(function(item, i, arr) {
     var c = item.c;
-    var p = (c/maxC-1)*p0+1; // normalize to [(1-p0)..1]
+    var p = (c/maxC-1)*p0+1; // normalize to [p0..1]
     var r = Math.round(linkColor[0]*p + backColor[0]*(1-p));
     var g = Math.round(linkColor[1]*p + backColor[1]*(1-p));
     var b = Math.round(linkColor[2]*p + backColor[2]*(1-p));
@@ -114,6 +137,7 @@ function changeFonts() {
 
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
+var isUserFeed = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
 
@@ -123,6 +147,9 @@ if(isPost) {
 }
 if(isFeed) {
   updateTagsInFeed();
+}
+if(isUserFeed) {
+  addYearLinks();
 }
 if(isPostEditorSharp) {
   addEasyTagsUnderPostEditorSharp();
