@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.7
+// @version     1.6.8
 // @date        2016.09.02 - 2016.09.27
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -425,6 +425,18 @@ function getEmbedableLinkTypes() {
         iframe.scrolling = 'no';
         iframe.setAttribute('allowFullScreen', '');
         iframe.src = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
+        return iframe;
+      }
+    },
+    {
+      name: 'instagram',
+      re: /(?:http(?:s?):)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
+      makeNode: function(aNode, reResult) {
+        var iframe = document.createElement("iframe");
+        iframe.width = 640;
+        iframe.height = 722;
+        iframe.frameBorder = 0;
+        iframe.src = '//www.instagram.com/p/' + reResult[1] + '/embed';
         return iframe;
       }
     }
