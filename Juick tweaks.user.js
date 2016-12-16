@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.0
+// @version     1.6.1
 // @date        2016.09.02 - 2016.09.19
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -317,7 +317,7 @@ function embedLinks(aNodes, container) {
   var imgRe = /\.(jpeg|jpg|gif|png)$/;
   var youtubeRe = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
   [].forEach.call(aNodes, function(aNode, i, arr) {
-    var linkToImage = (aNode.href.split('?')[0].match(imgRe) != null);
+    var linkToImage = (aNode.href.split('?')[0].toLowerCase().match(imgRe) != null);
     if(linkToImage) {
       anyEmbed = true;
       aNode.className += ' embedLink';
@@ -328,7 +328,7 @@ function embedLinks(aNodes, container) {
       aNode2.appendChild(imgNode);
       container.appendChild(aNode2);
     }
-    var yresult = youtubeRe.exec(aNode.href);
+    var yresult = youtubeRe.exec(aNode.href.toLowerCase());
     var linkToYoutube = (yresult != null);
     if(linkToYoutube) {
       anyEmbed = true;
