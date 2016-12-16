@@ -4,8 +4,8 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.4
-// @date        2016.09.02 - 2016.09.21
+// @version     1.6.5
+// @date        2016.09.02 - 2016.09.22
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -44,6 +44,7 @@ if(isUserColumn) {                      // если колонка пользо�
   addYearLinks();
   colorizeTagsInUserColumn();
   addSettingsLink();
+  updateAvatar();
 }
 
 if(isPostEditorSharp) {                 // на форме создания поста (/#post)
@@ -154,9 +155,16 @@ function addSettingsLink() {
     var anode = document.createElement("a");
     anode.innerHTML = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-gear-icon"></use></svg></div>';
     anode.href = 'http://juick.com/settings';
-    anode.style.cssFloat = 'right';
     ctitle.appendChild(anode);
+    ctitle.style.display = 'flex';
+    ctitle.style.justifyContent = 'space-between';
+    ctitle.style.alignItems = 'baseline';
   }
+}
+
+function updateAvatar() {
+  var avatarImg = document.querySelector("div#ctitle a img");
+  avatarImg.src = avatarImg.src.replace('/as/', '/a/');
 }
 
 function loadTags(userId, doneCallback) {
@@ -332,9 +340,10 @@ function addUsersSortingButton() {
 
 function embedLinks(aNodes, container) {
   var anyEmbed = false;
-  var imgRe = /\.(jpeg|jpg|gif|png)(:large)?$/;
-  var webmRe = /\.(webm)$/;
+  var imgRe = /\.(jpeg|jpg|gif|png)(:[a-zA-Z]+)?$/;
+  var videoRe = /\.(webm|mp4)$/;
   var youtubeRe = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
+  var coubRe = /(?:http|https)?:\/\/(?:www\.)?coub\.com\/view\/([a-zA-Z\d]+)/;
   [].forEach.call(aNodes, function(aNode, i, arr) {
     var linkToImage = (aNode.href.split('?')[0].toLowerCase().match(imgRe) != null);
     if(linkToImage) {
@@ -347,8 +356,8 @@ function embedLinks(aNodes, container) {
       aNode2.appendChild(imgNode);
       container.appendChild(aNode2);
     }
-    var linkToWebm = (aNode.href.split('?')[0].toLowerCase().match(webmRe) != null);
-    if(linkToWebm) {
+    var linkToVideo = (aNode.href.split('?')[0].toLowerCase().match(videoRe) != null);
+    if(linkToVideo) {
       anyEmbed = true;
       aNode.className += ' embedLink';
       var video = document.createElement("video");
@@ -367,6 +376,19 @@ function embedLinks(aNodes, container) {
       iframe.frameBorder = 0;
       iframe.setAttribute('allowFullScreen', '');
       iframe.src = '//www.youtube-nocookie.com/embed/' + yresult[1] + '?rel=0';
+      container.appendChild(iframe);
+    }
+    var coubResult = coubRe.exec(aNode.href);
+    var linkToCoub = (coubResult != null);
+    if(linkToCoub) {
+      anyEmbed = true;
+      aNode.className += ' embedLink';
+      var iframe = document.createElement("iframe");
+      iframe.width = 640;
+      iframe.height = 360;
+      iframe.frameBorder = 0;
+      iframe.setAttribute('allowFullScreen', '');
+      iframe.src = '//coub.com/embed/' + coubResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
       container.appendChild(iframe);
     }
   });
