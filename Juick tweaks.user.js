@@ -4,10 +4,10 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.2.2
+// @version     1.3.0
 // @date        2.9.2016
 // @run-at      document-end
-// @grant none
+// @grant       GM_xmlhttpRequest
 // ==/UserScript==
 
 
@@ -24,10 +24,10 @@ function updateTagsOnAPostPage() {
 function updateTagsInFeed() {
   document.getElementById("content").getElementsByTagName('article').forEach(function(article, i, arr) {
     if(!article.hasAttribute('data-mid')) { return; }
-    var userId = article.getElementsByTagName('aside')[0].getElementsByTagName('a')[0].getElementsByTagName('img')[0].alt;
-    var tagsDiv = article.children[1].getElementsByClassName("tags")[0];
+    var userId = article.getElementsByClassName('msg-avatar')[0].getElementsByTagName('img')[0].alt;
+    var tagsDiv = article.getElementsByClassName("msg-tags")[0];
     if(tagsDiv == null) { return; }
-    tagsDiv.childNodes.forEach(function(item, i, arr) {
+    tagsDiv.childNodes.forEach(function(item, j, arrj) {
       var link = item.href;
       item.href = link.replace("tag/", userId + "/?tag=");
     });
@@ -61,6 +61,7 @@ function addEasyTagsUnderPostEditorSharp() {
 }
 
 function addYearLinks() {
+  var userId = document.querySelector("div#ctitle a").innerText;
   var asideColumn = document.querySelector("aside#column");
   var hr1 = asideColumn.querySelector("p.tags + hr");
   var hr2 = document.createElement("hr");
@@ -74,7 +75,7 @@ function addYearLinks() {
   ];
   years.forEach(function(item, i, arr) {
     var anode = document.createElement("a");
-    anode.href = window.location.pathname + item.b;
+    anode.href = "/" + userId + "/" + item.b;
     anode.innerText = item.y;
     linksContainer.appendChild(anode);
     linksContainer.appendChild(document.createTextNode (" "));
@@ -126,11 +127,79 @@ function sortTags() {
   });
 }
 
+function loadUsers(unprocessedUsers, processedUsers, doneCallback) {
+  if(unprocessedUsers.length == 0) {
+    doneCallback();
+  } else {
+    var user = unprocessedUsers.splice(0,1)[0];
+    GM_xmlhttpRequest({
+      method: "GET",
+      //url: "http://api.juick.com/messages?uname=" + user.id,
+      url: "http://juick.com/" + user.id + "/",
+      onload: function(response) {
+        var re = /datetime\=\"([^\"]+)\"/;
+        var result = re.exec(response.responseText);
+        if(result != null) {
+          var dateStr = result[1];
+          var date = new Date(dateStr);
+          user.date = date;
+          user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
+        } else {
+          console.log("got null for " + user.id);
+        }
+        processedUsers.push(user);
+        setTimeout(function(){ loadUsers(unprocessedUsers, processedUsers, doneCallback); }, 100);
+      }
+    });
+  }
+};
+
+function sortUsers() {
+  var contentBlock = document.getElementById("content");
+  var button = document.getElementById("usersSortingButton");
+  button.parentNode.removeChild(button);
+  var usersTable = document.querySelector("table.users");
+  var unsortedUsers = [];
+  var sortedUsers = [];
+  usersTable.firstChild.children.forEach(function(tr, i, arr){
+    tr.children.forEach(function(td, j, arrj){
+      var anode = td.firstChild;
+      var userId = anode.pathname.replace(/\//g, '');
+      unsortedUsers.push({a: anode, id: userId, date: (new Date(1970, 1, 1))});
+    });
+  });
+  loadUsers(unsortedUsers, sortedUsers, function(){
+    sortedUsers.sort(function (b, a) {
+      return ((a.date > b.date) - (a.date < b.date));
+    });
+    usersTable.parentNode.removeChild(usersTable);
+    var ul = document.createElement("ul");
+    ul.className = 'users';
+    sortedUsers.forEach(function(user, i, arr){
+      var li = document.createElement("li");
+      li.appendChild(user.a);
+      ul.appendChild(li);
+    });
+    contentBlock.appendChild(ul);
+  });
+}
+
+function addUsersSortingButton() {
+  var contentBlock = document.getElementById("content");
+  var usersTable = document.querySelector("table.users");
+  var button = document.createElement("button");
+  button.id = 'usersSortingButton';
+  button.innerText="Sort by date";
+  button.onclick = sortUsers;
+  contentBlock.insertBefore(button, usersTable);
+}
+
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
-var isUserFeed = !isTagsPage && ((document.querySelector("aside#column > div#ctitle") === null) ? false : true);
+var isUserColumn = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
+var isUsersTable = (document.querySelector("table.users") === null) ? false : true;
 
 if(isPost) {
   updateTagsOnAPostPage();
@@ -139,7 +208,7 @@ if(isPost) {
 if(isFeed) {
   updateTagsInFeed();
 }
-if(isUserFeed) {
+if(isUserColumn) {
   addYearLinks();
 }
 if(isPostEditorSharp) {
@@ -147,4 +216,7 @@ if(isPostEditorSharp) {
 }
 if(isTagsPage) {
   sortTags();
+}
+if(isUsersTable) {
+  addUsersSortingButton();
 }
