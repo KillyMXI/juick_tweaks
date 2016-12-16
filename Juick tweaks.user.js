@@ -4,8 +4,8 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.4.0
-// @date        2016.09.02 - 2016.09.05
+// @version     1.4.1
+// @date        2016.09.02 - 2016.09.06
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -133,7 +133,7 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
     maxC = (c > maxC) ? c : maxC;
     sortedTags.push({ c: c, a: anode, text: anode.innerText.toLowerCase()});
   });
-  if(numberLimit != null) {
+  if((numberLimit != null) && (sortedTags.length > numberLimit)) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
   sortedTags.sort(function (a, b) {
