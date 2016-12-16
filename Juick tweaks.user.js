@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.1.0
+// @version     1.1.1
 // @date        2.9.2016
 // @run-at      document-end
 // @grant none
@@ -60,16 +60,29 @@ function addEasyTagsUnderPostEditorSharp() {
   messageform.getElementsByTagName('div')[0].appendChild(clone);
 }
 
+function parseRgbColor(colorStr){
+  colorStr = colorStr.replace(/ /g,'');
+  colorStr = colorStr.toLowerCase();
+  var re = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/;
+  var bits = re.exec(colorStr);
+  return [
+    parseInt(bits[1]),
+    parseInt(bits[2]),
+    parseInt(bits[3])
+  ];
+}
+
 function sortTags() {
   var tagsContainer = document.getElementById("content").getElementsByTagName('p')[0];
+  var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
+  var backColor = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor);
+  var p0 = 0.7; // 70% of color range is used for color coding
+  var maxC = 0.1;
   var sortedTags = [];
   tagsContainer.children.forEach(function(item, i, arr) {
     var anode = (item.tagName == 'A') ? item : item.getElementsByTagName('a')[0];
-    console.log(anode.tagName);
     var c = Math.log(parseInt(anode.title));
-    var clr = Math.round(192.0 - (40.0*c));
-    clr = (clr < 0) ? 0 : clr;
-    anode.style.color = "rgb("+clr+","+clr+","+clr+")";
+    maxC = (c > maxC) ? c : maxC;
     sortedTags.push({ c: c, a: anode, text: anode.innerText.toLowerCase()});
   });
   sortedTags.sort(function (a, b) {
@@ -79,6 +92,12 @@ function sortTags() {
     tagsContainer.removeChild(tagsContainer.firstChild);
   }
   sortedTags.forEach(function(item, i, arr) {
+    var c = item.c;
+    var p = (c/maxC-1)*p0+1; // normalize to [(1-p0)..1]
+    var r = Math.round(linkColor[0]*p + backColor[0]*(1-p));
+    var g = Math.round(linkColor[1]*p + backColor[1]*(1-p));
+    var b = Math.round(linkColor[2]*p + backColor[2]*(1-p));
+    item.a.style.color = "rgb("+r+","+g+","+b+")";
     tagsContainer.appendChild(item.a);
     tagsContainer.appendChild(document.createTextNode (" "));
   });
@@ -100,7 +119,7 @@ var isTagsPage = window.location.pathname.endsWith('/tags');
 
 if(isPost) {
   updateTagsOnAPostPage();
-  addTagEditingLinkUnderPost()
+  addTagEditingLinkUnderPost();
 }
 if(isFeed) {
   updateTagsInFeed();
