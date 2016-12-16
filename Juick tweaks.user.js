@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.0.2
+// @version     1.1.0
 // @date        2.9.2016
 // @run-at      document-end
 // @grant none
@@ -60,6 +60,30 @@ function addEasyTagsUnderPostEditorSharp() {
   messageform.getElementsByTagName('div')[0].appendChild(clone);
 }
 
+function sortTags() {
+  var tagsContainer = document.getElementById("content").getElementsByTagName('p')[0];
+  var sortedTags = [];
+  tagsContainer.children.forEach(function(item, i, arr) {
+    var anode = (item.tagName == 'A') ? item : item.getElementsByTagName('a')[0];
+    console.log(anode.tagName);
+    var c = Math.log(parseInt(anode.title));
+    var clr = Math.round(192.0 - (40.0*c));
+    clr = (clr < 0) ? 0 : clr;
+    anode.style.color = "rgb("+clr+","+clr+","+clr+")";
+    sortedTags.push({ c: c, a: anode, text: anode.innerText.toLowerCase()});
+  });
+  sortedTags.sort(function (a, b) {
+    return a.text.localeCompare(b.text);
+  });
+  while (tagsContainer.firstChild) {
+    tagsContainer.removeChild(tagsContainer.firstChild);
+  }
+  sortedTags.forEach(function(item, i, arr) {
+    tagsContainer.appendChild(item.a);
+    tagsContainer.appendChild(document.createTextNode (" "));
+  });
+}
+
 function changeFonts() {
   var css = document.createElement("style");
   css.type = "text/css";
@@ -72,6 +96,7 @@ function changeFonts() {
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
+var isTagsPage = window.location.pathname.endsWith('/tags');
 
 if(isPost) {
   updateTagsOnAPostPage();
@@ -82,5 +107,8 @@ if(isFeed) {
 }
 if(isPostEditorSharp) {
   addEasyTagsUnderPostEditorSharp();
+}
+if(isTagsPage) {
+  sortTags();
 }
 changeFonts();
