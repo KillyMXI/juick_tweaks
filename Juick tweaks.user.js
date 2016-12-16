@@ -4,13 +4,61 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.5.0
-// @date        2016.09.02 - 2016.09.07
+// @version     1.6.0
+// @date        2016.09.02 - 2016.09.19
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
 // ==/UserScript==
 
+
+// pages and elements =====================================================================================
+
+var isPost = document.getElementById("content").hasAttribute("data-mid");
+var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
+var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
+var isTagsPage = window.location.pathname.endsWith('/tags');
+var isUserColumn = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
+var isUsersTable = (document.querySelector("table.users") === null) ? false : true;
+
+
+// userscript features =====================================================================================
+// 
+// Можно отключать фичи по отдельности, закомментировав их тут.
+
+addStyle();                             // минимальный набор стилей, необходимый для работы скрипта
+
+if(isPost) {                            // на странице поста
+  updateTagsOnAPostPage();
+  addTagEditingLinkUnderPost();
+  addCommentRemovalLinks();
+  embedLinksToPost();
+}
+
+if(isFeed) {                            // в лете или любом списке постов
+  updateTagsInFeed();
+  embedLinksToArticles();
+}
+
+if(isUserColumn) {                      // если колонка пользователя присутствует слева
+  addYearLinks();
+  colorizeTagsInUserColumn();
+}
+
+if(isPostEditorSharp) {                 // на форме создания поста (/#post)
+  addEasyTagsUnderPostEditorSharp();
+}
+
+if(isTagsPage) {                        // на странице тегов пользователя
+  sortTagsPage();
+}
+
+if(isUsersTable) {                      // не странице подписок или подписчиков
+  addUsersSortingButton();
+}
+
+
+// function definitions =====================================================================================
 
 function updateTagsOnAPostPage() {
   var tagsDiv = document.querySelector("div.msg-tags");
@@ -51,21 +99,22 @@ function addTagEditingLinkUnderPost() {
 function addCommentRemovalLinks() {
   var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").textContent.replace('@', '');
   var commentsBlock = document.querySelector("ul#replies");
-  [].forEach.call(commentsBlock.children, function(linode, i, arr) {
-    var postUserId = linode.querySelector("div.msg-avatar > a > img").alt;
-    if(postUserId == userId) {
-      var linksBlock = linode.querySelector("div.msg-links");
-      var commentLink = linode.querySelector("div.msg-ts > a");
-      var postId = commentLink.pathname.replace('/','');
-      var commentId = commentLink.hash.replace('#','');
-      var anode = document.createElement("a");
-      anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
-      anode.innerHTML = "Удалить";
-      anode.style.cssFloat = "right";
-      linksBlock.appendChild(anode);
-    }
-  });
-  
+  if(commentsBlock != null) {
+    [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+      var postUserId = linode.querySelector("div.msg-avatar > a > img").alt;
+      if(postUserId == userId) {
+        var linksBlock = linode.querySelector("div.msg-links");
+        var commentLink = linode.querySelector("div.msg-ts > a");
+        var postId = commentLink.pathname.replace('/','');
+        var commentId = commentLink.hash.replace('#','');
+        var anode = document.createElement("a");
+        anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
+        anode.innerHTML = "Удалить";
+        anode.style.cssFloat = "right";
+        linksBlock.appendChild(anode);
+      }
+    });
+  }
 }
 
 function addYearLinks() {
@@ -119,7 +168,7 @@ function addEasyTagsUnderPostEditorSharp() {
     var messageform = document.getElementById("newmessage");
     var tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName("tags")[0];
     messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
-    sortAndColorizeTagsInContainer(tagsContainer, 50);
+    sortAndColorizeTagsInContainer(tagsContainer, 60, true);
     [].forEach.call(tagsContainer.childNodes, function(item, i, arr) {
       var text = item.textContent;
       item.onclick = function() { tagsfield.value = (tagsfield.value + " " + text).trim() };
@@ -140,10 +189,15 @@ function parseRgbColor(colorStr){
   ];
 }
 
-function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
+function contrastColor(baseColor) {
+  return (baseColor[0] + baseColor[1] + baseColor[2] > 127*3) ? [0,0,0] : [255,255,255];
+}
+
+function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   tagsContainer.className += " tagsContainer";
   var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
   var backColor = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor);
+  //linkColor = contrastColor(backColor);
   var p0 = 0.7; // 70% of color range is used for color coding
   var maxC = 0.1;
   var sortedTags = [];
@@ -156,9 +210,11 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
   if((numberLimit != null) && (sortedTags.length > numberLimit)) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
-  sortedTags.sort(function (a, b) {
-    return a.text.localeCompare(b.text);
-  });
+  if(isSorting) {
+    sortedTags.sort(function (a, b) {
+      return a.text.localeCompare(b.text);
+    });
+  }
   while (tagsContainer.firstChild) {
     tagsContainer.removeChild(tagsContainer.firstChild);
   }
@@ -176,7 +232,12 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
 
 function sortTagsPage() {
   var tagsContainer = document.querySelector("section#content > p");
-  sortAndColorizeTagsInContainer(tagsContainer, null);
+  sortAndColorizeTagsInContainer(tagsContainer, null, true);
+}
+
+function colorizeTagsInUserColumn() {
+  var tagsContainer = document.querySelector("aside#column > p.tags");
+  sortAndColorizeTagsInContainer(tagsContainer, null, false);
 }
 
 function loadUsers(unprocessedUsers, processedUsers, doneCallback) {
@@ -251,37 +312,69 @@ function addUsersSortingButton() {
   contentBlock.insertBefore(button, usersTable);
 }
 
+function embedLinks(aNodes, container) {
+  var anyEmbed = false;
+  var imgRe = /\.(jpeg|jpg|gif|png)$/;
+  var youtubeRe = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
+  [].forEach.call(aNodes, function(aNode, i, arr) {
+    var linkToImage = (aNode.href.split('?')[0].match(imgRe) != null);
+    if(linkToImage) {
+      anyEmbed = true;
+      aNode.className += ' embedLink';
+      var aNode2 = document.createElement("a");
+      var imgNode = document.createElement("img");
+      imgNode.src = aNode.href;
+      aNode2.href = aNode.href;
+      aNode2.appendChild(imgNode);
+      container.appendChild(aNode2);
+    }
+    var yresult = youtubeRe.exec(aNode.href);
+    var linkToYoutube = (yresult != null);
+    if(linkToYoutube) {
+      anyEmbed = true;
+      aNode.className += ' embedLink';
+      var iframe = document.createElement("iframe");
+      iframe.width = 640;
+      iframe.height = 360;
+      iframe.frameBorder = 0;
+      iframe.setAttribute('allowFullScreen', '');
+      iframe.src = '//www.youtube-nocookie.com/embed/' + yresult[1] + '?rel=0';
+      container.appendChild(iframe);
+    }
+  });
+  return anyEmbed;
+}
+
+function embedLinksToArticles() {
+  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
+    var nav = article.querySelector("nav.l");
+    var allLinks = article.querySelectorAll("p:not(.ir) > a");
+    var embedContainer = document.createElement("div");
+    embedContainer.className = 'embedContainer';
+    var anyEmbed = embedLinks(allLinks, embedContainer);
+    if(anyEmbed){
+      article.insertBefore(embedContainer, nav);
+    }
+  });
+}
+
+function embedLinksToPost() {
+  [].forEach.call(document.querySelectorAll("#content .msg-cont"), function(msg, i, arr) {
+    var txt = msg.querySelector(".msg-txt");
+    var allLinks = txt.querySelectorAll("a");
+    var embedContainer = document.createElement("div");
+    embedContainer.className = 'embedContainer';
+    var anyEmbed = embedLinks(allLinks, embedContainer);
+    if(anyEmbed){
+      msg.insertBefore(embedContainer, txt.nextSibling);
+    }
+  });
+}
+
 function addStyle() {
   GM_addStyle(
-    ".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; }" // min-width for tags accessibility
+    ".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; } " + // min-width for tags accessibility
+    ".embedContainer img { max-width: 100%; max-height: 90vh; } " +
+    ".embedLink:after { content: ' ↓' } "
   );
-}
-
-var isPost = document.getElementById("content").hasAttribute("data-mid");
-var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
-var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
-var isTagsPage = window.location.pathname.endsWith('/tags');
-var isUserColumn = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
-var isUsersTable = (document.querySelector("table.users") === null) ? false : true;
-
-addStyle();
-if(isPost) {
-  updateTagsOnAPostPage();
-  addTagEditingLinkUnderPost();
-  addCommentRemovalLinks();
-}
-if(isFeed) {
-  updateTagsInFeed();
-}
-if(isUserColumn) {
-  addYearLinks();
-}
-if(isPostEditorSharp) {
-  addEasyTagsUnderPostEditorSharp();
-}
-if(isTagsPage) {
-  sortTagsPage();
-}
-if(isUsersTable) {
-  addUsersSortingButton();
 }
