@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name        Juick tweaks
 // @namespace   ForJuickCom
-// @description Some feature testing
+// @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.5
-// @date        2016.09.02 - 2016.09.22
+// @version     1.6.6
+// @date        2016.09.02 - 2016.09.23
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -14,8 +14,9 @@
 
 // pages and elements =====================================================================================
 
-var isPost = document.getElementById("content").hasAttribute("data-mid");
-var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
+var content = document.getElementById("content");
+var isPost = (content != null) && content.hasAttribute("data-mid");
+var isFeed = (content != null) && (content.getElementsByTagName('article').length > 1);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
 var isUserColumn = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
@@ -35,7 +36,7 @@ if(isPost) {                            // на странице поста
   embedLinksToPost();
 }
 
-if(isFeed) {                            // в лете или любом списке постов
+if(isFeed) {                            // в ленте или любом списке постов
   updateTagsInFeed();
   embedLinksToArticles();
 }
@@ -342,8 +343,8 @@ function embedLinks(aNodes, container) {
   var anyEmbed = false;
   var imgRe = /\.(jpeg|jpg|gif|png)(:[a-zA-Z]+)?$/;
   var videoRe = /\.(webm|mp4)$/;
-  var youtubeRe = /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
-  var coubRe = /(?:http|https)?:\/\/(?:www\.)?coub\.com\/view\/([a-zA-Z\d]+)/;
+  var youtubeRe = /^(?:http(?:s?):)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/;
+  var coubRe = /^(?:http(?:s?):)?\/\/(?:www\.)?coub\.com\/view\/([a-zA-Z\d]+)/;
   [].forEach.call(aNodes, function(aNode, i, arr) {
     var linkToImage = (aNode.href.split('?')[0].toLowerCase().match(imgRe) != null);
     if(linkToImage) {
