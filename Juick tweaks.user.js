@@ -4,7 +4,7 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.2.0
+// @version     1.2.1
 // @date        2.9.2016
 // @run-at      document-end
 // @grant none
@@ -137,9 +137,9 @@ function changeFonts() {
 
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
-var isUserFeed = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
+var isUserFeed = !isTagsPage && ((document.querySelector("aside#column > div#ctitle") === null) ? false : true);
 
 if(isPost) {
   updateTagsOnAPostPage();
