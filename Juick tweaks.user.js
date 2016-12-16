@@ -4,10 +4,11 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.3.0
-// @date        2.9.2016
+// @version     1.4.0
+// @date        2016.09.02 - 2016.09.05
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
+// @grant       GM_addStyle
 // ==/UserScript==
 
 
@@ -47,19 +48,6 @@ function addTagEditingLinkUnderPost() {
   mtoolbar.appendChild(linode);
 }
 
-function addEasyTagsUnderPostEditorSharp() {
-  var sidetags = document.getElementById("column").getElementsByClassName("tags")[0];
-  var clone = sidetags.cloneNode(true);
-  var messageform = document.getElementById("newmessage");
-  var tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName("tags")[0];
-  clone.childNodes.forEach(function(item, i, arr) {
-    var text = item.innerText;
-    item.onclick = function() { tagsfield.value = (tagsfield.value + " " + text).trim() };
-    item.href = "#";
-  });
-  messageform.getElementsByTagName('div')[0].appendChild(clone);
-}
-
 function addYearLinks() {
   var userId = document.querySelector("div#ctitle a").innerText;
   var asideColumn = document.querySelector("aside#column");
@@ -71,7 +59,8 @@ function addYearLinks() {
     {y: 2015, b: "?before=2816362"},
     {y: 2014, b: "?before=2761245"},
     {y: 2013, b: "?before=2629477"},
-    {y: 2012, b: "?before=2183986"}
+    {y: 2012, b: "?before=2183986"},
+    {y: 2011, b: "?before=1695443"}
   ];
   years.forEach(function(item, i, arr) {
     var anode = document.createElement("a");
@@ -82,6 +71,41 @@ function addYearLinks() {
   });
   asideColumn.insertBefore(hr2, hr1);
   asideColumn.insertBefore(linksContainer, hr1);
+}
+
+function loadTags(userId, doneCallback) {
+  GM_xmlhttpRequest({
+    method: "GET",
+    url: "http://juick.com/" + userId + "/tags",
+    onload: function(response) {
+      var re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
+      var result = re.exec(response.responseText);
+      if(result != null) {
+        var tagsStr = result[1];
+        var tagsContainer = document.createElement('p');
+        tagsContainer.className += " tagsContainer";
+        tagsContainer.innerHTML = tagsStr;
+        doneCallback(tagsContainer);
+      } else {
+        console.log("no tags found");
+      }
+    }
+  });
+}
+
+function addEasyTagsUnderPostEditorSharp() {
+  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").innerText.replace('@', '');
+  loadTags(userId, function(tagsContainer){
+    var messageform = document.getElementById("newmessage");
+    var tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName("tags")[0];
+    messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
+    sortAndColorizeTagsInContainer(tagsContainer, 50);
+    tagsContainer.childNodes.forEach(function(item, i, arr) {
+      var text = item.innerText;
+      item.onclick = function() { tagsfield.value = (tagsfield.value + " " + text).trim() };
+      item.href = "#";
+    });
+  });
 }
 
 function parseRgbColor(colorStr){
@@ -96,8 +120,8 @@ function parseRgbColor(colorStr){
   ];
 }
 
-function sortTags() {
-  var tagsContainer = document.getElementById("content").getElementsByTagName('p')[0];
+function sortAndColorizeTagsInContainer(tagsContainer, numberLimit) {
+  tagsContainer.className += " tagsContainer";
   var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
   var backColor = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor);
   var p0 = 0.7; // 70% of color range is used for color coding
@@ -109,6 +133,9 @@ function sortTags() {
     maxC = (c > maxC) ? c : maxC;
     sortedTags.push({ c: c, a: anode, text: anode.innerText.toLowerCase()});
   });
+  if(numberLimit != null) {
+    sortedTags = sortedTags.slice(0, numberLimit);
+  }
   sortedTags.sort(function (a, b) {
     return a.text.localeCompare(b.text);
   });
@@ -125,6 +152,11 @@ function sortTags() {
     tagsContainer.appendChild(item.a);
     tagsContainer.appendChild(document.createTextNode (" "));
   });
+}
+
+function sortTagsPage() {
+  var tagsContainer = document.querySelector("section#content > p");
+  sortAndColorizeTagsInContainer(tagsContainer, null);
 }
 
 function loadUsers(unprocessedUsers, processedUsers, doneCallback) {
@@ -194,6 +226,12 @@ function addUsersSortingButton() {
   contentBlock.insertBefore(button, usersTable);
 }
 
+function addStyle() {
+  GM_addStyle(
+    ".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; }" // min-width for tags accessibility
+  );
+}
+
 var isPost = document.getElementById("content").hasAttribute("data-mid");
 var isFeed = (document.getElementById("content").getElementsByTagName('article').length > 1);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
@@ -201,6 +239,7 @@ var isTagsPage = window.location.pathname.endsWith('/tags');
 var isUserColumn = (document.querySelector("aside#column > div#ctitle") === null) ? false : true;
 var isUsersTable = (document.querySelector("table.users") === null) ? false : true;
 
+addStyle();
 if(isPost) {
   updateTagsOnAPostPage();
   addTagEditingLinkUnderPost();
@@ -215,7 +254,7 @@ if(isPostEditorSharp) {
   addEasyTagsUnderPostEditorSharp();
 }
 if(isTagsPage) {
-  sortTags();
+  sortTagsPage();
 }
 if(isUsersTable) {
   addUsersSortingButton();
