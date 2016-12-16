@@ -4,8 +4,8 @@
 // @description Some feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     1.6.1
-// @date        2016.09.02 - 2016.09.19
+// @version     1.6.3
+// @date        2016.09.02 - 2016.09.20
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -43,6 +43,7 @@ if(isFeed) {                            // в лете или любом спи�
 if(isUserColumn) {                      // если колонка пользователя присутствует слева
   addYearLinks();
   colorizeTagsInUserColumn();
+  addSettingsLink();
 }
 
 if(isPostEditorSharp) {                 // на форме создания поста (/#post)
@@ -97,12 +98,13 @@ function addTagEditingLinkUnderPost() {
 }
 
 function addCommentRemovalLinks() {
-  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").textContent.replace('@', '');
+  var myUserIdLink = document.querySelector("nav#actions > ul > li:nth-child(2) > a");
+  var myUserId = (myUserIdLink == null) ? null : myUserIdLink.textContent.replace('@', '');
   var commentsBlock = document.querySelector("ul#replies");
-  if(commentsBlock != null) {
+  if((commentsBlock != null) && (myUserId != null)) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
       var postUserId = linode.querySelector("div.msg-avatar > a > img").alt;
-      if(postUserId == userId) {
+      if(postUserId == myUserId) {
         var linksBlock = linode.querySelector("div.msg-links");
         var commentLink = linode.querySelector("div.msg-ts > a");
         var postId = commentLink.pathname.replace('/','');
@@ -140,6 +142,21 @@ function addYearLinks() {
   });
   asideColumn.insertBefore(hr2, hr1);
   asideColumn.insertBefore(linksContainer, hr1);
+}
+
+function addSettingsLink() {
+  var columnUserId = document.querySelector("div#ctitle a").textContent;
+  var myUserIdLink = document.querySelector("nav#actions > ul > li:nth-child(2) > a");
+  var myUserId = (myUserIdLink == null) ? null : myUserIdLink.textContent.replace('@', '');
+  if(columnUserId == myUserId) {
+    var asideColumn = document.querySelector("aside#column");
+    var ctitle = asideColumn.querySelector("#ctitle");
+    var anode = document.createElement("a");
+    anode.innerHTML = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-gear-icon"></use></svg></div>';
+    anode.href = 'http://juick.com/settings';
+    anode.style.cssFloat = 'right';
+    ctitle.appendChild(anode);
+  }
 }
 
 function loadTags(userId, doneCallback) {
@@ -224,7 +241,8 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
     var r = Math.round(linkColor[0]*p + backColor[0]*(1-p));
     var g = Math.round(linkColor[1]*p + backColor[1]*(1-p));
     var b = Math.round(linkColor[2]*p + backColor[2]*(1-p));
-    item.a.style.color = "rgb("+r+","+g+","+b+")";
+    //item.a.style.color = "rgb("+r+","+g+","+b+")";
+    item.a.style.setProperty("color", "rgb("+r+","+g+","+b+")", "important");
     tagsContainer.appendChild(item.a);
     tagsContainer.appendChild(document.createTextNode (" "));
   });
@@ -328,7 +346,7 @@ function embedLinks(aNodes, container) {
       aNode2.appendChild(imgNode);
       container.appendChild(aNode2);
     }
-    var yresult = youtubeRe.exec(aNode.href.toLowerCase());
+    var yresult = youtubeRe.exec(aNode.href);
     var linkToYoutube = (yresult != null);
     if(linkToYoutube) {
       anyEmbed = true;
@@ -374,7 +392,7 @@ function embedLinksToPost() {
 function addStyle() {
   GM_addStyle(
     ".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; } " + // min-width for tags accessibility
-    ".embedContainer img { max-width: 100%; max-height: 90vh; } " +
+    ".embedContainer img { max-width: 100%; max-height: 80vh; } " +
     ".embedLink:after { content: ' ↓' } "
   );
 }
