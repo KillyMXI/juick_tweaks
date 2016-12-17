@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.2.1
-// @date        2016.09.02 - 2016.10.05
+// @version     2.2.2
+// @date        2016.09.02 - 2016.10.06
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -480,7 +480,7 @@ function getEmbedableLinkTypes() {
       name: 'YouTube videos',
       id: 'embed_youtube_videos',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/v\/)([\w\-\_]*)(?:&(?:amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
         return makeIframe('//www.youtube-nocookie.com/embed/' + reResult[1] + '?rel=0', 640, 360);
       }
@@ -492,6 +492,16 @@ function getEmbedableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?youtube\.com\/playlist\?list=([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
         return makeIframe('//www.youtube-nocookie.com/embed/videoseries?list=' + reResult[1], 640, 360);
+      }
+    },
+    {
+      name: 'Vimeo videos',
+      id: 'embed_vimeo_videos',
+      ctsDefault: false,
+      //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
+      makeNode: function(aNode, reResult) {
+        return makeIframe('//player.vimeo.com/video/' + reResult[1], 640, 360);
       }
     },
     {
@@ -548,10 +558,20 @@ function getEmbedableLinkTypes() {
       name: 'Imgur indirect links',
       id: 'embed_imgur_indirect_links',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)$/i,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#([a-zA-Z\d]+))?$/i,
       makeNode: function(aNode, reResult) {
         var isAlbum = (typeof reResult[1] != 'undefined');
-        var embedUrl = '//imgur.com/' + (isAlbum ? 'a/' : '') + reResult[2] + '/embed?analytics=false&amp;w=540' + (isAlbum ? '&amp;pub=true' : '');
+        if(isAlbum) {
+          var isSpecificImage = (typeof reResult[3] != 'undefined');
+          if(isSpecificImage) {
+            var embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&amp;w=540';
+          } else {
+            var embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&amp;w=540&amp;pub=true';
+
+          }
+        } else {
+          var embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&amp;w=540';
+        }
         return makeIframe(embedUrl, '100%', 600);
       }
     },
