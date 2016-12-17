@@ -1,6 +1,7 @@
 Несколько фич для juick.com
 
 * вставка картинок (jpg, png, gif, svg), видео (webm, mp4, youtube, vimeo, dailymotion, coub), кода (gist, jsfiddle, codepen) и прочего (juick, twitter, bandcamp, soundcloud, instagram, imgur, flickr, deviantart) из ссылок в постах;
+* фильтрация постов по авторам и тегам;
 * пользовательские теги (/user/?tag=) в постах вместо общих (/tag/);
 * сортировка и цветовое кодирование тегов на странице /<user>/tags;
 * заголовок и управление подпиской а странице тега (/tag/...);

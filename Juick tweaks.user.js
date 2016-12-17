@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.4.2
-// @date        2016.09.02 - 2016.11.01
+// @version     2.4.5
+// @date        2016.09.02 - 2016.11.09
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -30,6 +30,7 @@
 var content = document.getElementById("content");
 var isPost = (content !== null) && content.hasAttribute("data-mid");
 var isFeed = (document.querySelectorAll("#content article[data-mid]").length > 0);
+var isCommonFeed = (/^(?:https?:)?\/\/juick\.com\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
 var isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
@@ -50,6 +51,9 @@ if(isPost) {                            // на странице поста
 }
 
 if(isFeed) {                            // в ленте или любом списке постов
+  if(isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
+    filterPosts();
+  }
   updateTagsInFeed();
   embedLinksToArticles();
 }
@@ -88,9 +92,8 @@ if(isSettingsPage) {                    // на странице настрое�
 Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
 
 function intersect(a, b) {
-  var t;
-  if (b.length > a.length) { t = b, b = a, a = t; } // loop over shorter array
-  return a.filter(function (e) { return (b.indexOf(e) !== -1); });
+  if (b.length > a.length) { [a, b] = [b, a]; } // loop over shorter array
+  return a.filter(item => (b.indexOf(item) !== -1));
 }
 
 function insertAfter(newNode, referenceNode) {
@@ -98,8 +101,7 @@ function insertAfter(newNode, referenceNode) {
 }
 
 function parseRgbColor(colorStr){
-  colorStr = colorStr.replace(/ /g,'');
-  colorStr = colorStr.toLowerCase();
+  colorStr = colorStr.replace(/ /g,'').toLowerCase();
   var re = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/;
   var bits = re.exec(colorStr);
   return [
@@ -1086,20 +1088,30 @@ function embedLinks(aNodes, container, alwaysCts, afterNode) {
   return anyEmbed;
 }
 
+function splitUsersAndTagsLists(str) {
+  var items = str.split(/[\s,]+/);
+  var users = items.filter(x => x.startsWith('@')).map(x => x.replace('@','').toLowerCase());
+  var tags = items.filter(x => x.startsWith('*')).map(x => x.replace('*','').toLowerCase());
+  return [users, tags];
+}
+
+function articleInfo(article) {
+  var userId = article.querySelector("div.msg-avatar > a > img").alt;
+  var tagsDiv = article.querySelector(".msg-tags");
+  var tags = [];
+  if(tagsDiv !== null) {
+    [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
+      tags.push(item.textContent.toLowerCase());
+    });
+  }
+  return { userId: userId, tags: tags };
+}
+
 function embedLinksToArticles() {
-  var cts = GM_getValue('cts_users_and_tags', '').split(/[\s,]+/);
-  var ctsUsers = cts.filter(function(x){ return x.startsWith('@'); }).map(function(x){ return x.replace('@','').toLowerCase(); });
-  var ctsTags = cts.filter(function(x){ return x.startsWith('*'); }).map(function(x){ return x.replace('*','').toLowerCase(); });
+  var [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
-    var userId = article.querySelector("div.msg-avatar > a > img").alt;
-    var tagsDiv = article.querySelector(".msg-tags");
-    var tags = [];
-    if(tagsDiv !== null) {
-      [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
-        tags.push(item.textContent.toLowerCase());
-      });
-    }
-    var isCtsPost = (ctsUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, ctsTags).length > 0);
+    var {userId, tags} = articleInfo(article);
+    var isCtsPost = (ctsUsers !== undefined && ctsUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, ctsTags).length > 0);
     var nav = article.querySelector("nav.l");
     var allLinks = article.querySelectorAll("p:not(.ir) a, pre a");
     var embedContainer = document.createElement("div");
@@ -1120,6 +1132,25 @@ function embedLinksToPost() {
     var anyEmbed = embedLinks(allLinks, embedContainer, false);
     if(anyEmbed){
       msg.insertBefore(embedContainer, txt.nextSibling);
+    }
+  });
+}
+
+function filterPosts() {
+  var [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
+  var keepHeader = GM_getValue('filtered_posts_keep_header', true);
+  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
+    var {userId, tags} = articleInfo(article);
+    var isFilteredPost = (filteredUsers !== undefined && filteredUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, filteredTags).length > 0);
+    if(isFilteredPost) {
+      if(keepHeader) {
+        article.className = 'filtered';
+        while (article.children.length > 1) {
+          article.removeChild(article.lastChild);
+        }
+      } else {
+        article.remove();
+      }
     }
   });
 }
@@ -1266,6 +1297,16 @@ function showUserscriptSettings() {
   fieldset2.appendChild(document.createElement('hr'));
   fieldset2.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
 
+  var fieldset4 = document.createElement("fieldset");
+  var legend4 = document.createElement("legend");
+  legend4.textContent = 'Filtering';
+  fieldset4.appendChild(legend4);
+
+  var filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
+  filteringUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
+  var keepHeadersCheckbox = makeSettingsCheckbox('Оставлять заголовки постов', 'filtered_posts_keep_header', true);
+  fieldset4.appendChild(wrapIntoTag(filteringUsersAndTags, 'p'));
+  fieldset4.appendChild(wrapIntoTag(keepHeadersCheckbox, 'p'));
 
   var resetButton = document.createElement("button");
   resetButton.textContent='Reset userscript settings to default';
@@ -1297,6 +1338,7 @@ function showUserscriptSettings() {
   contentBlock.appendChild(h1);
   contentBlock.appendChild(fieldset1);
   contentBlock.appendChild(fieldset2);
+  contentBlock.appendChild(fieldset4);
   contentBlock.appendChild(resetButton);
   contentBlock.appendChild(fieldset3);
   contentBlock.appendChild(support);
@@ -1485,6 +1527,8 @@ function addStyle() {
     ".cts > .placeholder > .icon { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; color: var(--bg10); -webkit-filter: drop-shadow( 0 0 10px var(--color10) ); filter: drop-shadow( 0 0 10px var(--color10) ); } " +
     ".embed .cts .icon { display: flex; align-items: center; justify-content: center; } " +
     ".embed .cts .icon > svg { max-width: 100px; max-height: 100px; } " +
+    ".filtered header { overflow: hidden; } " +
+    ".filtered .msg-avatar { margin-bottom: 0px; } " +
     ""
   );
 }
