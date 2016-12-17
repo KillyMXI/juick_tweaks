@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.2.6
-// @date        2016.09.02 - 2016.10.21
+// @version     2.3.0
+// @date        2016.09.02 - 2016.10.25
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -14,6 +14,7 @@
 // @grant       GM_deleteValue
 // @grant       GM_listValues
 // @grant       GM_info
+// @connect     api.juick.com
 // @connect     twitter.com
 // @connect     bandcamp.com
 // @connect     flickr.com
@@ -409,7 +410,11 @@ function htmlDecode(str) {
 function turnIntoCts(node, makeNodeCallback) {
   node.onclick = function(e){
     e.preventDefault();
-    this.parentNode.insertBefore(makeNodeCallback(), this);
+    var newNode = makeNodeCallback();
+    if(this.hasAttribute('data-linkid')) {
+      newNode.setAttribute('data-linkid', this.getAttribute('data-linkid'));
+    }
+    this.parentNode.insertBefore(newNode, this);
     this.parentNode.removeChild(this);
   };
 }
@@ -446,8 +451,106 @@ function naiveEllipsis(str, len) {
   return '' + left + ellStr + right;
 }
 
+function urlReplace(match, p1, p2, offset, string) {
+  var isBrackets = (typeof p2 !== 'undefined');
+  var domainRe = /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i;
+  return (isBrackets)
+    ? '<a href="' + p2 + '">' + p1 + '</a>'
+    : '<a href="' + match + '">' + domainRe.exec(match)[1] + '</a>';
+}
+
+function bqReplace(match, offset, string) {
+  return '<q>' + match.replace(/^>\s?/gmi, '') + '</q>';
+}
+
+function messageReplyReplace(match, mid, rid, offset, string) {
+  var isReply = (typeof rid !== 'undefined');
+  return '<a href="//juick.com/' + mid + (isReply ? '#' + rid : '') + '">' + match + '</a>';
+}
+
 function getEmbedableLinkTypes() {
   return [
+    {
+      name: 'Juick',
+      id: 'embed_juick',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-a]+)\/)?([\d]+)(?:#(\d+))?/i,
+      makeNode: function(aNode, reResult) {
+        var bandcampType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'juickEmbed embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://api.juick.com/thread?mid=' + reResult[2],
+          onload: function(response) {
+            var isReply = (typeof reResult[3] !== 'undefined');
+            var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
+            var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
+            var linkStr = '//juick.com/' + reResult[2] + ((isReply) ? '#' + mrid : '');
+
+            if(response.status != 200) {
+              div.textContent = 'Failed to load ' + idStr + ' (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              return;
+            }
+            var threadInfo = JSON.parse(response.responseText);
+            var msg = (!isReply) ? threadInfo[0] : threadInfo.find(function(x) {return (x.rid == mrid);});
+            if((typeof msg == 'undefined')) {
+
+              div.textContent = '' + idStr + ' doesn\'t exist';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              return;
+            }
+
+            var withTags = (typeof msg.tags !== 'undefined');
+            var withPhoto = (typeof msg.photo !== 'undefined');
+            var isReplyTo = (typeof msg.replyto !== 'undefined');
+            var hasReplies = (typeof msg.replies !== 'undefined');
+
+            var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
+            var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
+            var avatarStr = '<div class="msg-avatar"><a href="/' + msg.user.uname + '/"><img src="//i.juick.com/a/' + msg.user.uid + '.png" alt="' + msg.user.uname + '"></a></div>';
+            var tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(function(x) { return '<a href="http://juick.com/' + msg.user.uname + '/?tag=' + encodeURIComponent(x) + '">' + x + '</a>'; }).join('') + '</div>' : '';
+            var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img src="' + msg.photo.small + '"/></a></div>' : '';
+            var replyStr = (isReply) ? ( '<div>/' + mrid + (isReplyTo) ? ' in reply to /' + msg.replyto : '' ) + '</div>' : '';
+            var titleDiv = '<div class="title">' + userLink + '</div>';
+            var dateDiv = '<div class="date"><a href="' + linkStr + '">' + msg.timestamp + '</a></div>';
+            var replyStr = (hasReplies)
+                             ? (' · ' + msg.replies + ((msg.replies == '1') ? ' reply' : ' replies'))
+                             : (isReplyTo)
+                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
+                               : (isReply)
+                                 ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
+                                 : '';
+            var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
+            var urlRe = /(?:\[([^\]]+)\]\[([^\]]+)\]|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
+            var bqRe = /(?:^>\s?[\s\S]+?$\n?)+/gmi;
+            var description = msg.body
+              .replace(urlRe, urlReplace)
+              .replace(bqRe, bqReplace)
+              .replace(/\n/g,'<br/>')
+              .replace(/\B#(\d+)(?:\/(\d+))?\b/gmi, messageReplyReplace)
+              .replace(/\B@([\w-]+)\b/gmi, "<a href=\"//juick.com/$1\">@$1</a>");
+            var descDiv = '<div class="desc">' + description + '</div>';
+            div.innerHTML =
+              '<div class="top">' + avatarStr + '<div class="top-right"><div class="top-right-1st">' + titleDiv + dateDiv + '</div><div class="top-right-2nd">' + tagsStr + '</div></div></div>' +
+              descDiv + photoStr + replyDiv;
+
+            var allLinks = div.querySelectorAll(".desc a, .embedReply a.whiteRabbit");
+            var embedContainer = div.parentNode;
+            embedLinks(Array.prototype.slice.call(allLinks).reverse(), embedContainer, true, div);
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
     {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
@@ -798,7 +901,7 @@ function getEmbedableLinkTypes() {
               if(m[1] == 'og:title') { title = m[2]; }
               if(m[1] == 'og:description') {
                 description = htmlDecode(m[2])
-                  .replace("\n",'<br/>')
+                  .replace(/\n/g,'<br/>')
                   .replace(/(?:^|[^@\w])@(\w{1,15})\b/gmi, "<a href=\"//twitter.com/$1\">@$1</a>")
                   .replace(/#(\w+)/gmi, "<a href=\"//twitter.com/hashtag/$1\">#$1</a>")
                   .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, "<a href=\"$&\">$&</a>");
@@ -844,25 +947,38 @@ function intersect(a, b) {
   return a.filter(function (e) { return (b.indexOf(e) !== -1); });
 }
 
-function embedLinks(aNodes, container, alwaysCts) {
+function insertAfter(newNode, referenceNode) {
+    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+}
+
+function embedLinks(aNodes, container, alwaysCts, afterNode) {
   var anyEmbed = false;
   var embedableLinkTypes = getEmbedableLinkTypes();
+  var isAfterNode = (typeof afterNode !== 'undefined');
   [].forEach.call(aNodes, function(aNode, i, arr) {
-    [].forEach.call(embedableLinkTypes, function(linkType, j, arrj) {
-      if(GM_getValue(linkType.id, true)) {
-        var reResult = linkType.re.exec(aNode.href);
-        var matched = (reResult !== null);
-        if(matched) {
-          anyEmbed = true;
-          aNode.className += ' embedLink';
-          if(alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault)) {
-            container.appendChild(makeCts(function(){return linkType.makeNode(aNode, reResult);}, 'Click to show: ' + naiveEllipsis(aNode.href, 65)));
-          } else {
-            container.appendChild(linkType.makeNode(aNode, reResult));
+    var linkId = (aNode.href.replace(/^https?:/i, ''));
+    var sameEmbed = container.querySelector('*[data-linkid=\'' + linkId + '\']'); // do not embed the same thing twice
+    if(sameEmbed === null) {
+      [].forEach.call(embedableLinkTypes, function(linkType, j, arrj) {
+        if(GM_getValue(linkType.id, true)) {
+          var reResult = linkType.re.exec(aNode.href);
+          var matched = (reResult !== null);
+          if(matched) {
+            anyEmbed = true;
+            aNode.className += ' embedLink';
+            var newNode = (alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault))
+                            ? makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + naiveEllipsis(aNode.href, 65))
+                            : linkType.makeNode(aNode, reResult);
+            newNode.setAttribute('data-linkid', linkId);
+            if(isAfterNode) {
+              insertAfter(newNode, afterNode);
+            } else {
+              container.appendChild(newNode);
+            }
           }
         }
-      }
-    });
+      });
+    }
   });
   return anyEmbed;
 }
@@ -1112,10 +1228,13 @@ function addStyle() {
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
     ".embedContainer .embed .cts { margin: 0; } " +
-    ".embed .top { display: flex; justify-content: space-between; margin-bottom: 0.5em; } " +
-    ".embed .date, .embed .title { color: var(--color07); } " +
-    ".twi .desc { margin-bottom: 0.5em; } " +
+    ".embed .top { display: flex; flex-shrink: 0; justify-content: space-between; margin-bottom: 0.5em; } " +
+    ".embed .date, .embed .date > a, .embed .title { color: var(--color07); } " +
+    ".embed .date { font-size: small; } " +
+    ".embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
+    ".juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; } " +
+    ".juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
