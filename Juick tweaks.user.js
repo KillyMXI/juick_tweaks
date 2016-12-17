@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.2.0
-// @date        2016.09.02 - 2016.10.04
+// @version     2.2.1
+// @date        2016.09.02 - 2016.10.05
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -440,7 +440,7 @@ function getEmbedableLinkTypes() {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
       ctsDefault: false,
-      re: /\.(jpeg|jpg|png)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
+      re: /\.(jpeg|jpg|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         var aNode2 = document.createElement("a");
         var imgNode = document.createElement("img");
@@ -507,7 +507,7 @@ function getEmbedableLinkTypes() {
       name: 'Coub clips',
       id: 'embed_coub_clips',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/view\/([a-zA-Z\d]+)/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/(?:view|embed)\/([a-zA-Z\d]+)/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         return makeIframe(embedUrl, 640, 360);
