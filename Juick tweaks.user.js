@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.3.0
+// @version     2.3.1
 // @date        2016.09.02 - 2016.10.25
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -474,35 +474,41 @@ function getEmbedableLinkTypes() {
       name: 'Juick',
       id: 'embed_juick',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-a]+)\/)?([\d]+)(?:#(\d+))?/i,
+      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-]+)\/)?([\d]+)(?:#(\d+))?/i,
       makeNode: function(aNode, reResult) {
-        var bandcampType = this;
+        var juickType = this;
+
+        var isReply = ((typeof reResult[3] !== 'undefined') && (reResult[3] !== '0'));
+        var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
+        var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
+        var linkStr = '//juick.com/' + reResult[2] + ((isReply) ? '#' + mrid : '');
+
         var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.textContent = 'loading ' + idStr;
         div.className = 'juickEmbed embed loading';
+
+        if(GM_getValue('enable_link_text_update', true) && (aNode.textContent === 'juick.com')) {
+          //var isUser = (typeof reResult[1] !== 'undefined');
+          aNode.textContent = idStr; // + ((!isReply && isUser) ? ' (@' + reResult[1] + ')' : '');
+        }
 
         GM_xmlhttpRequest({
           method: "GET",
           url: 'https://api.juick.com/thread?mid=' + reResult[2],
           onload: function(response) {
-            var isReply = (typeof reResult[3] !== 'undefined');
-            var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
-            var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
-            var linkStr = '//juick.com/' + reResult[2] + ((isReply) ? '#' + mrid : '');
 
             if(response.status != 200) {
               div.textContent = 'Failed to load ' + idStr + ' (' + response.status + ' - ' + response.statusText + ')';
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              turnIntoCts(div, function(){return juickType.makeNode(aNode, reResult);});
               return;
             }
             var threadInfo = JSON.parse(response.responseText);
             var msg = (!isReply) ? threadInfo[0] : threadInfo.find(function(x) {return (x.rid == mrid);});
             if((typeof msg == 'undefined')) {
-
               div.textContent = '' + idStr + ' doesn\'t exist';
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              turnIntoCts(div, function(){return juickType.makeNode(aNode, reResult);});
               return;
             }
 
@@ -549,6 +555,12 @@ function getEmbedableLinkTypes() {
         });
 
         return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        var isReply = ((typeof reResult[3] !== 'undefined') && (reResult[3] !== '0'));
+        var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
+        var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
+        return idStr;
       }
     },
     {
@@ -900,9 +912,10 @@ function getEmbedableLinkTypes() {
             [].forEach.call(matches, function(m, i, arr) {
               if(m[1] == 'og:title') { title = m[2]; }
               if(m[1] == 'og:description') {
+                console.log(htmlDecode(m[2]));
                 description = htmlDecode(m[2])
                   .replace(/\n/g,'<br/>')
-                  .replace(/(?:^|[^@\w])@(\w{1,15})\b/gmi, "<a href=\"//twitter.com/$1\">@$1</a>")
+                  .replace(/\B@(\w{1,15})\b/gmi, "<a href=\"//twitter.com/$1\">@$1</a>")
                   .replace(/#(\w+)/gmi, "<a href=\"//twitter.com/hashtag/$1\">#$1</a>")
                   .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, "<a href=\"$&\">$&</a>");
               }
@@ -951,34 +964,46 @@ function insertAfter(newNode, referenceNode) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
+function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
+  var anyEmbed = false;
+  var isAfterNode = (typeof afterNode !== 'undefined');
+  var linkId = (aNode.href.replace(/^https?:/i, ''));
+  var sameEmbed = container.querySelector('*[data-linkid=\'' + linkId + '\']'); // do not embed the same thing twice
+  if(sameEmbed === null) {
+    anyEmbed = [].some.call(linkTypes, function(linkType) {
+      if(GM_getValue(linkType.id, true)) {
+        var reResult = linkType.re.exec(aNode.href);
+        var matched = (reResult !== null);
+        if(matched) {
+          aNode.className += ' embedLink';
+          var newNode;
+          var isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
+          if(isCts) {
+            var linkTitle = (typeof linkType.makeTitle !== 'undefined') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
+            newNode = makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + linkTitle);
+          } else {
+            newNode = linkType.makeNode(aNode, reResult);
+          }
+          newNode.setAttribute('data-linkid', linkId);
+          if(isAfterNode) {
+            insertAfter(newNode, afterNode);
+          } else {
+            container.appendChild(newNode);
+          }
+          return true;
+        }
+      }
+    });
+  }
+  return anyEmbed;
+}
+
 function embedLinks(aNodes, container, alwaysCts, afterNode) {
   var anyEmbed = false;
   var embedableLinkTypes = getEmbedableLinkTypes();
-  var isAfterNode = (typeof afterNode !== 'undefined');
   [].forEach.call(aNodes, function(aNode, i, arr) {
-    var linkId = (aNode.href.replace(/^https?:/i, ''));
-    var sameEmbed = container.querySelector('*[data-linkid=\'' + linkId + '\']'); // do not embed the same thing twice
-    if(sameEmbed === null) {
-      [].forEach.call(embedableLinkTypes, function(linkType, j, arrj) {
-        if(GM_getValue(linkType.id, true)) {
-          var reResult = linkType.re.exec(aNode.href);
-          var matched = (reResult !== null);
-          if(matched) {
-            anyEmbed = true;
-            aNode.className += ' embedLink';
-            var newNode = (alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault))
-                            ? makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + naiveEllipsis(aNode.href, 65))
-                            : linkType.makeNode(aNode, reResult);
-            newNode.setAttribute('data-linkid', linkId);
-            if(isAfterNode) {
-              insertAfter(newNode, afterNode);
-            } else {
-              container.appendChild(newNode);
-            }
-          }
-        }
-      });
-    }
+    var isEmbedded = embedLink(aNode, embedableLinkTypes, container, alwaysCts, afterNode);
+    anyEmbed = anyEmbed || isEmbedded;
   });
   return anyEmbed;
 }
@@ -1070,6 +1095,10 @@ function getUserscriptSettings() {
     {
       name: 'Min-width для тегов',
       id: 'enable_tags_min_width'
+    },
+    {
+      name: 'Заменять текст ссылок "juick.com" на id постов и комментариев',
+      id: 'enable_link_text_update'
     }
   ];
 }
