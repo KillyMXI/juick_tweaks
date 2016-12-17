@@ -4,13 +4,15 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.0.1
-// @date        2016.09.02 - 2016.09.30
+// @version     2.1.0
+// @date        2016.09.02 - 2016.10.02
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
 // @grant       GM_getValue
 // @grant       GM_setValue
+// @grant       GM_deleteValue
+// @grant       GM_listValues
 // @grant       GM_info
 // ==/UserScript==
 
@@ -19,7 +21,7 @@
 
 var content = document.getElementById("content");
 var isPost = (content !== null) && content.hasAttribute("data-mid");
-var isFeed = (document.querySelectorAll("#content article").length > 0);
+var isFeed = (document.querySelectorAll("#content article[data-mid]").length > 0);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
 var isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
@@ -87,7 +89,7 @@ function updateTagsOnAPostPage() {
 
 function updateTagsInFeed() {
   if(!GM_getValue('enable_user_tag_links', true)) { return; }
-  [].forEach.call(document.getElementById("content").getElementsByTagName('article'), function(article, i, arr) {
+  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
     if(!article.hasAttribute('data-mid')) { return; }
     var userId = article.querySelector("div.msg-avatar > a > img").alt;
     var tagsDiv = article.getElementsByClassName("msg-tags")[0];
@@ -379,7 +381,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
-      default: true,
+      ctsDefault: false,
       re: /\.(jpeg|jpg|png)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         var aNode2 = document.createElement("a");
@@ -393,7 +395,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gif images',
       id: 'embed_gif_images',
-      default: true,
+      ctsDefault: true,
       re: /\.gif(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         var aNode2 = document.createElement("a");
@@ -407,7 +409,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Webm and mp4 videos',
       id: 'embed_webm_and_mp4_videos',
-      default: true,
+      ctsDefault: false,
       re: /\.(webm|mp4)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         var video = document.createElement("video");
@@ -419,7 +421,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'YouTube videos',
       id: 'embed_youtube_videos',
-      default: true,
+      ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -434,7 +436,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'YouTube playlists',
       id: 'embed_youtube_playlists',
-      default: true,
+      ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?youtube\.com\/playlist\?list=([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -449,7 +451,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Coub clips',
       id: 'embed_coub_clips',
-      default: true,
+      ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/view\/([a-zA-Z\d]+)/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -464,7 +466,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
-      default: true,
+      ctsDefault: false,
       re: /(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([\w\-\_]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -480,7 +482,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Instagram',
       id: 'embed_instagram',
-      default: true,
+      ctsDefault: false,
       re: /(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -494,7 +496,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Imgur gifv videos',
       id: 'embed_imgur_gifv_videos',
-      default: true,
+      default: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/([a-zA-Z\d]+)\.gifv/i,
       makeNode: function(aNode, reResult) {
         var video = document.createElement("video");
@@ -506,7 +508,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Imgur indirect links',
       id: 'embed_imgur_indirect_links',
-      default: true,
+      ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)$/i,
       makeNode: function(aNode, reResult) {
         var isAlbum = (typeof reResult[1] != 'undefined');
@@ -522,7 +524,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gfycat indirect links',
       id: 'embed_gfycat_indirect_links',
-      default: false,
+      ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:\w+\.)?gfycat\.com\/([a-zA-Z\d]+)$/i,
       makeNode: function(aNode, reResult) {
         var iframe = document.createElement("iframe");
@@ -538,17 +540,38 @@ function getEmbedableLinkTypes() {
   ];
 }
 
-function embedLinks(aNodes, container) {
+function intersect(a, b) {
+  var t;
+  if (b.length > a.length) { t = b, b = a, a = t; } // loop over shorter array
+  return a.filter(function (e) { return (b.indexOf(e) !== -1); });
+}
+
+function embedLinks(aNodes, container, alwaysCts) {
   var anyEmbed = false;
   var embedableLinkTypes = getEmbedableLinkTypes();
+  var ctsColor = parseRgbColor(getComputedStyle(document.querySelector('.msg-ts')).color);
+  var ctsColorStr = "rgb("+ctsColor[0]+","+ctsColor[1]+","+ctsColor[2]+")";
   [].forEach.call(aNodes, function(aNode, i, arr) {
     [].forEach.call(embedableLinkTypes, function(linkType, j, arrj) {
       var reResult = linkType.re.exec(aNode.href);
-      var matched = (reResult !== null) && GM_getValue(linkType.id, linkType.default);
+      var matched = (reResult !== null) && GM_getValue(linkType.id, true);
       if(matched) {
         anyEmbed = true;
         aNode.className += ' embedLink';
-        container.appendChild(linkType.makeNode(aNode, reResult));
+        if(alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault)) {
+          var ctsNode = document.createElement('div');
+          ctsNode.className = 'cts';
+          ctsNode.textContent = 'Click to show: ' + aNode.href;
+          ctsNode.style.color = ctsColorStr;
+          ctsNode.onclick = function(e){
+            e.preventDefault();
+            this.parentNode.insertBefore(linkType.makeNode(aNode, reResult), this);
+            this.parentNode.removeChild(this);
+          };
+          container.appendChild(ctsNode);
+        } else {
+          container.appendChild(linkType.makeNode(aNode, reResult));
+        }
       }
     });
   });
@@ -556,12 +579,24 @@ function embedLinks(aNodes, container) {
 }
 
 function embedLinksToArticles() {
+  var cts = GM_getValue('cts_users_and_tags', '').split(/[\s,]+/);
+  var ctsUsers = cts.filter(function(x){ return x.startsWith('@'); }).map(function(x){ return x.replace('@','').toLowerCase(); });
+  var ctsTags = cts.filter(function(x){ return x.startsWith('*'); }).map(function(x){ return x.replace('*','').toLowerCase(); });
   [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
+    var userId = article.querySelector("div.msg-avatar > a > img").alt;
+    var tagsDiv = article.querySelector(".msg-tags");
+    var tags = [];
+    if(tagsDiv !== null) {
+      [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
+        tags.push(item.textContent.toLowerCase());
+      });
+    }
+    var isCtsPost = (ctsUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, ctsTags).length > 0);
     var nav = article.querySelector("nav.l");
     var allLinks = article.querySelectorAll("p:not(.ir) > a");
     var embedContainer = document.createElement("div");
     embedContainer.className = 'embedContainer';
-    var anyEmbed = embedLinks(allLinks, embedContainer);
+    var anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
     if(anyEmbed){
       article.insertBefore(embedContainer, nav);
     }
@@ -574,7 +609,7 @@ function embedLinksToPost() {
     var allLinks = txt.querySelectorAll("a");
     var embedContainer = document.createElement("div");
     embedContainer.className = 'embedContainer';
-    var anyEmbed = embedLinks(allLinks, embedContainer);
+    var anyEmbed = embedLinks(allLinks, embedContainer, false);
     if(anyEmbed){
       msg.insertBefore(embedContainer, txt.nextSibling);
     }
@@ -645,6 +680,27 @@ function makeSettingsCheckbox(caption, id, defaultState) {
   return label;
 }
 
+function makeSettingsTextbox(caption, id, defaultString, placeholder) {
+  var label = document.createElement("label");
+  var wrapper = document.createElement("div");
+  wrapper.className = 'ta-wrapper';
+  var textarea = document.createElement("textarea");
+  textarea.placeholder = placeholder;
+  textarea.value = GM_getValue(id, defaultString);
+  textarea.oninput = function(e) { GM_setValue(id, textarea.value); };
+  textarea.style = 'width: 100%; height: 100%;';
+  wrapper.appendChild(textarea);
+  label.appendChild(document.createTextNode('' + caption + ': '));
+  label.appendChild(wrapper);
+  return label;
+}
+
+function wrapIntoTag(node, tagName) {
+  var p = document.createElement(tagName);
+  p.appendChild(node);
+  return p;
+}
+
 function showUserscriptSettings() {
   var contentBlock = document.querySelector("#content > article");
   while (contentBlock.firstChild) {
@@ -675,16 +731,35 @@ function showUserscriptSettings() {
   legend2.textContent = 'Embedding';
   fieldset2.appendChild(legend2);
 
-  var list2 = document.createElement("ul");
+  var table2 = document.createElement("table");
+  table2.style.width = '100%';
   var embedableLinkTypes = getEmbedableLinkTypes();
   [].forEach.call(embedableLinkTypes, function(linkType, i, arr) {
-    var liNode = document.createElement("li");
-    var p = document.createElement("p");
-    p.appendChild(makeSettingsCheckbox(linkType.name, linkType.id, linkType.default));
-    liNode.appendChild(p);
-    list2.appendChild(liNode);
+    var row = document.createElement("tr");
+    row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, true), 'td'));
+    row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
+    table2.appendChild(row);
   });
-  fieldset2.appendChild(list2);
+  fieldset2.appendChild(table2);
+  
+  var ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
+  ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
+  fieldset2.appendChild(document.createElement('hr'));
+  fieldset2.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
+  
+  
+  var resetButton = document.createElement("button");
+  resetButton.textContent='Reset userscript settings to default';
+  resetButton.onclick = function(){
+    if(!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
+    var keys = GM_listValues();
+    for (var i=0, key=null; key=keys[i]; i++) {
+      GM_deleteValue(key);
+    }
+    showUserscriptSettings();
+    alert('Done!');
+  };
+  
 
   var fieldset3 = document.createElement("fieldset");
   var legend3 = document.createElement("legend");
@@ -703,8 +778,11 @@ function showUserscriptSettings() {
   contentBlock.appendChild(h1);
   contentBlock.appendChild(fieldset1);
   contentBlock.appendChild(fieldset2);
+  contentBlock.appendChild(resetButton);
   contentBlock.appendChild(fieldset3);
   contentBlock.appendChild(support);
+  
+  contentBlock.className = 'tweaksSettings';
 }
 
 function addTweaksSettingsButton() {
@@ -726,6 +804,13 @@ function addStyle() {
     ".embedContainer img, .embedContainer video { max-width: 100%; max-height: 80vh; } " +
     ".embedContainer iframe { resize: vertical; } " +
     ".embedContainer { margin-top: 0.7em; } " +
-    ".embedLink:after { content: ' ↓' } "
+    ".embedLink:after { content: ' ↓' } " +
+    ".tweaksSettings * { box-sizing: border-box; } " +
+    ".tweaksSettings table { border-collapse: collapse; } " +
+    ".tweaksSettings tr { border-bottom: 1px solid transparent; } " +
+    ".tweaksSettings tr:hover { background: rgba(127,127,127,.1) } " +
+    ".tweaksSettings td > * { display: block; width: 100%; height: 100%; } " +
+    ".tweaksSettings > button { margin-top: 25px; } " +
+    ".cts { display: block; width: 100%; border: 1px dotted #ccc; text-align: center; cursor: pointer; margin-bottom: 0.3em; word-wrap: break-word; }"
   );
 }
