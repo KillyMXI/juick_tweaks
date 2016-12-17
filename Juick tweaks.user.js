@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.2.2
-// @date        2016.09.02 - 2016.10.06
+// @version     2.2.5
+// @date        2016.09.02 - 2016.10.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -14,6 +14,11 @@
 // @grant       GM_deleteValue
 // @grant       GM_listValues
 // @grant       GM_info
+// @connect     twitter.com
+// @connect     bandcamp.com
+// @connect     flickr.com
+// @connect     flic.kr
+// @connect     deviantart.com
 // ==/UserScript==
 
 
@@ -122,17 +127,20 @@ function addCommentRemovalLinks() {
   var commentsBlock = document.querySelector("ul#replies");
   if((commentsBlock !== null) && (myUserId !== null)) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
-      var postUserId = linode.querySelector("div.msg-avatar > a > img").alt;
-      if(postUserId == myUserId) {
-        var linksBlock = linode.querySelector("div.msg-links");
-        var commentLink = linode.querySelector("div.msg-ts > a");
-        var postId = commentLink.pathname.replace('/','');
-        var commentId = commentLink.hash.replace('#','');
-        var anode = document.createElement("a");
-        anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
-        anode.innerHTML = "Удалить";
-        anode.style.cssFloat = "right";
-        linksBlock.appendChild(anode);
+      var postUserAvatar = linode.querySelector("div.msg-avatar > a > img");
+      if(postUserAvatar !== null) {
+        var postUserId = postUserAvatar.alt;
+        if(postUserId == myUserId) {
+          var linksBlock = linode.querySelector("div.msg-links");
+          var commentLink = linode.querySelector("div.msg-ts > a");
+          var postId = commentLink.pathname.replace('/','');
+          var commentId = commentLink.hash.replace('#','');
+          var anode = document.createElement("a");
+          anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
+          anode.innerHTML = "Удалить";
+          anode.style.cssFloat = "right";
+          linksBlock.appendChild(anode);
+        }
       }
     });
   }
@@ -202,23 +210,25 @@ function updateAvatar() {
 }
 
 function loadTags(userId, doneCallback) {
-  GM_xmlhttpRequest({
-    method: "GET",
-    url: "http://juick.com/" + userId + "/tags",
-    onload: function(response) {
-      var re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
-      var result = re.exec(response.responseText);
-      if(result !== null) {
-        var tagsStr = result[1];
-        var tagsContainer = document.createElement('p');
-        tagsContainer.className += " tagsContainer";
-        tagsContainer.innerHTML = tagsStr;
-        doneCallback(tagsContainer);
-      } else {
-        console.log("no tags found");
+  setTimeout(function(){
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: "http://juick.com/" + userId + "/tags",
+      onload: function(response) {
+        var re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
+        var result = re.exec(response.responseText);
+        if(result !== null) {
+          var tagsStr = result[1];
+          var tagsContainer = document.createElement('p');
+          tagsContainer.className += " tagsContainer";
+          tagsContainer.innerHTML = tagsStr;
+          doneCallback(tagsContainer);
+        } else {
+          console.log("no tags found");
+        }
       }
-    }
-  });
+    });
+  }, 50);
 }
 
 function addEasyTagsUnderPostEditorSharp() {
@@ -427,11 +437,13 @@ function makeIframe(src, w, h) {
 }
 
 function naiveEllipsis(str, len) {
+  var ellStr = '...';
+  var ellLen = ellStr.length;
   if(str.length <= len) { return str; }
-  var half = Math.floor((len-3) / 2);
+  var half = Math.floor((len - ellLen) / 2);
   var left = str.substring(0, half);
-  var right = str.substring(str.length - (len - half - 3));
-  return '' + left + '...' + right;
+  var right = str.substring(str.length - (len - half - ellLen));
+  return '' + left + ellStr + right;
 }
 
 function getEmbedableLinkTypes() {
@@ -524,6 +536,49 @@ function getEmbedableLinkTypes() {
       }
     },
     {
+      name: 'Bandcamp music',
+      id: 'embed_bandcamp_music',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([\w\-]+)/i,
+      makeNode: function(aNode, reResult) {
+        var bandcampType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'bandcamp embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: reResult[0],
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              return;
+            }
+            var baseSize = 480;
+            var videoUrl, videoH;
+            var metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            [].forEach.call(matches, function(m, i, arr) {
+              if(m[1] == 'og:video') { videoUrl = m[2]; }
+              if(m[1] == 'video_height') { videoH = baseSize + parseInt(m[2], 10); }
+            });
+            videoUrl = videoUrl.replace('/artwork=small', '');
+            if(reResult[2] == 'album') {
+              videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true');
+              videoH += 162;
+            }
+            var iframe = makeIframe(videoUrl, baseSize, videoH);
+            div.parentNode.insertBefore(iframe, div);
+            div.parentNode.removeChild(div);
+          }
+        });
+
+        return div;
+      }
+    },
+    {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
       ctsDefault: false,
@@ -540,6 +595,121 @@ function getEmbedableLinkTypes() {
       re: /(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         return makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722);
+      }
+    },
+    {
+      name: 'Flickr images',
+      id: 'embed_flickr_images',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:(?:www\.)?flickr\.com\/photos\/([\w@-]+)\/(\d+)|flic.kr\/p\/(\w+))(?:\/)?/i,
+      makeNode: function(aNode, reResult) {
+        var flickrType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'flickr embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://www.flickr.com/services/oembed?format=xml&url=' + encodeURIComponent(reResult[0]),
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return flickrType.makeNode(aNode, reResult);});
+              return;
+            }
+            var fType, url, thumb, authorName, authorUrl, title, webPage;
+            var xmlTagRe = /<(\w+)>\s*([^<]+)<\/\w+>/gmi;
+            var matches = getAllMatchesAndCaptureGroups(xmlTagRe, response.responseText);
+            [].forEach.call(matches, function(m, i, arr) {
+              if(m[1] == 'flickr_type') { fType = m[2]; }
+              if(m[1] == 'url') { url = m[2]; }
+              if(m[1] == 'thumbnail_url') { thumb = m[2]; }
+              if(m[1] == 'author_name') { authorName = m[2]; }
+              if(m[1] == 'author_url') { authorUrl = m[2]; }
+              if(m[1] == 'title') { title = m[2]; }
+              if(m[1] == 'web_page') { webPage = m[2]; }
+            });
+
+            var imageUrl = (typeof url != 'undefined') ? url : thumb;
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = imageUrl;//.replace('_b.', '_z.');
+            aNode2.href = aNode.href;
+            aNode2.appendChild(imgNode);
+
+            var titleDiv = '<div class="title">' + '<a href="' + webPage + '">' + title + '</a>';
+            if(fType != 'photo') {
+              titleDiv += ' (' + fType + ')';
+            }
+            titleDiv += ' by <a href="' + authorUrl + '">' + authorName + '</a></div>';
+            div.innerHTML = '<div class="top">' + titleDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'DeviantArt images',
+      id: 'embed_deviantart_images',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([\w-]+)/i,
+      makeNode: function(aNode, reResult) {
+        var daType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'deviantart embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://backend.deviantart.com/oembed?format=xml&url=' + encodeURIComponent(reResult[0]),
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return daType.makeNode(aNode, reResult);});
+              return;
+            }
+            var fType, fullsizeUrl, url, thumb, authorName, authorUrl, title, pubdate;
+            var xmlTagRe = /<(\w+)>\s*([^<]+)<\/\w+>/gmi;
+            var matches = getAllMatchesAndCaptureGroups(xmlTagRe, response.responseText);
+            [].forEach.call(matches, function(m, i, arr) {
+              if(m[1] == 'type') { fType = m[2]; }
+              if(m[1] == 'fullsize_url') { fullsizeUrl = m[2]; }
+              if(m[1] == 'url') { url = m[2]; }
+              if(m[1] == 'thumbnail_url') { thumb = m[2]; }
+              if(m[1] == 'author_name') { authorName = m[2]; }
+              if(m[1] == 'author_url') { authorUrl = m[2]; }
+              if(m[1] == 'title') { title = m[2]; }
+              if(m[1] == 'pubdate') { pubdate = m[2]; }
+            });
+
+            var imageUrl = (typeof fullsizeUrl != 'undefined') ? fullsizeUrl : (typeof url != 'undefined') ? url : thumb;
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = imageUrl;
+            aNode2.href = aNode.href;
+            aNode2.appendChild(imgNode);
+
+            var date = new Date(pubdate);
+            var dateDiv = '<div class="date">' + date.toLocaleString('ru-RU') + '</div>';
+            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + title + '</a>';
+            if(fType != 'photo') {
+              titleDiv += ' (' + fType + ')';
+            }
+            titleDiv += ' by <a href="' + authorUrl + '">' + authorName + '</a></div>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
       }
     },
     {
@@ -561,16 +731,16 @@ function getEmbedableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#([a-zA-Z\d]+))?$/i,
       makeNode: function(aNode, reResult) {
         var isAlbum = (typeof reResult[1] != 'undefined');
+        var embedUrl;
         if(isAlbum) {
           var isSpecificImage = (typeof reResult[3] != 'undefined');
           if(isSpecificImage) {
-            var embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&amp;w=540';
+            embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&amp;w=540';
           } else {
-            var embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&amp;w=540&amp;pub=true';
-
+            embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&amp;w=540&amp;pub=true';
           }
         } else {
-          var embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&amp;w=540';
+          embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&amp;w=540';
         }
         return makeIframe(embedUrl, '100%', 600);
       }
@@ -601,7 +771,7 @@ function getEmbedableLinkTypes() {
           url: twitterUrl,
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, function(){return twitterType.makeNode(aNode, reResult);});
               return;
@@ -679,15 +849,17 @@ function embedLinks(aNodes, container, alwaysCts) {
   var embedableLinkTypes = getEmbedableLinkTypes();
   [].forEach.call(aNodes, function(aNode, i, arr) {
     [].forEach.call(embedableLinkTypes, function(linkType, j, arrj) {
-      var reResult = linkType.re.exec(aNode.href);
-      var matched = (reResult !== null) && GM_getValue(linkType.id, true);
-      if(matched) {
-        anyEmbed = true;
-        aNode.className += ' embedLink';
-        if(alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault)) {
-          container.appendChild(makeCts(function(){return linkType.makeNode(aNode, reResult);}, 'Click to show: ' + naiveEllipsis(aNode.href, 65)));
-        } else {
-          container.appendChild(linkType.makeNode(aNode, reResult));
+      if(GM_getValue(linkType.id, true)) {
+        var reResult = linkType.re.exec(aNode.href);
+        var matched = (reResult !== null);
+        if(matched) {
+          anyEmbed = true;
+          aNode.className += ' embedLink';
+          if(alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault)) {
+            container.appendChild(makeCts(function(){return linkType.makeNode(aNode, reResult);}, 'Click to show: ' + naiveEllipsis(aNode.href, 65)));
+          } else {
+            container.appendChild(linkType.makeNode(aNode, reResult));
+          }
         }
       }
     });
@@ -940,10 +1112,11 @@ function addStyle() {
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
     ".embedContainer .embed .cts { margin: 0; } " +
-    ".twi .top { display: flex; justify-content: space-between; } " +
-    ".twi .desc { margin: 0.5em 0; } " +
-    ".twi .date, .twi .title { color: var(--color07); } " +
+    ".embed .top { display: flex; justify-content: space-between; } " +
+    ".twi .desc { margin-bottom: 0.5em; } " +
+    ".embed .date, .embed .title { color: var(--color07); } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
+    ".embed .top { margin-bottom: 0.5em; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
