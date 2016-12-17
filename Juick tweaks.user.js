@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.5.0
-// @date        2016.09.02 - 2016.11.14
+// @version     2.6.2
+// @date        2016.09.02 - 2016.11.18
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -22,6 +22,11 @@
 // @connect     deviantart.com
 // @connect     gist.github.com
 // @connect     codepen.io
+// @connect     pixiv.net
+// @connect     gelbooru.com
+// @connect     safebooru.org
+// @connect     danbooru.donmai.us
+// @connect     safebooru.donmai.us
 // ==/UserScript==
 
 
@@ -65,7 +70,7 @@ if(isUserColumn) {                      // если колонка пользо�
   addYearLinks();
   colorizeTagsInUserColumn();
   addSettingsLink();
-  updateAvatar();
+  biggerAvatar();
   addIRecommendLink();
 }
 
@@ -94,6 +99,10 @@ if(isSettingsPage) {                    // на странице настрое�
 
 Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
 
+String.prototype.count=function(s1) {
+  return (this.length - this.replace(new RegExp(s1,"g"), '').length) / s1.length;
+}
+
 function intersect(a, b) {
   if (b.length > a.length) { [a, b] = [b, a]; } // loop over shorter array
   return a.filter(item => (b.indexOf(item) !== -1));
@@ -105,13 +114,8 @@ function insertAfter(newNode, referenceNode) {
 
 function parseRgbColor(colorStr){
   colorStr = colorStr.replace(/ /g,'').toLowerCase();
-  var re = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/;
-  var bits = re.exec(colorStr);
-  return [
-    parseInt(bits[1]),
-    parseInt(bits[2]),
-    parseInt(bits[3])
-  ];
+  var [, r, g, b] = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/.exec(colorStr);
+  return [ +r, +g, +b ];
 }
 
 function getContrastColor(baseColor) {
@@ -145,6 +149,21 @@ function naiveEllipsis(str, len) {
   var left = str.substring(0, half);
   var right = str.substring(str.length - (len - half - ellLen));
   return '' + left + ellStr + right;
+}
+
+function naiveEllipsisRight(str, len) {
+  var ellStr = '...';
+  var ellLen = ellStr.length;
+  return (str.length <= len) ? str : str.substring(0, len - ellLen) + ellStr;
+}
+
+function wrapIntoTag(node, tagName, className) {
+  var tag = document.createElement(tagName);
+  if(className !== undefined) {
+    tag.className = className;
+  }
+  tag.appendChild(node);
+  return tag;
 }
 
 
@@ -272,7 +291,7 @@ function addSettingsLink() {
   }
 }
 
-function updateAvatar() {
+function biggerAvatar() {
   if(!GM_getValue('enable_big_avatar', true)) { return; }
   var avatarImg = document.querySelector("div#ctitle a img");
   avatarImg.src = avatarImg.src.replace('/as/', '/a/');
@@ -326,7 +345,7 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   var sortedTags = [];
   [].forEach.call(tagsContainer.children, function(item, i, arr) {
     var anode = (item.tagName == 'A') ? item : item.getElementsByTagName('a')[0];
-    var c = Math.log(parseInt(anode.title));
+    var c = Math.log(parseInt(anode.title, 10));
     maxC = (c > maxC) ? c : maxC;
     sortedTags.push({ c: c, a: anode, text: anode.textContent.toLowerCase()});
   });
@@ -364,34 +383,51 @@ function colorizeTagsInUserColumn() {
   sortAndColorizeTagsInContainer(tagsContainer, null, false);
 }
 
-function loadUsers(unprocessedUsers, processedUsers, doneCallback) {
+function getLastArticleDate(html) {
+  var re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
+  //var re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
+  var [, dateStr, timeStr] = re.exec(html) || [];
+  return (dateStr === undefined) ? null : new Date("" + dateStr + "T" + timeStr);
+}
+
+function processPage(url, retrievalFunction, doneCallback, timeout=100) {
+  GM_xmlhttpRequest({
+    method: "GET",
+    url: url,
+    onload: function(response) {
+      var result = null;
+      if(response.status != 200) {
+        console.log("" + url + ": failed with " + response.status + ", " + response.statusText);
+      } else {
+        result = retrievalFunction(response.responseText);
+      }
+      setTimeout(function(){ doneCallback(result) }, timeout);
+    }
+  });
+}
+
+function loadUserDates(unprocessedUsers, processedUsers, doneCallback) {
   if(unprocessedUsers.length === 0) {
     doneCallback();
   } else {
     var user = unprocessedUsers.splice(0,1)[0];
-    GM_xmlhttpRequest({
-      method: "GET",
-      //url: "http://api.juick.com/messages?uname=" + user.id,
-      url: "http://juick.com/" + user.id + "/",
-      onload: function(response) {
-        if(response.status != 200) {
-          console.log("" + user.id + ": failed with " + response.status + ", " + response.statusText);
+    //var postsUrl = "http://api.juick.com/messages?uname=" + user.id;
+    var postsUrl = 'http://juick.com/' + user.id + '/';
+    var recsUrl = 'http://juick.com/' + user.id + '/?show=recomm';
+
+    processPage(postsUrl, getLastArticleDate, function(lastPostDate) {
+      processPage(recsUrl, getLastArticleDate, function(lastRecDate) {
+        var date = (lastPostDate > lastRecDate) ? lastPostDate : lastRecDate;
+        if(date === null) {
+            console.log("" + user.id + ": no posts or recommendations found");
         } else {
-          var re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
-          //var re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
-          var result = re.exec(response.responseText);
-          if(result !== null) {
-            var dateStr = "" + result[1] + "T" + result[2];// + "Z";
-            var date = new Date(dateStr);
-            user.date = date;
-            user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
-          } else {
-            console.log("" + user.id + ": no posts found");
-          }
+          user.date = date;
+          user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
         }
+
         processedUsers.push(user);
-        setTimeout(function(){ loadUsers(unprocessedUsers, processedUsers, doneCallback); }, 100);
-      }
+        loadUserDates(unprocessedUsers, processedUsers, doneCallback);
+      });
     });
   }
 }
@@ -410,7 +446,7 @@ function sortUsers() {
       unsortedUsers.push({a: anode, id: userId, date: (new Date(1970, 1, 1))});
     });
   });
-  loadUsers(unsortedUsers, sortedUsers, function(){
+  loadUserDates(unsortedUsers, sortedUsers, function(){
     sortedUsers.sort((b, a) => (a.date > b.date) - (a.date < b.date));
     usersTable.parentNode.removeChild(usersTable);
     var ul = document.createElement("ul");
@@ -468,12 +504,20 @@ function makeIframe(src, w, h) {
   return iframe;
 }
 
-function urlReplace(match, p1, p2, offset, string) {
-  var isBrackets = (typeof p2 !== 'undefined');
+function extractDomain(url) {
   var domainRe = /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i;
+  return domainRe.exec(url)[1];
+}
+
+function isDefaultLinkText(aNode) {
+  return (aNode.textContent == extractDomain(aNode.href));
+}
+
+function urlReplace(match, p1, p2, offset, string) {
+  var isBrackets = (p2 !== undefined);
   return (isBrackets)
     ? '<a href="' + p2 + '">' + p1 + '</a>'
-    : '<a href="' + match + '">' + domainRe.exec(match)[1] + '</a>';
+    : '<a href="' + match + '">' + extractDomain(match) + '</a>';
 }
 
 function bqReplace(match, offset, string) {
@@ -481,8 +525,13 @@ function bqReplace(match, offset, string) {
 }
 
 function messageReplyReplace(match, mid, rid, offset, string) {
-  var isReply = (typeof rid !== 'undefined');
+  var isReply = (rid !== undefined);
   return '<a href="//juick.com/' + mid + (isReply ? '#' + rid : '') + '">' + match + '</a>';
+}
+
+function juickId([, userId, postId, replyId]) {
+  var isReply = ((replyId !== undefined) && (replyId != '0'));
+  return '#' + postId + (isReply ? '/' + replyId : '');
 }
 
 function getEmbedableLinkTypes() {
@@ -495,19 +544,14 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         var juickType = this;
 
-        var isReply = ((typeof reResult[3] !== 'undefined') && (reResult[3] !== '0'));
+        var isReply = ((reResult[3] !== undefined) && (reResult[3] !== '0'));
         var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
-        var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
+        var idStr = juickId(reResult);
         var linkStr = '//juick.com/' + reResult[2] + ((isReply) ? '#' + mrid : '');
 
         var div = document.createElement("div");
         div.textContent = 'loading ' + idStr;
         div.className = 'juickEmbed embed loading';
-
-        if(GM_getValue('enable_link_text_update', true) && (aNode.textContent === 'juick.com')) {
-          //var isUser = (typeof reResult[1] !== 'undefined');
-          aNode.textContent = idStr; // + ((!isReply && isUser) ? ' (@' + reResult[1] + ')' : '');
-        }
 
         GM_xmlhttpRequest({
           method: "GET",
@@ -522,17 +566,17 @@ function getEmbedableLinkTypes() {
             }
             var threadInfo = JSON.parse(response.responseText);
             var msg = (!isReply) ? threadInfo[0] : threadInfo.find(function(x) {return (x.rid == mrid);});
-            if((typeof msg == 'undefined')) {
+            if((msg == undefined)) {
               div.textContent = '' + idStr + ' doesn\'t exist';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, function(){return juickType.makeNode(aNode, reResult);});
               return;
             }
 
-            var withTags = (typeof msg.tags !== 'undefined');
-            var withPhoto = (typeof msg.photo !== 'undefined');
-            var isReplyTo = (typeof msg.replyto !== 'undefined');
-            var hasReplies = (typeof msg.replies !== 'undefined');
+            var withTags = (msg.tags !== undefined);
+            var withPhoto = (msg.photo !== undefined);
+            var isReplyTo = (msg.replyto !== undefined);
+            var hasReplies = (msg.replies !== undefined);
 
             var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
             var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
@@ -574,10 +618,13 @@ function getEmbedableLinkTypes() {
         return div;
       },
       makeTitle: function(aNode, reResult) {
-        var isReply = ((typeof reResult[3] !== 'undefined') && (reResult[3] !== '0'));
-        var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
-        var idStr = '#' + reResult[2] + ((isReply) ? '/' + mrid : '');
-        return idStr;
+        return juickId(reResult);
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        if(isDefaultLinkText(aNode)) {
+          //var isUser = (reResult[1] !== undefined);
+          aNode.textContent = juickId(reResult); // + ((!isReply && isUser) ? ' (@' + reResult[1] + ')' : '');
+        }
       }
     },
     {
@@ -617,7 +664,7 @@ function getEmbedableLinkTypes() {
         var video = document.createElement("video");
         video.src = aNode.href;
         video.setAttribute('controls', '');
-        return video;
+        return wrapIntoTag(video, 'div', 'video');
       }
     },
     {
@@ -626,7 +673,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/v\/)([\w\-\_]*)(?:&(?:amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//www.youtube-nocookie.com/embed/' + reResult[1] + '?rel=0', 640, 360);
+        return wrapIntoTag(makeIframe('//www.youtube-nocookie.com/embed/' + reResult[1] + '?rel=0', 640, 360), 'div', 'youtube');
       }
     },
     {
@@ -635,7 +682,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?youtube\.com\/playlist\?list=([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//www.youtube-nocookie.com/embed/videoseries?list=' + reResult[1], 640, 360);
+        return wrapIntoTag(makeIframe('//www.youtube-nocookie.com/embed/videoseries?list=' + reResult[1], 640, 360), 'div', 'youtube');
       }
     },
     {
@@ -645,7 +692,7 @@ function getEmbedableLinkTypes() {
       //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//player.vimeo.com/video/' + reResult[1], 640, 360);
+        return wrapIntoTag(makeIframe('//player.vimeo.com/video/' + reResult[1], 640, 360), 'div', 'vimeo');
       }
     },
     {
@@ -654,7 +701,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[\w-%]*)?/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], 640, 360);
+        return wrapIntoTag(makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], 640, 360), 'div', 'dailymotion');
       }
     },
     {
@@ -664,7 +711,7 @@ function getEmbedableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/(?:view|embed)\/([a-zA-Z\d]+)/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
-        return makeIframe(embedUrl, 640, 360);
+        return wrapIntoTag(makeIframe(embedUrl, 640, 360), 'div', 'coub');
       }
     },
     {
@@ -702,7 +749,7 @@ function getEmbedableLinkTypes() {
               videoH += 162;
             }
             var iframe = makeIframe(videoUrl, baseSize, videoH);
-            div.parentNode.replaceChild(iframe, div);
+            div.parentNode.replaceChild(wrapIntoTag(iframe, 'div', 'bandcamp'), div);
           }
         });
 
@@ -716,7 +763,7 @@ function getEmbedableLinkTypes() {
       re: /(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([\w\-\_]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
-        return makeIframe(embedUrl, '100%', 450);
+        return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
       }
     },
     {
@@ -725,7 +772,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722);
+        return wrapIntoTag(makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722), 'div', 'instagram');
       }
     },
     {
@@ -762,7 +809,7 @@ function getEmbedableLinkTypes() {
               if(m[1] == 'web_page') { webPage = m[2]; }
             });
 
-            var imageUrl = (typeof url != 'undefined') ? url : thumb;
+            var imageUrl = (url !== undefined) ? url : thumb;
             var aNode2 = document.createElement("a");
             var imgNode = document.createElement("img");
             imgNode.src = imageUrl;//.replace('_b.', '_z.');
@@ -819,7 +866,7 @@ function getEmbedableLinkTypes() {
               if(m[1] == 'pubdate') { pubdate = m[2]; }
             });
 
-            var imageUrl = (typeof fullsizeUrl != 'undefined') ? fullsizeUrl : (typeof url != 'undefined') ? url : thumb;
+            var imageUrl = (fullsizeUrl != undefined) ? fullsizeUrl : (url != undefined) ? url : thumb;
             var aNode2 = document.createElement("a");
             var imgNode = document.createElement("img");
             imgNode.src = imageUrl;
@@ -852,7 +899,7 @@ function getEmbedableLinkTypes() {
         var video = document.createElement("video");
         video.src = '//i.imgur.com/' + reResult[1] + '.mp4';
         video.setAttribute('controls', '');
-        return video;
+        return wrapIntoTag(video, 'div', 'video');
       }
     },
     {
@@ -861,10 +908,10 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#([a-zA-Z\d]+))?$/i,
       makeNode: function(aNode, reResult) {
-        var isAlbum = (typeof reResult[1] != 'undefined');
+        var isAlbum = (reResult[1] !== undefined);
         var embedUrl;
         if(isAlbum) {
-          var isSpecificImage = (typeof reResult[3] != 'undefined');
+          var isSpecificImage = (reResult[3] !== undefined);
           if(isSpecificImage) {
             embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&w=540';
           } else {
@@ -873,7 +920,7 @@ function getEmbedableLinkTypes() {
         } else {
           embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&w=540';
         }
-        return makeIframe(embedUrl, '100%', 600);
+        return wrapIntoTag(makeIframe(embedUrl, '100%', 600), 'div', 'imgur');
       }
     },
     {
@@ -882,7 +929,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:\w+\.)?gfycat\.com\/([a-zA-Z\d]+)$/i,
       makeNode: function(aNode, reResult) {
-        return makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480);
+        return wrapIntoTag(makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480), 'div', 'gfycat');
       }
     },
     {
@@ -1009,7 +1056,7 @@ function getEmbedableLinkTypes() {
       re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
       makeNode: function(aNode, reResult) {
         var endsWithSlash = reResult[1].endsWith('/');
-        return makeIframe('' + reResult[1] + (endsWithSlash ? '' : '/') + 'embedded/', '100%', 500);
+        return wrapIntoTag(makeIframe('' + reResult[1] + (endsWithSlash ? '' : '/') + 'embedded/', '100%', 500), 'div', 'jsfiddle');
       }
     },
     {
@@ -1043,13 +1090,208 @@ function getEmbedableLinkTypes() {
 
         return div;
       }
+    },
+    {
+      name: 'Pixiv',
+      id: 'embed_pixiv',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/www\.pixiv\.net\/member_illust\.php\?((?:\w+=\w+&)*illust_id=(\d+)(?:&\w+=\w+)*)/i,
+      makeNode: function(aNode, reResult) {
+        var pixivType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'pixiv embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: reResult[0].replace(/mode=\w+/, 'mode=medium'),
+          onload: function(response) {
+            if(response.status != 200) {
+              if(response.responseText.includes('work private')) {
+                div.textContent = 'Private work.';
+                return;
+              }
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return pixivType.makeNode(aNode, reResult);});
+              return;
+            }
+            var isMultipage = (reResult[0].includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
+            var metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            var imageUrl, imageTitle;
+            [].forEach.call(matches, function(m, i, arr) {
+              if(m[1] == 'og:image') { imageUrl = m[2]; }
+              if(m[1] == 'twitter:image') { imageUrl = m[2]; }
+              if(m[1] == 'twitter:title') { imageTitle = m[2]; }
+            });
+            if(response.responseText.includes('This work was deleted')) {
+              div.textContent = 'Deleted work.';
+              return;
+            }
+            var [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
+            var [, authorId, authorName] = /<a\s+href="member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
+            //imageUrl = 'http://embed.pixiv.net/decorate.php?illust_id=' + reResult[2];
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = imageUrl;
+            aNode2.href = aNode.href;
+            aNode2.appendChild(imgNode);
+
+            var dateDiv = (dateStr !== undefined) ? '<div class="date">' + dateStr + '</div>' : '';
+            var authorStr = (authorId !== undefined) ? ' by <a href="http://www.pixiv.net/member_illust.php?id=' + authorId + '">' + authorName + '</a>' : '';
+            var titleDiv = '<div class="title">' + (isMultipage ? '(multipage) ' : '') + '<a href="' + reResult[0] + '">' + imageTitle + '</a>' + authorStr + '</div>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'Gelbooru',
+      id: 'embed_gelbooru',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
+      makeNode: function(aNode, reResult) {
+        var gelbooruType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + gelbooruType.makeTitle(aNode, reResult);
+        div.className = 'gelbooru booru embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'http://' + reResult[1] + '/index.php?page=dapi&s=post&q=index&id=' + reResult[3],
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return gelbooruType.makeNode(aNode, reResult);});
+              return;
+            }
+            var previewUrl, rating, createdAt, change, hasNotes, hasComments, id, count;
+            var attributeRe = /(\w+)="([^"]+)"/gmi;
+            var matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
+            [].forEach.call(matches, function([, attr, val], i, arr) {
+              if(attr == 'count') { count = +val; }
+              if(attr == 'id') { id = val; }
+              if(attr == 'preview_url') { previewUrl = val; }
+              if(attr == 'rating') { rating = val; }
+              if(attr == 'created_at') { createdAt = new Date(val); }
+              if(attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
+              if(attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
+              if(attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
+            });
+            if(count === 0) {
+              div.textContent = reResult[3] + ' is not available';
+              return;
+            }
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = previewUrl;
+            imgNode.className = 'rating_' + rating;
+            aNode2.href = aNode.href;
+            aNode2.appendChild(imgNode);
+
+            var createdDateStr = createdAt.toLocaleDateString('ru-RU');
+            var changedDateStr = change.toLocaleDateString('ru-RU');
+            if(createdDateStr != changedDateStr) { createdDateStr += ' (' + changedDateStr + ')' }
+            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
+            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', ' loaded');
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return reResult[1] + ' (' + reResult[3] + ')';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        aNode.textContent += ' (' + reResult[3] + ')';
+      }
+    },
+    {
+      name: 'Danbooru',
+      id: 'embed_danbooru',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(danbooru|safebooru)\.donmai\.us\/post(?:s|\/show)\/(\d+)/i,
+      makeNode: function(aNode, reResult) {
+        var danbooruType = this;
+        var id = reResult[2];
+        var url = reResult[0].replace('http:', 'https:');
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + danbooruType.makeTitle(aNode, reResult);
+        div.className = 'danbooru booru embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://' + reResult[1] + '.donmai.us/posts/' + reResult[2] + '.json',
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return danbooruType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            if(json.preview_file_url === undefined) {
+              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+              return;
+            }
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = 'https://' + reResult[1] + '.donmai.us' + json.preview_file_url;
+            imgNode.className = 'rating_' + json.rating;
+            //imgNode.title = tagsStr;
+            aNode2.href = url;
+            aNode2.appendChild(imgNode);
+
+            var tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
+                            .filter(s => s != '')
+                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : '<a href="https://danbooru.donmai.us/posts?tags=' + encodeURIComponent(s) + '">' + s + '</a>')
+                            .join("<br>");
+            var hasNotes = (json.last_noted_at !== null);
+            var hasComments = (json.last_commented_at !== null);
+            var createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
+            var updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
+            if(createdDateStr != updatedDateStr) { createdDateStr += ' (' + updatedDateStr + ')' }
+            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
+            var titleDiv = '<div class="title">' + '<a href="' + url + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
+            var tagsDiv = '<div class="booru-tags">' + tagsStr + '</div>'
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + tagsDiv;
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', ' loaded');
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return reResult[1] + ' (' + reResult[2] + ')';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        aNode.href = aNode.href.replace('http:', 'https:');
+        aNode.textContent += ' (' + reResult[2] + ')';
+      }
     }
   ];
 }
 
 function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   var anyEmbed = false;
-  var isAfterNode = (typeof afterNode !== 'undefined');
+  var isAfterNode = (afterNode !== undefined);
   var linkId = (aNode.href.replace(/^https?:/i, ''));
   var sameEmbed = container.querySelector('*[data-linkid=\'' + linkId + '\']'); // do not embed the same thing twice
   if(sameEmbed === null) {
@@ -1062,10 +1304,13 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           var newNode;
           var isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
-            var linkTitle = (typeof linkType.makeTitle !== 'undefined') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
+            var linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
             newNode = makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
+          }
+          if(GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
+            linkType.linkTextUpdate(aNode, reResult);
           }
           newNode.setAttribute('data-linkid', linkId);
           if(isAfterNode) {
@@ -1274,11 +1519,6 @@ function getUserscriptSettings() {
       enabledByDefault: true
     },
     {
-      name: 'Заменять текст ссылок "juick.com" на id постов и комментариев',
-      id: 'enable_link_text_update',
-      enabledByDefault: true
-    },
-    {
       name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
       id: 'enable_blocklisters_styling',
       enabledByDefault: false
@@ -1310,15 +1550,6 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
   label.appendChild(document.createTextNode('' + caption + ': '));
   label.appendChild(wrapper);
   return label;
-}
-
-function wrapIntoTag(node, tagName, className) {
-  var tag = document.createElement(tagName);
-  if(typeof className != 'undefined') {
-    tag.className = className;
-  }
-  tag.appendChild(node);
-  return tag;
 }
 
 function showUserscriptSettings() {
@@ -1362,10 +1593,12 @@ function showUserscriptSettings() {
   });
   fieldset2.appendChild(table2);
 
+  var updateLinkTextCheckbox = makeSettingsCheckbox('Обновлять текст ссылок, если возможно (например, "juick.com" на #123456/7)', 'enable_link_text_update', true);
   var ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
   ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
   fieldset2.appendChild(document.createElement('hr'));
   fieldset2.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
+  fieldset2.appendChild(wrapIntoTag(updateLinkTextCheckbox, 'p'));
 
   var fieldset4 = document.createElement("fieldset");
   var legend4 = document.createElement("legend");
@@ -1442,7 +1675,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
   function recUpdate(depth) {
     if(depth <= 0) { return; }
 
-    var url = 'http://juick.com/' + userId + '/?show=recomm' + ((typeof oldestMid !== undefined) ? '&before=' + oldestMid : '');
+    var url = 'http://juick.com/' + userId + '/?show=recomm' + ((oldestMid !== undefined) ? '&before=' + oldestMid : '');
     GM_xmlhttpRequest({
       method: "GET",
       url: url,
@@ -1568,24 +1801,30 @@ function addStyle() {
   }
   GM_addStyle(
     ":root { " + colorVars + " --bg10: rgba(var(--br),var(--bg),var(--bb),1.0); --color10: rgba(var(--tr),var(--tg),var(--tb),1.0); --color07: rgba(var(--tr),var(--tg),var(--tb),0.7); --color03: rgba(var(--tr),var(--tg),var(--tb),0.3); --color02: rgba(var(--tr),var(--tg),var(--tb),0.2); } " +
-    ".embedContainer * { box-sizing: border-box; } " +
+    ".embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; } " +
+    ".embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; } " +
     ".embedContainer img, .embedContainer video { max-width: 100%; max-height: 80vh; } " +
     ".embedContainer iframe { resize: vertical; } " +
-    ".embedContainer { margin-top: 0.7em; } " +
-    ".embedContainer > .embed { width: 100%; margin-bottom: 0.3em; border: 1px solid var(--color02); padding: 0.5em; display: flex; flex-direction: column; } " +
+    ".embedContainer > .embed { width: 100%; border: 1px solid var(--color02); padding: 0.5em; display: flex; flex-direction: column; } " +
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
     ".embedContainer .embed .cts { margin: 0; } " +
     ".embed .top { display: flex; flex-shrink: 0; justify-content: space-between; margin-bottom: 0.5em; } " +
     ".embed .date, .embed .date > a, .embed .title { color: var(--color07); } " +
-    ".embed .date { font-size: small; } " +
+    ".embed .date { font-size: small; text-align: right; } " +
     ".embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
+    ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; } " +
     ".juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; } " +
     ".gistEmbed .gist-file .gist-data .blob-wrapper, .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; } " +
     ".gistEmbed.embed.loaded { border-width: 0px; padding: 0; } " +
-    ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
+    ".embedContainer > .gelbooru.embed, .embedContainer > .danbooru.embed { width: 49%; position: relative; } " +
+    ".danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: var(--color07); } " +
+    ".danbooru.embed.loaded { min-height: 110px; }" +
+    ".danbooru.embed:hover .booru-tags { display: block; } " +
+    ".embed .rating_e { opacity: 0.1; } " +
+    ".embed .rating_e:hover { opacity: 1.0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
     ".tweaksSettings table { border-collapse: collapse; } " +
@@ -1593,7 +1832,7 @@ function addStyle() {
     ".tweaksSettings tr:hover { background: rgba(127,127,127,.1) } " +
     ".tweaksSettings td > * { display: block; width: 100%; height: 100%; } " +
     ".tweaksSettings > button { margin-top: 25px; } " +
-    ".embedContainer > .cts { margin-bottom: 0.3em; }" +
+    ".embedContainer > .cts { width: 100%; }" +
     ".embedContainer .cts > .placeholder { border: 1px dotted var(--color03); color: var(--color07); text-align: center; cursor: pointer; word-wrap: break-word; } " +
     ".cts > .placeholder { position: relative; } " +
     ".cts > .placeholder > .icon { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; color: var(--bg10); -webkit-filter: drop-shadow( 0 0 10px var(--color10) ); filter: drop-shadow( 0 0 10px var(--color10) ); } " +
