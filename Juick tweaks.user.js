@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.4.0
-// @date        2016.09.02 - 2016.10.29
+// @version     2.4.2
+// @date        2016.09.02 - 2016.11.01
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -59,6 +59,7 @@ if(isUserColumn) {                      // если колонка пользо�
   colorizeTagsInUserColumn();
   addSettingsLink();
   updateAvatar();
+  addIRecommendLink();
 }
 
 if(isPostEditorSharp) {                 // на форме создания поста (/#post)
@@ -79,6 +80,66 @@ if(isUsersTable) {                      // на странице подписо�
 
 if(isSettingsPage) {                    // на странице настроек
   addTweaksSettingsButton();
+}
+
+
+// helpers ==================================================================================================
+
+Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
+
+function intersect(a, b) {
+  var t;
+  if (b.length > a.length) { t = b, b = a, a = t; } // loop over shorter array
+  return a.filter(function (e) { return (b.indexOf(e) !== -1); });
+}
+
+function insertAfter(newNode, referenceNode) {
+    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+}
+
+function parseRgbColor(colorStr){
+  colorStr = colorStr.replace(/ /g,'');
+  colorStr = colorStr.toLowerCase();
+  var re = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/;
+  var bits = re.exec(colorStr);
+  return [
+    parseInt(bits[1]),
+    parseInt(bits[2]),
+    parseInt(bits[3])
+  ];
+}
+
+function getContrastColor(baseColor) {
+  return (baseColor[0] + baseColor[1] + baseColor[2] > 127*3) ? [0,0,0] : [255,255,255];
+}
+
+function getAllMatchesAndCaptureGroups(re, str) {
+  var results = [], result;
+  while ((result = re.exec(str)) !== null) {
+    results.push(Array.from(result));
+  }
+  return results;
+}
+
+function htmlDecode(str) {
+  var doc = new DOMParser().parseFromString(str, "text/html");
+  return doc.documentElement.textContent;
+}
+
+function htmlEscape(html) {
+  var textarea = document.createElement('textarea');
+  textarea.textContent = html;
+  return textarea.innerHTML;
+}
+
+function naiveEllipsis(str, len) {
+  var ellStr = '...';
+  var ellLen = ellStr.length;
+  if(str.length <= len) { return str; }
+  var half = Math.floor((len - ellLen) / 2);
+  var left = str.substring(0, half);
+  var right = str.substring(str.length - (len - half - ellLen));
+  return '' + left + ellStr + right;
 }
 
 
@@ -250,22 +311,6 @@ function addEasyTagsUnderPostEditorSharp() {
   });
 }
 
-function parseRgbColor(colorStr){
-  colorStr = colorStr.replace(/ /g,'');
-  colorStr = colorStr.toLowerCase();
-  var re = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/;
-  var bits = re.exec(colorStr);
-  return [
-    parseInt(bits[1]),
-    parseInt(bits[2]),
-    parseInt(bits[3])
-  ];
-}
-
-function getContrastColor(baseColor) {
-  return (baseColor[0] + baseColor[1] + baseColor[2] > 127*3) ? [0,0,0] : [255,255,255];
-}
-
 function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   tagsContainer.className += " tagsContainer";
   var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
@@ -284,9 +329,7 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
   if(isSorting) {
-    sortedTags.sort(function (a, b) {
-      return a.text.localeCompare(b.text);
-    });
+    sortedTags.sort((a, b) => a.text.localeCompare(b.text));
   }
   while (tagsContainer.firstChild) {
     tagsContainer.removeChild(tagsContainer.firstChild);
@@ -363,9 +406,7 @@ function sortUsers() {
     });
   });
   loadUsers(unsortedUsers, sortedUsers, function(){
-    sortedUsers.sort(function (b, a) {
-      return ((a.date > b.date) - (a.date < b.date));
-    });
+    sortedUsers.sort((b, a) => (a.date > b.date) - (a.date < b.date));
     usersTable.parentNode.removeChild(usersTable);
     var ul = document.createElement("ul");
     ul.className = 'users';
@@ -387,32 +428,6 @@ function addUsersSortingButton() {
   button.textContent="Sort by date";
   button.onclick = sortUsers;
   contentBlock.insertBefore(button, usersTable);
-}
-
-function getAllMatchesAndCaptureGroups(re, str) {
-  var results = [], result;
-  while ((result = re.exec(str)) !== null) {
-    results.push(Array.from(result));
-  }
-  return results;
-}
-
-var decodeHtmlEntity = function(str) {
-  return str.replace(/&#(\d+);/g, function(match, dec) {
-    return String.fromCharCode(dec);
-  });
-};
-
-function htmlDecode(str) {
-  var e = document.createElement('div');
-  e.innerHTML = str;
-  return e.childNodes.length === 0 ? '' : e.childNodes[0].nodeValue;
-}
-
-function htmlEscape(html) {
-  var textarea = document.createElement('textarea');
-  textarea.textContent = html;
-  return textarea.innerHTML;
 }
 
 function turnIntoCts(node, makeNodeCallback) {
@@ -446,16 +461,6 @@ function makeIframe(src, w, h) {
   iframe.setAttribute('allowFullScreen', '');
   iframe.src = src;
   return iframe;
-}
-
-function naiveEllipsis(str, len) {
-  var ellStr = '...';
-  var ellLen = ellStr.length;
-  if(str.length <= len) { return str; }
-  var half = Math.floor((len - ellLen) / 2);
-  var left = str.substring(0, half);
-  var right = str.substring(str.length - (len - half - ellLen));
-  return '' + left + ellStr + right;
 }
 
 function urlReplace(match, p1, p2, offset, string) {
@@ -836,7 +841,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Imgur gifv videos',
       id: 'embed_imgur_gifv_videos',
-      default: false,
+      ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/([a-zA-Z\d]+)\.gifv/i,
       makeNode: function(aNode, reResult) {
         var video = document.createElement("video");
@@ -918,7 +923,6 @@ function getEmbedableLinkTypes() {
             [].forEach.call(matches, function(m, i, arr) {
               if(m[1] == 'og:title') { title = m[2]; }
               if(m[1] == 'og:description') {
-                console.log(htmlDecode(m[2]));
                 description = htmlDecode(m[2])
                   .replace(/\n/g,'<br/>')
                   .replace(/\B@(\w{1,15})\b/gmi, "<a href=\"//twitter.com/$1\">@$1</a>")
@@ -1036,16 +1040,6 @@ function getEmbedableLinkTypes() {
       }
     }
   ];
-}
-
-function intersect(a, b) {
-  var t;
-  if (b.length > a.length) { t = b, b = a, a = t; } // loop over shorter array
-  return a.filter(function (e) { return (b.indexOf(e) !== -1); });
-}
-
-function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
 function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
@@ -1175,6 +1169,10 @@ function getUserscriptSettings() {
     {
       name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
       id: 'enable_users_sorting'
+    },
+    {
+      name: 'Статистика рекомендаций',
+      id: 'enable_irecommend'
     },
     {
       name: 'Min-width для тегов',
@@ -1315,6 +1313,129 @@ function addTweaksSettingsButton() {
   aNode.onclick = function(e){ e.preventDefault(); showUserscriptSettings(); };
   liNode.appendChild(aNode);
   tabsList.appendChild(liNode);
+}
+
+function updateUserRecommendationStats(userId, pagesPerCall) {
+  var contentBlock = document.querySelector("section#content");
+  while (contentBlock.firstChild) {
+    contentBlock.removeChild(contentBlock.firstChild);
+  }
+  var article = document.createElement("article");
+  var oldestMid, oldestDate;
+  var userCounters = {};
+  var totalRecs = 0;
+
+  function recUpdate(depth) {
+    if(depth <= 0) { return; }
+
+    var url = 'http://juick.com/' + userId + '/?show=recomm' + ((typeof oldestMid !== undefined) ? '&before=' + oldestMid : '');
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: url,
+      onload: function(response) {
+        if(response.status != 200) {
+          console.log("" + user.id + ": failed with " + response.status + ", " + response.statusText);
+          return;
+        }
+
+        var articleRe = /<article[\s\S]+?<\/article>/gmi;
+        var articles = response.responseText.match(articleRe);
+        if(articles === null) {
+          console.log('no more articles in response');
+          return;
+        }
+
+        totalRecs = totalRecs + articles.length;
+        var hasMore = (articles.length > 15);
+        var oldestArticle = articles[articles.length - 1];
+
+        var dateRe = /datetime\=\"([^\"]+) ([^\"]+)\"/i;
+        var dateResult = dateRe.exec(oldestArticle);
+        oldestDate = new Date("" + dateResult[1] + "T" + dateResult[2]);
+
+        var midRe = /data-mid="(\d+)"/i;
+        var midResult = midRe.exec(oldestArticle);
+        oldestMid = midResult[1];
+
+        var userRe = /@<a href="\/([-\w]+)\/">/i;
+        var userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
+        var authors = articles.map(function(article){
+          var postAuthorId = (userRe.exec(article))[1];
+          var postAuthorAvatar = (userAvatarRe.exec(article))[0];
+          return {id: postAuthorId, avatar: postAuthorAvatar};
+        });
+        for(var i in authors) {
+          var id = authors[i].id;
+          var avatar = authors[i].avatar;
+          if(id in userCounters) {
+            userCounters[id].recs = userCounters[id].recs + 1;
+          } else {
+            userCounters[id] = {id: id, avatar: avatar, recs: 1};
+          }
+        }
+
+        var sortedUsers = Object.values(userCounters).sort((a, b) => b.recs - a.recs);
+
+        while (article.firstChild) {
+          article.removeChild(article.firstChild);
+        }
+
+        if(hasMore && (depth == 1)) {
+          var moreButton = document.createElement("button");
+          moreButton.style = 'float: right;';
+          moreButton.textContent = 'Check older recommendations';
+          moreButton.onclick = function(){
+            recUpdate(pagesPerCall);
+          };
+          article.appendChild(moreButton);
+        }
+
+        var datePNode = document.createElement("p");
+        datePNode.textContent = '' + totalRecs + ' recommendations since ' + oldestDate.toLocaleDateString('ru-RU');
+        article.appendChild(datePNode);
+
+        var avgPNode = document.createElement("p");
+        var now = new Date();
+        var days = ((now - oldestDate) / 1000 / 60 / 60 / 24);
+        var avg = totalRecs / days;
+        avgPNode.textContent = '' + avg.toFixed(3) + ' recommendations per day';
+        article.appendChild(avgPNode);
+
+        var userStrings = sortedUsers.map(x => '<li><a href="/' + x.id + '/">' + x.avatar + x.id + '</a> / ' + x.recs + '</li>');
+        var ulNode = document.createElement("ul");
+        ulNode.className = 'users';
+        ulNode.innerHTML = userStrings.join('');
+        article.appendChild(ulNode);
+
+        if(hasMore) {
+          setTimeout(function(){ recUpdate(depth - 1); }, 100);
+        } else {
+          console.log('no more recommendations');
+        }
+      }
+    });
+
+  } // recUpdate
+
+  recUpdate(pagesPerCall);
+
+  contentBlock.appendChild(article);
+}
+
+function addIRecommendLink() {
+  if(!GM_getValue('enable_irecommend', true)) { return; }
+  var userId = document.querySelector("div#ctitle a").textContent;
+  var asideColumn = document.querySelector("aside#column");
+  var ustatsList = asideColumn.querySelector("#ustats > ul");
+  var li3 = ustatsList.querySelector("li:nth-child(3)");
+  var liNode = document.createElement("li");
+  var aNode = document.createElement("a");
+  aNode.textContent = 'Я рекомендую';
+  aNode.href = '#irecommend';
+  aNode.onclick = function(e){ e.preventDefault(); updateUserRecommendationStats(userId, 3); };
+  liNode.appendChild(aNode);
+  ustatsList.insertBefore(liNode, li3);
+
 }
 
 function addStyle() {
