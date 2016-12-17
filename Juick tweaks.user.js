@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.2.5
+// @version     2.2.6
 // @date        2016.09.02 - 2016.10.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -613,7 +613,7 @@ function getEmbedableLinkTypes() {
           url: 'https://www.flickr.com/services/oembed?format=xml&url=' + encodeURIComponent(reResult[0]),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = 'Failed to load (' + response.status + ')';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, function(){return flickrType.makeNode(aNode, reResult);});
               return;
@@ -771,7 +771,7 @@ function getEmbedableLinkTypes() {
           url: twitterUrl,
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = 'Failed to load (' + response.status + ')';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, function(){return twitterType.makeNode(aNode, reResult);});
               return;
@@ -1112,11 +1112,10 @@ function addStyle() {
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
     ".embedContainer .embed .cts { margin: 0; } " +
-    ".embed .top { display: flex; justify-content: space-between; } " +
-    ".twi .desc { margin-bottom: 0.5em; } " +
+    ".embed .top { display: flex; justify-content: space-between; margin-bottom: 0.5em; } " +
     ".embed .date, .embed .title { color: var(--color07); } " +
+    ".twi .desc { margin-bottom: 0.5em; } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
-    ".embed .top { margin-bottom: 0.5em; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
