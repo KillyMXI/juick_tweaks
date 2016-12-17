@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.3.1
-// @date        2016.09.02 - 2016.10.25
+// @version     2.4.0
+// @date        2016.09.02 - 2016.10.29
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -20,6 +20,8 @@
 // @connect     flickr.com
 // @connect     flic.kr
 // @connect     deviantart.com
+// @connect     gist.github.com
+// @connect     codepen.io
 // ==/UserScript==
 
 
@@ -407,6 +409,12 @@ function htmlDecode(str) {
   return e.childNodes.length === 0 ? '' : e.childNodes[0].nodeValue;
 }
 
+function htmlEscape(html) {
+  var textarea = document.createElement('textarea');
+  textarea.textContent = html;
+  return textarea.innerHTML;
+}
+
 function turnIntoCts(node, makeNodeCallback) {
   node.onclick = function(e){
     e.preventDefault();
@@ -414,8 +422,7 @@ function turnIntoCts(node, makeNodeCallback) {
     if(this.hasAttribute('data-linkid')) {
       newNode.setAttribute('data-linkid', this.getAttribute('data-linkid'));
     }
-    this.parentNode.insertBefore(newNode, this);
-    this.parentNode.removeChild(this);
+    this.parentNode.replaceChild(newNode, this);
   };
 }
 
@@ -460,7 +467,7 @@ function urlReplace(match, p1, p2, offset, string) {
 }
 
 function bqReplace(match, offset, string) {
-  return '<q>' + match.replace(/^>\s?/gmi, '') + '</q>';
+  return '<q>' + match.replace(/^(?:>|&gt;)\s?/gmi, '') + '</q>';
 }
 
 function messageReplyReplace(match, mid, rid, offset, string) {
@@ -474,7 +481,7 @@ function getEmbedableLinkTypes() {
       name: 'Juick',
       id: 'embed_juick',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-]+)\/)?([\d]+)(?:#(\d+))?/i,
+      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
       makeNode: function(aNode, reResult) {
         var juickType = this;
 
@@ -534,8 +541,8 @@ function getEmbedableLinkTypes() {
                                  : '';
             var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
             var urlRe = /(?:\[([^\]]+)\]\[([^\]]+)\]|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
-            var bqRe = /(?:^>\s?[\s\S]+?$\n?)+/gmi;
-            var description = msg.body
+            var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
+            var description = htmlEscape(msg.body)
               .replace(urlRe, urlReplace)
               .replace(bqRe, bqReplace)
               .replace(/\n/g,'<br/>')
@@ -685,8 +692,7 @@ function getEmbedableLinkTypes() {
               videoH += 162;
             }
             var iframe = makeIframe(videoUrl, baseSize, videoH);
-            div.parentNode.insertBefore(iframe, div);
-            div.parentNode.removeChild(div);
+            div.parentNode.replaceChild(iframe, div);
           }
         });
 
@@ -950,6 +956,84 @@ function getEmbedableLinkTypes() {
 
         return div;
       }
+    },
+    {
+      name: 'Gist',
+      id: 'embed_gist',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
+      makeNode: function(aNode, reResult) {
+        var gistType = this;
+        var id = reResult[2];
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'gistEmbed embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://gist.github.com/' + id + '.json',
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return gistType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var titleDiv = '<div class="title">"' + json.description + '" by <a href="https://gist.github.com/' + json.owner + '">' + json.owner + '</a></div>';
+            var dateDiv = '<div class="date">' + (new Date(json.created_at).toLocaleDateString('ru-RU')) + '</div>';
+            var stylesheet = '<link rel="stylesheet" href="' + htmlEscape(json.stylesheet) + '"></link>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + stylesheet + json.div;
+
+            div.className = div.className.replace(' loading', ' loaded');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'JSFiddle',
+      id: 'embed_jsfiddle',
+      ctsDefault: false,
+      re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
+      makeNode: function(aNode, reResult) {
+        var endsWithSlash = reResult[1].endsWith('/');
+        return makeIframe('' + reResult[1] + (endsWithSlash ? '' : '/') + 'embedded/', '100%', 500);
+      }
+    },
+    {
+      name: 'Codepen',
+      id: 'embed_codepen',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/codepen\.io\/(\w+)\/(?:pen|full)\/(\w+)/i,
+      makeNode: function(aNode, reResult) {
+        var codepenType = this;
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'codepen embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(reResult[0].replace('/full/', '/pen/')),
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return codepenType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var titleDiv = '<div class="title">"' + json.title + '" by <a href="' + json.author_url + '">' + json.author_name + '</a></div>';
+            div.innerHTML = '<div class="top">' + titleDiv + '</div>' + json.html;
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
     }
   ];
 }
@@ -1023,7 +1107,7 @@ function embedLinksToArticles() {
     }
     var isCtsPost = (ctsUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, ctsTags).length > 0);
     var nav = article.querySelector("nav.l");
-    var allLinks = article.querySelectorAll("p:not(.ir) a");
+    var allLinks = article.querySelectorAll("p:not(.ir) a, pre a");
     var embedContainer = document.createElement("div");
     embedContainer.className = 'embedContainer';
     var anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
@@ -1264,6 +1348,8 @@ function addStyle() {
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
     ".juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; } " +
     ".juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; } " +
+    ".gistEmbed .gist-file .gist-data .blob-wrapper, .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; } " +
+    ".gistEmbed.embed.loaded { border-width: 0px; padding: 0; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
