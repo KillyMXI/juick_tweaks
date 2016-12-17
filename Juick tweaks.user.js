@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.4.5
-// @date        2016.09.02 - 2016.11.09
+// @version     2.5.0
+// @date        2016.09.02 - 2016.11.14
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -44,6 +44,8 @@ var isUsersTable = (document.querySelector("table.users") === null) ? false : tr
 addStyle();                             // минимальный набор стилей, необходимый для работы скрипта
 
 if(isPost) {                            // на странице поста
+  filterPostComments();
+  checkReplyPost();
   updateTagsOnAPostPage();
   addTagEditingLinkUnderPost();
   addCommentRemovalLinks();
@@ -52,8 +54,9 @@ if(isPost) {                            // на странице поста
 
 if(isFeed) {                            // в ленте или любом списке постов
   if(isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
-    filterPosts();
+    filterArticles();
   }
+  checkReplyArticles();
   updateTagsInFeed();
   embedLinksToArticles();
 }
@@ -863,12 +866,12 @@ function getEmbedableLinkTypes() {
         if(isAlbum) {
           var isSpecificImage = (typeof reResult[3] != 'undefined');
           if(isSpecificImage) {
-            embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&amp;w=540';
+            embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&w=540';
           } else {
-            embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&amp;w=540&amp;pub=true';
+            embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&w=540&pub=true';
           }
         } else {
-          embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&amp;w=540';
+          embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&w=540';
         }
         return makeIframe(embedUrl, '100%', 600);
       }
@@ -1100,51 +1103,57 @@ function articleInfo(article) {
   var tagsDiv = article.querySelector(".msg-tags");
   var tags = [];
   if(tagsDiv !== null) {
-    [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
+    [].forEach.call(tagsDiv.childNodes, function(item, i, arr) {
       tags.push(item.textContent.toLowerCase());
     });
   }
   return { userId: userId, tags: tags };
 }
 
+function isFilteredX(x, filteredUsers, filteredTags) {
+  var {userId, tags} = articleInfo(x);
+  return (filteredUsers !== undefined && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
+         || (intersect(tags, filteredTags).length > 0);
+}
+
+function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags) {
+  var isCtsPost = isFilteredX(x, ctsUsers, ctsTags);
+  var allLinks = x.querySelectorAll(allLinksSelector);
+  var embedContainer = document.createElement("div");
+  embedContainer.className = 'embedContainer';
+  var anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
+  if(anyEmbed){
+    var beforeNode = x.querySelector(beforeNodeSelector);
+    x.insertBefore(embedContainer, beforeNode);
+  }
+}
+
 function embedLinksToArticles() {
   var [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
+  var beforeNodeSelector = 'nav.l';
+  var allLinksSelector = 'p:not(.ir) a, pre a';
   [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
-    var {userId, tags} = articleInfo(article);
-    var isCtsPost = (ctsUsers !== undefined && ctsUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, ctsTags).length > 0);
-    var nav = article.querySelector("nav.l");
-    var allLinks = article.querySelectorAll("p:not(.ir) a, pre a");
-    var embedContainer = document.createElement("div");
-    embedContainer.className = 'embedContainer';
-    var anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
-    if(anyEmbed){
-      article.insertBefore(embedContainer, nav);
-    }
+    embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
 
 function embedLinksToPost() {
+  var [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
+  var beforeNodeSelector = '.msg-txt + *';
+  var allLinksSelector = '.msg-txt a';
   [].forEach.call(document.querySelectorAll("#content .msg-cont"), function(msg, i, arr) {
-    var txt = msg.querySelector(".msg-txt");
-    var allLinks = txt.querySelectorAll("a");
-    var embedContainer = document.createElement("div");
-    embedContainer.className = 'embedContainer';
-    var anyEmbed = embedLinks(allLinks, embedContainer, false);
-    if(anyEmbed){
-      msg.insertBefore(embedContainer, txt.nextSibling);
-    }
+    embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
 
-function filterPosts() {
+function filterArticles() {
   var [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
   var keepHeader = GM_getValue('filtered_posts_keep_header', true);
   [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
-    var {userId, tags} = articleInfo(article);
-    var isFilteredPost = (filteredUsers !== undefined && filteredUsers.indexOf(userId.toLowerCase()) !== -1) || (intersect(tags, filteredTags).length > 0);
+    var isFilteredPost = isFilteredX(article, filteredUsers, filteredTags);
     if(isFilteredPost) {
       if(keepHeader) {
-        article.className = 'filtered';
+        article.classList.add('filtered');
         while (article.children.length > 1) {
           article.removeChild(article.lastChild);
         }
@@ -1155,63 +1164,124 @@ function filterPosts() {
   });
 }
 
+function filterPostComments() {
+  if(!GM_getValue('filter_comments_too', false)) { return; }
+  var [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
+  var keepHeader = GM_getValue('filtered_posts_keep_header', true);
+  [].forEach.call(document.querySelectorAll("#content #replies .msg-cont"), function(reply, i, arr) {
+    var isFilteredComment = isFilteredX(reply, filteredUsers, filteredTags);
+    if(isFilteredComment) {
+      reply.classList.add('filteredComment');
+      reply.querySelector('.msg-txt').remove();
+      reply.querySelector('.msg-comment').remove();
+      var linksDiv = reply.querySelector('.msg-links');
+      linksDiv.querySelector('.a-thread-comment').remove();
+      linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
+      var media = reply.querySelector('.msg-comment');
+      if (media !== null) { media.remove(); }
+      if(!keepHeader) {
+        reply.classList.add('headless');
+        reply.querySelector('.msg-header').remove();
+      }
+    }
+  });
+}
+
+function checkReply(allPostsSelector, replySelector) {
+  [].forEach.call(document.querySelectorAll(allPostsSelector), function(post, i, arr) {
+    var replyNode = post.querySelector(replySelector);
+    if(replyNode === null) {
+      post.classList.add('readonly');
+    }
+  });
+}
+
+function checkReplyArticles() {
+  if(!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  checkReply('#content > article', 'nav.l > a.a-comment');
+}
+
+function checkReplyPost() {
+  if(!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  checkReply('#content div.msg-cont', 'div.msg-comment');
+}
+
 function getUserscriptSettings() {
   return [
     {
       name: 'Пользовательские теги (/user/?tag=) в постах вместо общих (/tag/)',
-      id: 'enable_user_tag_links'
+      id: 'enable_user_tag_links',
+      enabledByDefault: true
     },
     {
       name: 'Теги на форме редактирования нового поста (/#post)',
-      id: 'enable_tags_on_new_post_form'
+      id: 'enable_tags_on_new_post_form',
+      enabledByDefault: true
     },
     {
       name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
-      id: 'enable_tags_page_coloring'
+      id: 'enable_tags_page_coloring',
+      enabledByDefault: true
     },
     {
       name: 'Цветовое кодирование тегов в левой колонке',
-      id: 'enable_left_column_tags_coloring'
+      id: 'enable_left_column_tags_coloring',
+      enabledByDefault: true
     },
     {
       name: 'Заголовок и управление подпиской на странице тега /tag/...',
-      id: 'enable_tag_page_toolbar'
-    },
-    {
-      name: 'Ссылки для удаления комментариев',
-      id: 'enable_comment_removal_links'
-    },
-    {
-      name: 'Ссылка для редактирования тегов поста',
-      id: 'enable_tags_editing_link'
-    },
-    {
-      name: 'Большая аватарка в левой колонке',
-      id: 'enable_big_avatar'
-    },
-    {
-      name: 'Ссылки для перехода к постам пользователя за определённый год',
-      id: 'enable_year_links'
-    },
-    {
-      name: 'Ссылка на настройки в левой колонке на своей странице',
-      id: 'enable_settings_link'
-    },
-    {
-      name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
-      id: 'enable_users_sorting'
-    },
-    {
-      name: 'Статистика рекомендаций',
-      id: 'enable_irecommend'
+      id: 'enable_tag_page_toolbar',
+      enabledByDefault: true
     },
     {
       name: 'Min-width для тегов',
-      id: 'enable_tags_min_width'
+      id: 'enable_tags_min_width',
+      enabledByDefault: true
+    },
+    {
+      name: 'Ссылки для удаления комментариев',
+      id: 'enable_comment_removal_links',
+      enabledByDefault: true
+    },
+    {
+      name: 'Ссылка для редактирования тегов поста',
+      id: 'enable_tags_editing_link',
+      enabledByDefault: true
+    },
+    {
+      name: 'Большая аватарка в левой колонке',
+      id: 'enable_big_avatar',
+      enabledByDefault: true
+    },
+    {
+      name: 'Ссылки для перехода к постам пользователя за определённый год',
+      id: 'enable_year_links',
+      enabledByDefault: true
+    },
+    {
+      name: 'Ссылка на настройки в левой колонке на своей странице',
+      id: 'enable_settings_link',
+      enabledByDefault: true
+    },
+    {
+      name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
+      id: 'enable_users_sorting',
+      enabledByDefault: true
+    },
+    {
+      name: 'Статистика рекомендаций',
+      id: 'enable_irecommend',
+      enabledByDefault: true
     },
     {
       name: 'Заменять текст ссылок "juick.com" на id постов и комментариев',
-      id: 'enable_link_text_update'
+      id: 'enable_link_text_update',
+      enabledByDefault: true
+    },
+    {
+      name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
+      id: 'enable_blocklisters_styling',
+      enabledByDefault: false
     }
   ];
 }
@@ -1270,7 +1340,7 @@ function showUserscriptSettings() {
   [].forEach.call(allSettings, function(item, i, arr) {
     var liNode = document.createElement("li");
     var p = document.createElement("p");
-    p.appendChild(makeSettingsCheckbox(item.name, item.id, true));
+    p.appendChild(makeSettingsCheckbox(item.name, item.id, item.enabledByDefault));
     liNode.appendChild(p);
     list1.appendChild(liNode);
   });
@@ -1302,11 +1372,13 @@ function showUserscriptSettings() {
   legend4.textContent = 'Filtering';
   fieldset4.appendChild(legend4);
 
-  var filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
+  var filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из общей ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
   filteringUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
   var keepHeadersCheckbox = makeSettingsCheckbox('Оставлять заголовки постов', 'filtered_posts_keep_header', true);
+  var filterCommentsCheckbox = makeSettingsCheckbox('Также фильтровать комментарии этих юзеров', 'filter_comments_too', false);
   fieldset4.appendChild(wrapIntoTag(filteringUsersAndTags, 'p'));
   fieldset4.appendChild(wrapIntoTag(keepHeadersCheckbox, 'p'));
+  fieldset4.appendChild(wrapIntoTag(filterCommentsCheckbox, 'p'));
 
   var resetButton = document.createElement("button");
   resetButton.textContent='Reset userscript settings to default';
@@ -1529,6 +1601,8 @@ function addStyle() {
     ".embed .cts .icon > svg { max-width: 100px; max-height: 100px; } " +
     ".filtered header { overflow: hidden; } " +
     ".filtered .msg-avatar { margin-bottom: 0px; } " +
+    ".filteredComment.headless .msg-links { margin: 0px; } " +
+    "article.readonly > p, div.readonly > .msg-txt { opacity: 0.55; } " +
     ""
   );
 }
