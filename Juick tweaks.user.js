@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.6.2
-// @date        2016.09.02 - 2016.11.18
+// @version     2.7.0
+// @date        2016.09.02 - 2016.11.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -27,6 +27,10 @@
 // @connect     safebooru.org
 // @connect     danbooru.donmai.us
 // @connect     safebooru.donmai.us
+// @connect     api.imgur.com
+// @connect     tumblr.com
+// @connect     reddit.com
+// @connect     wordpress.com
 // ==/UserScript==
 
 
@@ -166,6 +170,17 @@ function wrapIntoTag(node, tagName, className) {
   return tag;
 }
 
+function waitAndRun(test, doneCallback, timeout=100) {
+  if(test()) {
+    doneCallback();
+  } else {
+    setTimeout(function(){ waitAndRun(test, doneCallback, timeout); }, timeout);
+  }
+}
+
+function randomId() {
+  return Math.random().toString(36).substr(2,11) + Date.now().toString(36).substr(-3,3);
+}
 
 // function definitions =====================================================================================
 
@@ -504,6 +519,55 @@ function makeIframe(src, w, h) {
   return iframe;
 }
 
+function makeIframeWithHtmlAndId(myHTML) {
+  var id = randomId();
+  var scriptNode = document.createElement('script');
+  var target = document.getElementsByTagName ('head')[0] || document.body || document.documentElement;
+  scriptNode.type = "text/javascript";
+  scriptNode.textContent =
+    "(function(html){ var iframe = document.createElement('iframe'); iframe.id='" + id +
+    "'; iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();}; " +
+    "document.getElementsByTagName('body')[0].appendChild(iframe); })(" + JSON.stringify(myHTML) + ");";
+  target.appendChild(scriptNode);
+  return id;
+};
+
+function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
+  var iframeId = makeIframeWithHtmlAndId(html);
+  var iframe = document.getElementById(iframeId);
+  iframe.className = 'newIframe';
+  iframe.width = w;
+  iframe.height = h;
+  iframe.frameBorder = 0;
+  if(typeof onloadCallback == 'function') {
+    iframe.addEventListener("load", function(){ onloadCallback(iframe.contentWindow.document); }, false);
+  }
+  if(typeof onerrorCallback == 'function') {
+    iframe.onerror = onerrorCallback;
+  }
+  return iframe;
+}
+
+// this doesn't work in FF + GreaseMonkey.
+function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
+  var iframe = document.createElement("iframe");
+  iframe.className = 'newIframe';
+  iframe.width = w;
+  iframe.height = h;
+  iframe.frameBorder = 0;
+  iframe.onload = function() {
+    var doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    if(typeof onloadCallback == 'function') { onloadCallback(doc); }
+  };
+  if(typeof onerrorCallback == 'function') {
+    iframe.onerror = onerrorCallback;
+  }
+  return iframe;
+}
+
 function extractDomain(url) {
   var domainRe = /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i;
   return domainRe.exec(url)[1];
@@ -527,6 +591,17 @@ function bqReplace(match, offset, string) {
 function messageReplyReplace(match, mid, rid, offset, string) {
   var isReply = (rid !== undefined);
   return '<a href="//juick.com/' + mid + (isReply ? '#' + rid : '') + '">' + match + '</a>';
+}
+
+function juickPostParse(txt) {
+  var urlRe = /(?:\[([^\]]+)\]\[([^\]]+)\]|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
+  var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
+  return htmlEscape(txt)
+           .replace(urlRe, urlReplace)
+           .replace(bqRe, bqReplace)
+           .replace(/\n/g,'<br/>')
+           .replace(/\B#(\d+)(?:\/(\d+))?\b/gmi, messageReplyReplace)
+           .replace(/\B@([\w-]+)\b/gmi, "<a href=\"//juick.com/$1\">@$1</a>");
 }
 
 function juickId([, userId, postId, replyId]) {
@@ -594,14 +669,7 @@ function getEmbedableLinkTypes() {
                                  ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
                                  : '';
             var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
-            var urlRe = /(?:\[([^\]]+)\]\[([^\]]+)\]|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
-            var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
-            var description = htmlEscape(msg.body)
-              .replace(urlRe, urlReplace)
-              .replace(bqRe, bqReplace)
-              .replace(/\n/g,'<br/>')
-              .replace(/\B#(\d+)(?:\/(\d+))?\b/gmi, messageReplyReplace)
-              .replace(/\B@([\w-]+)\b/gmi, "<a href=\"//juick.com/$1\">@$1</a>");
+            var description = juickPostParse(msg.body);
             var descDiv = '<div class="desc">' + description + '</div>';
             div.innerHTML =
               '<div class="top">' + avatarStr + '<div class="top-right"><div class="top-right-1st">' + titleDiv + dateDiv + '</div><div class="top-right-2nd">' + tagsStr + '</div></div></div>' +
@@ -906,21 +974,45 @@ function getEmbedableLinkTypes() {
       name: 'Imgur indirect links',
       id: 'embed_imgur_indirect_links',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#([a-zA-Z\d]+))?$/i,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#\d{1,2}$|#([a-zA-Z\d]+))?(\/\w+)?$/i,
       makeNode: function(aNode, reResult) {
+        var imgurType = this;
+        var div = document.createElement("div");
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+        div.className = 'imgur embed loading';
         var isAlbum = (reResult[1] !== undefined);
-        var embedUrl;
-        if(isAlbum) {
-          var isSpecificImage = (reResult[3] !== undefined);
-          if(isSpecificImage) {
-            embedUrl = '//imgur.com/' + reResult[3] + '/embed?analytics=false&w=540';
-          } else {
-            embedUrl = '//imgur.com/a/' + reResult[2] + '/embed?analytics=false&w=540&pub=true';
+        var isSpecificImage = (reResult[3] !== undefined);
+        var url = (isAlbum && isSpecificImage)
+                    ? 'http://imgur.com/' + reResult[3]
+                    : 'http://imgur.com/' + (isAlbum ? reResult[1] + '/' : '') + reResult[2];
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'http://api.imgur.com/oembed.json?url=' + url,
+          onload: function(response) {
+            if(response.status != 200) {
+              console.log('Failed to load ' + reResult[0] + ' (' + url + ')');
+              div.textContent = 'Failed to load (' + response.status + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return imgurType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
+              waitAndRun(
+                () => (doc.querySelector('iframe') !== null),
+                () => {
+                  div.replaceChild(doc.querySelector('iframe'), iframe);
+                  div.querySelector('span').remove();
+                  div.classList.remove('embed');
+                  div.classList.remove('loading');
+                },
+                100
+              );
+            });
+            div.appendChild(iframe);
           }
-        } else {
-          embedUrl = '//imgur.com/' + reResult[2] + '/embed?analytics=false&w=540';
-        }
-        return wrapIntoTag(makeIframe(embedUrl, '100%', 600), 'div', 'imgur');
+        });
+        return div;
       }
     },
     {
@@ -1007,6 +1099,128 @@ function getEmbedableLinkTypes() {
               );
             }
             div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'Tumblr',
+      id: 'embed_tumblr',
+      ctsDefault: true,
+      re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([\w\-\_]*))?/i,
+      makeNode: function(aNode, reResult) {
+        var tumblrType = this;
+        var div = document.createElement("div");
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+        div.className = 'tumblr embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://www.tumblr.com/oembed/1.0?url=' + reResult[0],
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return tumblrType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            //var embedUrl = (/data-href="([^"]+)"/i.exec(json.html))[1];
+            //div.appendChild(makeIframe(embedUrl, '100%', 660));
+            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
+              waitAndRun(
+                () => (doc.querySelector('iframe[height]') !== null),
+                () => {
+                  div.replaceChild(doc.querySelector('iframe[height]'), iframe);
+                  div.querySelector('span').remove();
+                  div.classList.remove('embed');
+                  div.classList.remove('loading');
+                },
+                100
+              );
+            }, () => {
+              div.textContent = 'Failed to load';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return tumblrType.makeNode(aNode, reResult);});
+              return;
+            });
+            div.appendChild(iframe);
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'Reddit',
+      id: 'embed_reddit',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:www\.|np\.|m\.)?reddit\.com\/r\/([\w]+)\/comments\/(\w+)(?:\/(?:\w+(?:\/(\w+)?)?)?)?/i,
+      makeNode: function(aNode, reResult) {
+        var redditType = this;
+        var div = document.createElement("div");
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+        div.className = 'reddit embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://www.reddit.com/oembed?url=' + encodeURIComponent(reResult[0]),
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return redditType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
+              waitAndRun(
+                () => { var iframe2 = doc.querySelector('iframe'); return (iframe2 !== null && (parseInt(iframe2.height) > 30)); },
+                () => { setTimeout( () => {
+                       iframe.height = 20 + parseInt(doc.querySelector('body').offsetHeight); }, 300);
+                       div.querySelector('span').remove();
+                       div.classList.remove('embed');
+                       div.classList.remove('loading');
+                      },
+                100);
+            });
+            div.appendChild(iframe);
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'WordPress',
+      id: 'embed_wordpress',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w]+)(?:\/)?/i,
+      makeNode: function(aNode, reResult) {
+        var wordpressType = this;
+        var id = reResult[2];
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.className = 'wordpress embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://public-api.wordpress.com/oembed/1.0/?format=json&for=juick.com&url=' + reResult[0],
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return wordpressType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var titleDiv = '<div class="title">"<a href="' + reResult[0] + '">' + json.title + '</a>" by <a href="' + json.provider_url + '">' + json.provider_name + '</a> / <a href="' + json.author_url + '">' + json.author_name + '</a></div>';
+            div.innerHTML = '<div class="top">' + titleDiv + '</div> <hr/> <div class="desc">' + json.html + '</div>';
+
+            div.className = div.className.replace(' loading', ' loaded');
           }
         });
 
@@ -1156,7 +1370,7 @@ function getEmbedableLinkTypes() {
       name: 'Gelbooru',
       id: 'embed_gelbooru',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult) {
         var gelbooruType = this;
         var div = document.createElement("div");
@@ -1216,7 +1430,7 @@ function getEmbedableLinkTypes() {
         return reResult[1] + ' (' + reResult[3] + ')';
       },
       linkTextUpdate: function(aNode, reResult) {
-        aNode.textContent += ' (' + reResult[3] + ')';
+        aNode.textContent += ' (' + reResult[3] + ')';
       }
     },
     {
@@ -1283,7 +1497,7 @@ function getEmbedableLinkTypes() {
       },
       linkTextUpdate: function(aNode, reResult) {
         aNode.href = aNode.href.replace('http:', 'https:');
-        aNode.textContent += ' (' + reResult[2] + ')';
+        aNode.textContent += ' (' + reResult[2] + ')';
       }
     }
   ];
@@ -1786,7 +2000,8 @@ function addIRecommendLink() {
 }
 
 function addStyle() {
-  var backColor = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor);
+  var bg = getComputedStyle(document.documentElement).backgroundColor;
+  var backColor = (bg == 'transparent') ? [255,255,255] : parseRgbColor(bg);
   var textColor = parseRgbColor(getComputedStyle(document.body).color);
   var colorVars = '' +
       '--br: ' + backColor[0] +
@@ -1804,7 +2019,7 @@ function addStyle() {
     ".embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; } " +
     ".embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; } " +
     ".embedContainer img, .embedContainer video { max-width: 100%; max-height: 80vh; } " +
-    ".embedContainer iframe { resize: vertical; } " +
+    ".embedContainer iframe { overflow:hidden; resize: vertical; } " +
     ".embedContainer > .embed { width: 100%; border: 1px solid var(--color02); padding: 0.5em; display: flex; flex-direction: column; } " +
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
@@ -1819,6 +2034,12 @@ function addStyle() {
     ".juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; } " +
     ".gistEmbed .gist-file .gist-data .blob-wrapper, .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; } " +
     ".gistEmbed.embed.loaded { border-width: 0px; padding: 0; } " +
+    ".wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; } " +
+    ".tumblr, .reddit { max-height: 86vh; overflow-y: auto; min-width: 100%; } " +
+    ".tumblr.loading iframe, .reddit.loading iframe, .imgur.loading iframe { visibility: hidden; height: 0px; } " +
+    ".reddit iframe { max-height: 80vh; } " +
+    ".imgur { min-width: 100%; } " +
+    ".imgur iframe { border-width: 0px; } " +
     ".embedContainer > .gelbooru.embed, .embedContainer > .danbooru.embed { width: 49%; position: relative; } " +
     ".danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: var(--color07); } " +
     ".danbooru.embed.loaded { min-height: 110px; }" +
