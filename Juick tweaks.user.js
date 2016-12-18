@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.0
-// @date        2016.09.02 - 2016.11.21
+// @version     2.7.5
+// @date        2016.09.02 - 2016.11.26
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -170,17 +170,25 @@ function wrapIntoTag(node, tagName, className) {
   return tag;
 }
 
-function waitAndRun(test, doneCallback, timeout=100) {
+function waitAndRun(test, doneCallback, timeoutCallback, tick=100, count) {
   if(test()) {
     doneCallback();
   } else {
-    setTimeout(function(){ waitAndRun(test, doneCallback, timeout); }, timeout);
+    var newCount = (count === undefined) ? undefined : count - 1;
+    if(newCount === undefined || newCount > 0) {
+      setTimeout(function(){ waitAndRun(test, doneCallback, timeoutCallback, tick, newCount); }, tick);
+    } else {
+      if(typeof timeoutCallback == 'function') {
+        timeoutCallback();
+      }
+    }
   }
 }
 
 function randomId() {
   return Math.random().toString(36).substr(2,11) + Date.now().toString(36).substr(-3,3);
 }
+
 
 // function definitions =====================================================================================
 
@@ -508,12 +516,12 @@ function makeCts(makeNodeCallback, title) {
   return ctsNode;
 }
 
-function makeIframe(src, w, h) {
+function makeIframe(src, w, h, scrolling='no') {
   var iframe = document.createElement("iframe");
   iframe.width = w;
   iframe.height = h;
   iframe.frameBorder = 0;
-  iframe.scrolling = 'no';
+  iframe.scrolling = scrolling;
   iframe.setAttribute('allowFullScreen', '');
   iframe.src = src;
   return iframe;
@@ -521,14 +529,11 @@ function makeIframe(src, w, h) {
 
 function makeIframeWithHtmlAndId(myHTML) {
   var id = randomId();
-  var scriptNode = document.createElement('script');
-  var target = document.getElementsByTagName ('head')[0] || document.body || document.documentElement;
-  scriptNode.type = "text/javascript";
-  scriptNode.textContent =
+  var script =
     "(function(html){ var iframe = document.createElement('iframe'); iframe.id='" + id +
     "'; iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();}; " +
     "document.getElementsByTagName('body')[0].appendChild(iframe); })(" + JSON.stringify(myHTML) + ");";
-  target.appendChild(scriptNode);
+  window.eval(script);
   return id;
 };
 
@@ -566,6 +571,38 @@ function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
     iframe.onerror = onerrorCallback;
   }
   return iframe;
+}
+
+function loadScript(url, async=false, callback)
+{
+  //if([].some.call(document.scripts, s => s.src == url)) { console.log(url + ' is already loaded'); return; }
+
+  var head = document.getElementsByTagName('head')[0];
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = url;
+  if(async) { script.setAttribute('async', ''); }
+
+  if(typeof callback == 'function') {
+    //script.onreadystatechange = callback;
+    script.onload = callback;
+  }
+
+  head.appendChild(script);
+}
+
+function splitScriptsFromHtml(html) {
+  var scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
+  var scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(
+    m => {
+      var [url, s] = [m[1], m[2]];
+      return (url !== undefined)
+        ? { call: function(){ loadScript(url, true); } }
+        : { call: function(){ setTimeout(window.eval(s), 0); } };
+    }
+  );
+  var strippedHtml = html.replace(scriptRe, '');
+  return [strippedHtml, scripts];
 }
 
 function extractDomain(url) {
@@ -1005,8 +1042,7 @@ function getEmbedableLinkTypes() {
                   div.querySelector('span').remove();
                   div.classList.remove('embed');
                   div.classList.remove('loading');
-                },
-                100
+                }
               );
             });
             div.appendChild(iframe);
@@ -1106,6 +1142,42 @@ function getEmbedableLinkTypes() {
       }
     },
     {
+      name: 'Facebook',
+      id: 'embed_facebook',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/(?:posts|videos|photos)\/[\w:./]+(?:\?[\w=%&.]+)?|(?:photo|video)\.php\?[\w=%&.]+)/i,
+      makeNode: function(aNode, reResult) {
+        var facebookType = this;
+        var script = '(function(d, s, id) { var js, fjs = d.getElementsByTagName(s)[0]; if (d.getElementById(id)) return; ' +
+            'js = d.createElement(s); js.id = id; js.src = "https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3"; fjs.parentNode.insertBefore(js, fjs); ' +
+            '}(document, "script", "facebook-jssdk"));';
+        setTimeout(window.eval(script), 0);
+        var div = document.createElement("div");
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span><div class="fb-post" data-href="' + aNode.href + '" data-width="640">';
+        div.className = 'fbEmbed embed loading';
+        waitAndRun(
+          () => (div.querySelector('iframe[height]') !== null),
+          () => {
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+            div.classList.remove('loading');
+          },
+          () => {
+            console.log('Juick tweaks: time out on facebook embedding, applying workaround.');
+            var embedUrl = 'https://www.facebook.com/plugins/post.php?width=640&height=570&href=' + encodeURIComponent(reResult[0]);
+            div.innerHTML = '';
+            div.appendChild(makeIframe(embedUrl, '100%', 570));
+            div.classList.remove('embed');
+            div.classList.remove('loading');
+            div.classList.add('fallback');
+          },
+          100,
+          15
+        );
+        return div;
+      }
+    },
+    {
       name: 'Tumblr',
       id: 'embed_tumblr',
       ctsDefault: true,
@@ -1137,14 +1209,12 @@ function getEmbedableLinkTypes() {
                   div.querySelector('span').remove();
                   div.classList.remove('embed');
                   div.classList.remove('loading');
-                },
-                100
+                }
               );
             }, () => {
               div.textContent = 'Failed to load';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, function(){return tumblrType.makeNode(aNode, reResult);});
-              return;
             });
             div.appendChild(iframe);
           }
@@ -1161,7 +1231,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         var redditType = this;
         var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
         div.className = 'reddit embed loading';
 
         GM_xmlhttpRequest({
@@ -1175,18 +1245,25 @@ function getEmbedableLinkTypes() {
               return;
             }
             var json = JSON.parse(response.responseText);
-            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
-              waitAndRun(
-                () => { var iframe2 = doc.querySelector('iframe'); return (iframe2 !== null && (parseInt(iframe2.height) > 30)); },
-                () => { setTimeout( () => {
-                       iframe.height = 20 + parseInt(doc.querySelector('body').offsetHeight); }, 300);
-                       div.querySelector('span').remove();
-                       div.classList.remove('embed');
-                       div.classList.remove('loading');
-                      },
-                100);
-            });
-            div.appendChild(iframe);
+            var [h, ss] = splitScriptsFromHtml(json.html);
+            ss.forEach(s => { s.call(); });
+            div.innerHTML += h;
+            waitAndRun(
+              () => { var iframe = div.querySelector('iframe'); return (iframe !== null && (parseInt(iframe.height) > 30)); },
+              () => {
+                div.querySelector('iframe').style.margin = '0px';
+                div.querySelector('span').remove();
+                div.classList.remove('embed');
+                div.classList.remove('loading');
+              },
+              () => {
+                div.textContent = 'Failed to load (time out)';
+                div.className = div.className.replace(' loading', ' failed');
+                turnIntoCts(div, function(){return redditType.makeNode(aNode, reResult);});
+              },
+              100,
+              30
+            );
           }
         });
 
@@ -1522,6 +1599,10 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
             newNode = makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
+          }
+          if(newNode === null) {
+            console.log('' + linkType + ' returned null instead of a new node for ' + aNode.href);
+            return false;
           }
           if(GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
             linkType.linkTextUpdate(aNode, reResult);
@@ -2035,11 +2116,17 @@ function addStyle() {
     ".gistEmbed .gist-file .gist-data .blob-wrapper, .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; } " +
     ".gistEmbed.embed.loaded { border-width: 0px; padding: 0; } " +
     ".wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; } " +
-    ".tumblr, .reddit { max-height: 86vh; overflow-y: auto; min-width: 100%; } " +
-    ".tumblr.loading iframe, .reddit.loading iframe, .imgur.loading iframe { visibility: hidden; height: 0px; } " +
-    ".reddit iframe { max-height: 80vh; } " +
-    ".imgur { min-width: 100%; } " +
+    ".tumblr { max-height: 86vh; overflow-y: auto; min-width: 90%; } " +
+    ".tumblr.loading iframe { visibility: hidden; height: 0px; } " +
+    ".reddit { max-height: 75vh; overflow-y: auto; min-width: 90%; } " +
+    ".reddit iframe { resize: none; } " +
+    ".reddit.loading > blockquote, .reddit.loading > div { display: none; }" +
+    ".fbEmbed { min-width: 90%; } " +
+    ".fbEmbed:not(.fallback) iframe { resize: none; } " +
+    ".fbEmbed.loading > div { visibility: hidden; height: 0px; } " +
+    ".imgur { min-width: 90%; } " +
     ".imgur iframe { border-width: 0px; } " +
+    ".imgur.loading iframe { visibility: hidden; height: 0px; } " +
     ".embedContainer > .gelbooru.embed, .embedContainer > .danbooru.embed { width: 49%; position: relative; } " +
     ".danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: var(--color07); } " +
     ".danbooru.embed.loaded { min-height: 110px; }" +
