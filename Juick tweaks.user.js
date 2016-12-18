@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.5
-// @date        2016.09.02 - 2016.11.26
+// @version     2.7.7
+// @date        2016.09.02 - 2016.11.28
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -23,10 +23,13 @@
 // @connect     gist.github.com
 // @connect     codepen.io
 // @connect     pixiv.net
+// @connect     konachan.net
+// @connect     yande.re
 // @connect     gelbooru.com
 // @connect     safebooru.org
 // @connect     danbooru.donmai.us
 // @connect     safebooru.donmai.us
+// @connect     anime-pictures.net
 // @connect     api.imgur.com
 // @connect     tumblr.com
 // @connect     reddit.com
@@ -1153,7 +1156,7 @@ function getEmbedableLinkTypes() {
             '}(document, "script", "facebook-jssdk"));';
         setTimeout(window.eval(script), 0);
         var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span><div class="fb-post" data-href="' + aNode.href + '" data-width="640">';
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span><div class="fb-post" data-href="' + aNode.href + '" data-width="640">';
         div.className = 'fbEmbed embed loading';
         waitAndRun(
           () => (div.querySelector('iframe[height]') !== null),
@@ -1526,7 +1529,7 @@ function getEmbedableLinkTypes() {
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://' + reResult[1] + '.donmai.us/posts/' + reResult[2] + '.json',
+          url: 'https://' + reResult[1] + '.donmai.us/posts/' + id + '.json',
           onload: function(response) {
             if(response.status != 200) {
               div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
@@ -1575,6 +1578,210 @@ function getEmbedableLinkTypes() {
       linkTextUpdate: function(aNode, reResult) {
         aNode.href = aNode.href.replace('http:', 'https:');
         aNode.textContent += ' (' + reResult[2] + ')';
+      }
+    },
+    {
+      name: 'Konachan',
+      id: 'embed_konachan',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/konachan\.(com|net)\/post\/show\/(\d+)/i,
+      makeNode: function(aNode, reResult) {
+        var konachanType = this;
+        var id = reResult[2];
+        var url = reResult[0].replace('.com/', '.net/');
+        var unsafeUrl = reResult[0].replace('.net/', '.com/');
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + konachanType.makeTitle(aNode, reResult);
+        div.className = 'konachan booru embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://konachan.net/post.json?tags=id:' + id,
+          timeout: 3000,
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = (JSON.parse(response.responseText))[0];
+            if(json === undefined || json.preview_url === undefined) {
+              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+              return;
+            }
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = json.preview_url;
+            imgNode.className = 'rating_' + json.rating;
+            aNode2.href = url;
+            aNode2.appendChild(imgNode);
+
+            var createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
+            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
+            var titleDiv = '<div class="title"><a href="' + url + '">' + id + '</a>' + (json.rating == 's' ? '' : ' (<a href="' + unsafeUrl +'">' + json.rating + '</a>)') + '</div>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', ' loaded');
+          },
+          ontimeout: function(response) {
+            div.textContent = 'Failed to load (time out)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+          },
+          onerror: function(response) {
+            console.log('Unknown error when loading ' + url);
+            console.log(response);
+            div.textContent = 'Failed to load (unknown error)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return 'konachan (' + reResult[2] + ')';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        aNode.textContent += ' (' + reResult[2] + ')';
+      }
+    },
+    {
+      name: 'yande.re',
+      id: 'embed_yandere',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/yande.re\/post\/show\/(\d+)/i,
+      makeNode: function(aNode, reResult) {
+        var yandereType = this;
+        var [url, id] = reResult;
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + yandereType.makeTitle(aNode, reResult);
+        div.className = 'yandere booru embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://yande.re/post.json?tags=id:' + id,
+          timeout: 3000,
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = (JSON.parse(response.responseText))[0];
+            if(json === undefined || json.preview_url === undefined) {
+              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+              return;
+            }
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = json.preview_url;
+            imgNode.className = 'rating_' + json.rating;
+            aNode2.href = url;
+            aNode2.appendChild(imgNode);
+
+            var hasNotes = (json.last_noted_at !== null && json.last_noted_at !== 0);
+            var hasComments = (json.last_commented_at !== null && json.last_commented_at !== 0);
+            var createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
+            var updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
+            if(createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ' (' + updatedDateStr + ')' }
+            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
+            var titleDiv = '<div class="title"><a href="' + url + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
+            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', ' loaded');
+          },
+          ontimeout: function(response) {
+            div.textContent = 'Failed to load (time out)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+          },
+          onerror: function(response) {
+            console.log('Unknown error when loading ' + url);
+            console.log(response);
+            div.textContent = 'Failed to load (unknown error)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return 'yande.re (' + reResult[1] + ')';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        aNode.textContent += ' (' + reResult[1] + ')';
+      }
+    },
+    {
+      name: 'anime-pictures.net',
+      id: 'embed_anime_pictures_net',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/anime-pictures.net\/pictures\/view_post\/(\d+)/i,
+      makeNode: function(aNode, reResult) {
+        var anipicType = this;
+        var [url, id] = reResult;
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + anipicType.makeTitle(aNode, reResult);
+        div.className = 'yandere embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: url,
+          onload: function(response) {
+            if(response.status != 200) {
+              if(response.status == 503) {
+                div.textContent = 'Click to show ' + anipicType.makeTitle(aNode, reResult);
+              } else {
+                div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              }
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return anipicType.makeNode(aNode, reResult);});
+              return;
+            }
+            if(response.responseText.includes('must be logged in')) {
+              div.innerHTML = '<span>You must be logged in to view <a href="' + url + '">' + anipicType.makeTitle(aNode, reResult) + '</a></span>';
+              return;
+            }
+
+            var metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*>/gmi;
+            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            var imageUrl;
+            [].forEach.call(matches, function(m, i, arr) {
+              if((m[1] || m[3]) == 'og:image') { imageUrl = m[2]; }
+            });
+
+            var aNode2 = document.createElement("a");
+            var imgNode = document.createElement("img");
+            imgNode.src = imageUrl;
+            aNode2.href = aNode.href;
+            aNode2.appendChild(imgNode);
+
+            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + id + '</a>' + '</div>';
+            div.innerHTML = '<div class="top">' + titleDiv + '</div>';
+            div.appendChild(aNode2);
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return 'anime-pictures.net (' + reResult[1] + ')';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        aNode.textContent += ' (' + reResult[1] + ')';
       }
     }
   ];
@@ -2127,7 +2334,7 @@ function addStyle() {
     ".imgur { min-width: 90%; } " +
     ".imgur iframe { border-width: 0px; } " +
     ".imgur.loading iframe { visibility: hidden; height: 0px; } " +
-    ".embedContainer > .gelbooru.embed, .embedContainer > .danbooru.embed { width: 49%; position: relative; } " +
+    ".embedContainer > .gelbooru.embed, .embedContainer > .danbooru.embed, .embedContainer > .konachan.embed, .embedContainer > .yandere.embed { width: 49%; position: relative; } " +
     ".danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: var(--color07); } " +
     ".danbooru.embed.loaded { min-height: 110px; }" +
     ".danbooru.embed:hover .booru-tags { display: block; } " +
