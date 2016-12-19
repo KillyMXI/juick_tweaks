@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.16
-// @date        2016.09.02 - 2016.12.12
+// @version     2.7.22
+// @date        2016.09.02 - 2016.12.19
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -292,7 +292,7 @@ function addYearLinks() {
   ];
   years.forEach(function(item, i, arr) {
     var anode = document.createElement("a");
-    anode.href = "/" + userId + "/" + item.b;
+    anode.href = `/${userId}/${item.b}`;
     anode.textContent = item.y;
     linksContainer.appendChild(anode);
     linksContainer.appendChild(document.createTextNode (" "));
@@ -356,18 +356,16 @@ function addEasyTagsUnderPostEditorSharp() {
     messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
     sortAndColorizeTagsInContainer(tagsContainer, 60, true);
     [].forEach.call(tagsContainer.childNodes, function(item, i, arr) {
-      var text = item.textContent;
-      item.onclick = function() { tagsfield.value = (tagsfield.value + " " + text).trim(); };
+      var newTag = item.textContent;
+      item.onclick = function() { tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); };
       item.href = "#";
     });
   });
 }
 
 function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
-  tagsContainer.className += " tagsContainer";
+  tagsContainer.classList.add('tagsContainer');
   var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
-  var backColor = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor);
-  //linkColor = getContrastColor(backColor);
   var p0 = 0.7; // 70% of color range is used for color coding
   var maxC = 0.1;
   var sortedTags = [];
@@ -386,14 +384,11 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   while (tagsContainer.firstChild) {
     tagsContainer.removeChild(tagsContainer.firstChild);
   }
+  var [r, g, b] = linkColor;
   sortedTags.forEach(function(item, i, arr) {
     var c = item.c;
     var p = (c/maxC-1)*p0+1; // normalize to [p0..1]
-    var r = Math.round(linkColor[0]*p + backColor[0]*(1-p));
-    var g = Math.round(linkColor[1]*p + backColor[1]*(1-p));
-    var b = Math.round(linkColor[2]*p + backColor[2]*(1-p));
-    //item.a.style.color = "rgb("+r+","+g+","+b+")";
-    item.a.style.setProperty("color", "rgb("+r+","+g+","+b+")", "important");
+    item.a.style.setProperty('color', `rgba(${r},${g},${b},${p})`, 'important');
     tagsContainer.appendChild(item.a);
     tagsContainer.appendChild(document.createTextNode (" "));
   });
@@ -415,7 +410,7 @@ function getLastArticleDate(html) {
   var re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
   //var re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
   var [, dateStr, timeStr] = re.exec(html) || [];
-  return (dateStr === undefined) ? null : new Date("" + dateStr + "T" + timeStr);
+  return (dateStr === undefined) ? null : new Date(`${dateStr}T${timeStr}`);
 }
 
 function processPage(url, retrievalFunction, doneCallback, timeout=100) {
@@ -450,7 +445,7 @@ function loadUserDates(unprocessedUsers, processedUsers, doneCallback) {
             console.log("" + user.id + ": no posts or recommendations found");
         } else {
           user.date = date;
-          user.a.appendChild(document.createTextNode (" (" + date.getFullYear() + "-" + (date.getMonth()+1) + "-" + date.getDate() + ")" ));
+          user.a.appendChild(document.createTextNode (` (${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()})` ));
         }
 
         processedUsers.push(user);
@@ -578,9 +573,12 @@ function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
   return iframe;
 }
 
-function loadScript(url, async=false, callback)
+function loadScript(url, async=false, callback, once=false)
 {
-  //if([].some.call(document.scripts, s => s.src == url)) { console.log(url + ' is already loaded'); return; }
+  if(once && [].some.call(document.scripts, s => s.src == url)) {
+    console.log(url + ' is already loaded');
+    return;
+  }
 
   var head = document.getElementsByTagName('head')[0];
   var script = document.createElement('script');
@@ -600,7 +598,7 @@ function splitScriptsFromHtml(html) {
   var scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
   var scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(
     m => {
-      var [url, s] = [m[1], m[2]];
+      var [, url, s] = m;
       return (url !== undefined)
         ? { call: function(){ loadScript(url, true); } }
         : { call: function(){ setTimeout(window.eval(s), 0); } };
@@ -636,7 +634,7 @@ function messageReplyReplace(match, mid, rid, offset, string) {
 }
 
 function juickPostParse(txt) {
-  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
+  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
   var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
   return htmlEscape(txt)
            .replace(urlRe, urlReplace)
@@ -781,21 +779,16 @@ function getEmbedableLinkTypes() {
       }
     },
     {
-      name: 'YouTube videos',
+      name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/v\/)([\w\-\_]*)(?:&(?:amp;)?[\w\?=]*)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/v\/)([-\w]+)(?:&(?:amp;)?(?:(?!list=)\w+=[-\w]+))*(?:&(?:amp;)?list=([-\w]+))?(?:&(?:amp;)?(?:\w+=[-\w]+))*|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//www.youtube-nocookie.com/embed/' + reResult[1] + '?rel=0', 640, 360), 'div', 'youtube');
-      }
-    },
-    {
-      name: 'YouTube playlists',
-      id: 'embed_youtube_playlists',
-      ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?youtube\.com\/playlist\?list=([\w\-\_]*)(&(amp;)?[\w\?=]*)?/i,
-      makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//www.youtube-nocookie.com/embed/videoseries?list=' + reResult[1], 640, 360), 'div', 'youtube');
+        let [url, v, vlist, plist] = reResult;
+        let iframeUrl = (plist !== undefined)
+                          ? '//www.youtube-nocookie.com/embed/videoseries?list=' + plist
+                          : '//www.youtube-nocookie.com/embed/' + v + ((vlist !== undefined) ? '?list=' + vlist : '?rel=0');
+        return wrapIntoTag(makeIframe(iframeUrl, 640, 360), 'div', 'youtube');
       }
     },
     {
@@ -933,7 +926,7 @@ function getEmbedableLinkTypes() {
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://www.flickr.com/services/oembed?format=xml&url=' + encodeURIComponent(reResult[0]),
+          url: 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(reResult[0]),
           onload: function(response) {
             if(response.status != 200) {
               div.textContent = 'Failed to load (' + response.status + ')';
@@ -941,32 +934,19 @@ function getEmbedableLinkTypes() {
               turnIntoCts(div, function(){return flickrType.makeNode(aNode, reResult);});
               return;
             }
-            var fType, url, thumb, authorName, authorUrl, title, webPage;
-            var xmlTagRe = /<(\w+)>\s*([^<]+)<\/\w+>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(xmlTagRe, response.responseText);
-            [].forEach.call(matches, function(m, i, arr) {
-              if(m[1] == 'flickr_type') { fType = m[2]; }
-              if(m[1] == 'url') { url = m[2]; }
-              if(m[1] == 'thumbnail_url') { thumb = m[2]; }
-              if(m[1] == 'author_name') { authorName = m[2]; }
-              if(m[1] == 'author_url') { authorUrl = m[2]; }
-              if(m[1] == 'title') { title = m[2]; }
-              if(m[1] == 'web_page') { webPage = m[2]; }
-            });
+            var json = JSON.parse(response.responseText);
 
-            var imageUrl = (url !== undefined) ? url : thumb;
+            var imageUrl = (json.url !== undefined) ? json.url : json.thumbnail_url;
             var aNode2 = document.createElement("a");
             var imgNode = document.createElement("img");
             imgNode.src = imageUrl;//.replace('_b.', '_z.');
             aNode2.href = aNode.href;
             aNode2.appendChild(imgNode);
 
-            var titleDiv = '<div class="title">' + '<a href="' + webPage + '">' + title + '</a>';
-            if(fType != 'photo') {
-              titleDiv += ' (' + fType + ')';
-            }
-            titleDiv += ' by <a href="' + authorUrl + '">' + authorName + '</a></div>';
-            div.innerHTML = '<div class="top">' + titleDiv + '</div>';
+            var titleDiv = `<div class="title"><a href="${json.web_page}"> ${json.title}</a>`;
+            if(json.flickr_type != 'photo') { titleDiv += ` (${json.flickr_type})`; }
+            titleDiv += ` by <a href="${json.author_url}">${json.author_name}</a></div>`;
+            div.innerHTML = `<div class="top">${titleDiv}</div>`;
             div.appendChild(aNode2);
 
             div.className = div.className.replace(' loading', '');
@@ -982,14 +962,15 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([\w-]+)/i,
       makeNode: function(aNode, reResult) {
+        var [url, userId, workId] = reResult;
         var daType = this;
         var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'deviantart embed loading';
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://backend.deviantart.com/oembed?format=xml&url=' + encodeURIComponent(reResult[0]),
+          url: 'https://backend.deviantart.com/oembed?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
               div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
@@ -997,36 +978,27 @@ function getEmbedableLinkTypes() {
               turnIntoCts(div, function(){return daType.makeNode(aNode, reResult);});
               return;
             }
-            var fType, fullsizeUrl, url, thumb, authorName, authorUrl, title, pubdate;
-            var xmlTagRe = /<(\w+)>\s*([^<]+)<\/\w+>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(xmlTagRe, response.responseText);
-            [].forEach.call(matches, function(m, i, arr) {
-              if(m[1] == 'type') { fType = m[2]; }
-              if(m[1] == 'fullsize_url') { fullsizeUrl = m[2]; }
-              if(m[1] == 'url') { url = m[2]; }
-              if(m[1] == 'thumbnail_url') { thumb = m[2]; }
-              if(m[1] == 'author_name') { authorName = m[2]; }
-              if(m[1] == 'author_url') { authorUrl = m[2]; }
-              if(m[1] == 'title') { title = m[2]; }
-              if(m[1] == 'pubdate') { pubdate = m[2]; }
-            });
+            var json = JSON.parse(response.responseText);
 
-            var imageUrl = (fullsizeUrl != undefined) ? fullsizeUrl : (url != undefined) ? url : thumb;
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = imageUrl;
-            aNode2.href = aNode.href;
-            aNode2.appendChild(imgNode);
+            var date = new Date(json.pubdate);
+            var dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
+            var titleDiv = `<div class="title"><a href="${url}">${json.title}</a>`;
+            if(json.type != 'photo') { titleDiv += ` (${json.type})`; }
+            titleDiv += ` by <a href="${json.author_url}">${json.author_name}</a></div>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>`;
 
-            var date = new Date(pubdate);
-            var dateDiv = '<div class="date">' + date.toLocaleString('ru-RU') + '</div>';
-            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + title + '</a>';
-            if(fType != 'photo') {
-              titleDiv += ' (' + fType + ')';
+            if((json.type == 'rich') && (json.html !== undefined)) {
+              div.innerHTML += `<div class="desc">${json.html}...</div>`;
+            } else {
+              var imageUrl = (json.fullsize_url !== undefined) ? json.fullsize_url : (json.url !== undefined) ? json.url : json.thumbnail_url;
+              var aNode2 = document.createElement("a");
+              var imgNode = document.createElement("img");
+              imgNode.src = imageUrl;
+              if(json.safety == 'adult') { imgNode.className = 'rating_e'; }
+              aNode2.href = aNode.href;
+              aNode2.appendChild(imgNode);
+              div.appendChild(aNode2);
             }
-            titleDiv += ' by <a href="' + authorUrl + '">' + authorName + '</a></div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
-            div.appendChild(aNode2);
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1107,7 +1079,8 @@ function getEmbedableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status\/([\d]+)/i,
       makeNode: function(aNode, reResult) {
         var twitterType = this;
-        var twitterUrl = reResult[0].replace('mobile.','');
+        var [twitterUrl, userId, postId] = reResult;
+        twitterUrl = twitterUrl.replace('mobile.','');
         var div = document.createElement("div");
         div.textContent = 'loading ' + twitterUrl;
         div.className = 'twi embed loading';
@@ -1123,11 +1096,11 @@ function getEmbedableLinkTypes() {
               return;
             }
             if(response.finalUrl.endsWith('account/suspended')) {
-              div.textContent = 'Account @' + reResult[1] + ' is suspended';
+              div.textContent = 'Account @' + userId + ' is suspended';
               return;
             }
             if(response.finalUrl.indexOf('protected_redirect=true') != -1) {
-              div.textContent = 'Account @' + reResult[1] + ' is protected';
+              div.textContent = 'Account @' + userId + ' is protected';
               return;
             }
             var images = [];
@@ -1136,7 +1109,6 @@ function getEmbedableLinkTypes() {
             var videoUrl, videoW, videoH;
             var description;
             var title;
-            var id = reResult[1];
             var titleDiv, dateDiv ='', descDiv;
             var metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
             var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
@@ -1161,7 +1133,7 @@ function getEmbedableLinkTypes() {
               var date = new Date(+timestampMsResult[1]);
               dateDiv = '<div class="date">' + date.toLocaleString('ru-RU') + '</div>';
             }
-            titleDiv = '<div class="title">' + title + ' (<a href="//twitter.com/' + id + '">@' + id + '</a>)' + '</div>';
+            titleDiv = '<div class="title">' + title + ' (<a href="//twitter.com/' + userId + '">@' + userId + '</a>)' + '</div>';
             descDiv = '<div class="desc">' + description + '</div>';
             div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + descDiv;
             if(userGenImg) { div.innerHTML += '' + images.map(function(x){ return '<a href="' + x + '"><img src="' + x + '"></a>'; }).join(''); }
@@ -1866,7 +1838,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   var anyEmbed = false;
   var isAfterNode = (afterNode !== undefined);
   var linkId = (aNode.href.replace(/^https?:/i, ''));
-  var sameEmbed = container.querySelector('*[data-linkid=\'' + linkId + '\']'); // do not embed the same thing twice
+  var sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
   if(sameEmbed === null) {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
       if(GM_getValue(linkType.id, true)) {
@@ -1878,7 +1850,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           var isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
             var linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
-            newNode = makeCts(function(){ return linkType.makeNode(aNode, reResult); }, 'Click to show: ' + linkTitle);
+            newNode = makeCts(() => linkType.makeNode(aNode, reResult), 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
           }
@@ -2273,12 +2245,11 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         var oldestArticle = articles[articles.length - 1];
 
         var dateRe = /datetime\=\"([^\"]+) ([^\"]+)\"/i;
-        var dateResult = dateRe.exec(oldestArticle);
-        oldestDate = new Date("" + dateResult[1] + "T" + dateResult[2]);
+        var [, oldestDate, oldestTime] = dateRe.exec(oldestArticle);
+        oldestDate = new Date(`${oldestDate}T${oldestTime}`);
 
         var midRe = /data-mid="(\d+)"/i;
-        var midResult = midRe.exec(oldestArticle);
-        oldestMid = midResult[1];
+        var [, oldestMid] = midRe.exec(oldestArticle);
 
         var userRe = /@<a href="\/([-\w]+)\/">/i;
         var userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
@@ -2324,7 +2295,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         avgPNode.textContent = '' + avg.toFixed(3) + ' recommendations per day';
         article.appendChild(avgPNode);
 
-        var userStrings = sortedUsers.map(x => '<li><a href="/' + x.id + '/">' + x.avatar + x.id + '</a> / ' + x.recs + '</li>');
+        var userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
         var ulNode = document.createElement("ul");
         ulNode.className = 'users';
         ulNode.innerHTML = userStrings.join('');
