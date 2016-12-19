@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.9
-// @date        2016.09.02 - 2016.11.29
+// @version     2.7.10
+// @date        2016.09.02 - 2016.12.01
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -691,23 +691,22 @@ function getEmbedableLinkTypes() {
 
             var withTags = (msg.tags !== undefined);
             var withPhoto = (msg.photo !== undefined);
-            var isReplyTo = (msg.replyto !== undefined);
-            var hasReplies = (msg.replies !== undefined);
+            var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
+            var hasReplies = (msg.replies !== undefined && msg.replies > 0);
 
             var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
             var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
             var avatarStr = '<div class="msg-avatar"><a href="/' + msg.user.uname + '/"><img src="//i.juick.com/a/' + msg.user.uid + '.png" alt="' + msg.user.uname + '"></a></div>';
             var tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(function(x) { return '<a href="http://juick.com/' + msg.user.uname + '/?tag=' + encodeURIComponent(x) + '">' + x + '</a>'; }).join('') + '</div>' : '';
             var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img src="' + msg.photo.small + '"/></a></div>' : '';
-            var replyStr = (isReply) ? ( '<div>/' + mrid + (isReplyTo) ? ' in reply to /' + msg.replyto : '' ) + '</div>' : '';
             var titleDiv = '<div class="title">' + userLink + '</div>';
             var dateDiv = '<div class="date"><a href="' + linkStr + '">' + msg.timestamp + '</a></div>';
             var replyStr = (hasReplies)
-                             ? (' · ' + msg.replies + ((msg.replies == '1') ? ' reply' : ' replies'))
-                             : (isReplyTo)
-                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
+                             ? (' · ' + msg.replies + ((msg.replies == 1) ? ' reply' : ' replies'))
+                             : (isReplyToOp)
+                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
                                : (isReply)
-                                 ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
+                                 ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
                                  : '';
             var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
             var description = juickPostParse(msg.body);
