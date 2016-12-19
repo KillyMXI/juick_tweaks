@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.15
-// @date        2016.09.02 - 2016.12.08
+// @version     2.7.16
+// @date        2016.09.02 - 2016.12.12
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -17,6 +17,7 @@
 // @connect     api.juick.com
 // @connect     twitter.com
 // @connect     bandcamp.com
+// @connect     mixcloud.com
 // @connect     flickr.com
 // @connect     flic.kr
 // @connect     deviantart.com
@@ -693,7 +694,7 @@ function getEmbedableLinkTypes() {
             var withPhoto = (msg.photo !== undefined);
             var withLikes = (msg.likes !== undefined && msg.likes > 0);
             var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
-            var hasReplies = (msg.replies !== undefined && msg.replies > 0);
+            var withReplies = (msg.replies !== undefined && msg.replies > 0);
             var isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
 
             var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
@@ -703,21 +704,21 @@ function getEmbedableLinkTypes() {
             var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img ' + (isNsfw ? 'class="nsfw" ' : '') + 'src="' + msg.photo.small + '"/></a></div>' : '';
             var titleDiv = '<div class="title">' + userLink + '</div>';
             var dateDiv = '<div class="date"><a href="' + linkStr + '">' + msg.timestamp + '</a></div>';
-            var replyStr = (hasReplies)
-                             ? (' · ' + msg.replies + ((msg.replies == 1) ? ' reply' : ' replies'))
-                             : (isReplyToOp)
-                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
-                               : (isReply)
-                                 ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
-                                 : '';
+            var replyStr = (isReplyToOp)
+                             ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
+                             : (isReply)
+                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
+                               : '';
             var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
             var heartIcon = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-heart-icon"></use></svg></div>';
+            var commentIcon = '<div class="icon icon--ei-comment icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-comment-icon"></use></svg></div>';
             var likesDiv = (withLikes) ? '<div class="likes"><a href="' + linkStr + '">' + heartIcon + msg.likes + '</a></div>' : '';
+            var commentsDiv = (withReplies) ? '<div class="replies"><a href="' + linkStr + '">' + commentIcon + msg.replies + '</a></div>' : '';
             var description = juickPostParse(msg.body);
             var descDiv = '<div class="desc">' + description + '</div>';
             div.innerHTML =
               '<div class="top">' + avatarStr + '<div class="top-right"><div class="top-right-1st">' + titleDiv + dateDiv + '</div><div class="top-right-2nd">' + tagsStr + '</div></div></div>' +
-              descDiv + photoStr + '<div class="bottom">' + replyDiv + likesDiv + '</div>';
+              descDiv + photoStr + '<div class="bottom">' + replyDiv + '<div class="right">' + likesDiv + commentsDiv + '</div></div>';
 
             var allLinks = div.querySelectorAll(".desc a, .embedReply a.whiteRabbit");
             var embedContainer = div.parentNode;
@@ -872,17 +873,49 @@ function getEmbedableLinkTypes() {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
       ctsDefault: false,
-      re: /(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([\w\-\_]*))(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([\w\-\_]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
         return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
       }
     },
     {
+      name: 'Mixcloud music',
+      id: 'embed_mixcloud_music',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-\w]+)\/?/i,
+      makeNode: function(aNode, reResult) {
+        var mixcloudType = this;
+        var [url, author, mix] = reResult;
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
+        div.className = 'mixcloud embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'https://www.mixcloud.com/oembed/?format=json&url=' + encodeURIComponent(url),
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return mixcloudType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            div.innerHTML = json.html;
+            div.className = div.className.replace(' embed loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
       name: 'Instagram',
       id: 'embed_instagram',
       ctsDefault: false,
-      re: /(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         return wrapIntoTag(makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722), 'div', 'instagram');
       }
@@ -1840,7 +1873,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
         var reResult = linkType.re.exec(aNode.href);
         var matched = (reResult !== null);
         if(matched) {
-          aNode.className += ' embedLink';
+          aNode.classList.add('embedLink');
           var newNode;
           var isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
@@ -2355,15 +2388,16 @@ function addStyle() {
     ".embedContainer .embed .cts { margin: 0; } " +
     ".embed .top, .embed .bottom { display: flex; flex-shrink: 0; justify-content: space-between; } " +
     ".embed .top { margin-bottom: 0.5em; } " +
-    ".embed .date, .embed .date > a, .embed .likes > a, .embed .title { color: var(--color07); } " +
+    ".embed .date, .embed .date > a, .embed .likes > a, .embed .replies > a, .embed .title { color: var(--color07); } " +
     ".embed .date { font-size: small; text-align: right; } " +
-    ".embed .likes { font-size: small; margin-top: 5px; } " +
-    ".embed .likes .icon { width: 20px; height: 20px; } " +
+    ".embed .likes, .embed .replies { font-size: small; white-space:nowrap; margin-left: 12px; } " +
+    ".embed .likes .icon, .embed .replies .icon { width: 20px; height: 20px; } " +
     ".embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
     ".juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; } " +
     ".juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; } " +
+    ".juickEmbed > .bottom > .right { margin-top: 5px; display: flex; flex: 0; }" +
     ".gistEmbed .gist-file .gist-data .blob-wrapper, .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; } " +
     ".gistEmbed.embed.loaded { border-width: 0px; padding: 0; } " +
     ".wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; } " +
@@ -2384,7 +2418,8 @@ function addStyle() {
     ".danbooru.embed:hover .booru-tags { display: block; } " +
     ".embed .rating_e, .embed img.nsfw { opacity: 0.1; } " +
     ".embed .rating_e:hover, .embed img.nsfw:hover { opacity: 1.0; } " +
-    ".embedLink:after { content: ' ↓' } " +
+    ".embed.notEmbed { display: none; }" +
+    ".embedLink:not(.notEmbed):after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
     ".tweaksSettings table { border-collapse: collapse; } " +
     ".tweaksSettings tr { border-bottom: 1px solid transparent; } " +
