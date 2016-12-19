@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.13
-// @date        2016.09.02 - 2016.12.05
+// @version     2.7.15
+// @date        2016.09.02 - 2016.12.08
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -635,7 +635,7 @@ function messageReplyReplace(match, mid, rid, offset, string) {
 }
 
 function juickPostParse(txt) {
-  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
+  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
   var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
   return htmlEscape(txt)
            .replace(urlRe, urlReplace)
@@ -694,7 +694,7 @@ function getEmbedableLinkTypes() {
             var withLikes = (msg.likes !== undefined && msg.likes > 0);
             var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
             var hasReplies = (msg.replies !== undefined && msg.replies > 0);
-            var isNsfw = withPhoto && msg.tags.some(t => t.toUpperCase() == 'NSFW');
+            var isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
 
             var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
             var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
@@ -2089,7 +2089,6 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
   textarea.placeholder = placeholder;
   textarea.value = GM_getValue(id, defaultString);
   textarea.oninput = function(e) { GM_setValue(id, textarea.value); };
-  textarea.style = 'width: 100%; height: 100%;';
   wrapper.appendChild(textarea);
   label.appendChild(document.createTextNode('' + caption + ': '));
   label.appendChild(wrapper);
@@ -2392,6 +2391,8 @@ function addStyle() {
     ".tweaksSettings tr:hover { background: rgba(127,127,127,.1) } " +
     ".tweaksSettings td > * { display: block; width: 100%; height: 100%; } " +
     ".tweaksSettings > button { margin-top: 25px; } " +
+    ".tweaksSettings .ta-wrapper { width: 100%; height: 100%; } " +
+    ".tweaksSettings .ta-wrapper > textarea { width: 100%; height: 100%; } " +
     ".embedContainer > .cts { width: 100%; }" +
     ".embedContainer .cts > .placeholder { border: 1px dotted var(--color03); color: var(--color07); text-align: center; cursor: pointer; word-wrap: break-word; } " +
     ".cts > .placeholder { position: relative; } " +
