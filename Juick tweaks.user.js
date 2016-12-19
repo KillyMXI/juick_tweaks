@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.11
-// @date        2016.09.02 - 2016.12.02
+// @version     2.7.13
+// @date        2016.09.02 - 2016.12.05
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -309,7 +309,7 @@ function addSettingsLink() {
     var asideColumn = document.querySelector("aside#column");
     var ctitle = asideColumn.querySelector("#ctitle");
     var anode = document.createElement("a");
-    anode.innerHTML = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-gear-icon"></use></svg></div>';
+    anode.innerHTML = '<div class="icon icon--ei-gear icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-gear-icon"></use></svg></div>';
     anode.href = 'http://juick.com/settings';
     ctitle.appendChild(anode);
     ctitle.style.display = 'flex';
@@ -618,10 +618,10 @@ function isDefaultLinkText(aNode) {
   return (aNode.textContent == extractDomain(aNode.href));
 }
 
-function urlReplace(match, p1, p2, offset, string) {
-  var isBrackets = (p2 !== undefined);
+function urlReplace(match, p1, p2, p3, offset, string) {
+  var isBrackets = (p1 !== undefined);
   return (isBrackets)
-    ? '<a href="' + p2 + '">' + p1 + '</a>'
+    ? '<a href="' + (p2 || p3) + '">' + p1 + '</a>'
     : '<a href="' + match + '">' + extractDomain(match) + '</a>';
 }
 
@@ -635,7 +635,7 @@ function messageReplyReplace(match, mid, rid, offset, string) {
 }
 
 function juickPostParse(txt) {
-  var urlRe = /(?:\[([^\]]+)\]\[([^\]]+)\]|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
+  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[-\w+*&@#/%=~|$?!:,.])*(?:\([-\w+*&@#/%=~|$?!:,.]*\)|[\w+*&@#/%=~|$]))/gi;
   var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
   return htmlEscape(txt)
            .replace(urlRe, urlReplace)
@@ -691,6 +691,7 @@ function getEmbedableLinkTypes() {
 
             var withTags = (msg.tags !== undefined);
             var withPhoto = (msg.photo !== undefined);
+            var withLikes = (msg.likes !== undefined && msg.likes > 0);
             var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
             var hasReplies = (msg.replies !== undefined && msg.replies > 0);
             var isNsfw = withPhoto && msg.tags.some(t => t.toUpperCase() == 'NSFW');
@@ -710,11 +711,13 @@ function getEmbedableLinkTypes() {
                                  ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
                                  : '';
             var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
+            var heartIcon = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-heart-icon"></use></svg></div>';
+            var likesDiv = (withLikes) ? '<div class="likes"><a href="' + linkStr + '">' + heartIcon + msg.likes + '</a></div>' : '';
             var description = juickPostParse(msg.body);
             var descDiv = '<div class="desc">' + description + '</div>';
             div.innerHTML =
               '<div class="top">' + avatarStr + '<div class="top-right"><div class="top-right-1st">' + titleDiv + dateDiv + '</div><div class="top-right-2nd">' + tagsStr + '</div></div></div>' +
-              descDiv + photoStr + replyDiv;
+              descDiv + photoStr + '<div class="bottom">' + replyDiv + likesDiv + '</div>';
 
             var allLinks = div.querySelectorAll(".desc a, .embedReply a.whiteRabbit");
             var embedContainer = div.parentNode;
@@ -2351,9 +2354,12 @@ function addStyle() {
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
     ".embedContainer > .embed.failed { cursor: pointer; } " +
     ".embedContainer .embed .cts { margin: 0; } " +
-    ".embed .top { display: flex; flex-shrink: 0; justify-content: space-between; margin-bottom: 0.5em; } " +
-    ".embed .date, .embed .date > a, .embed .title { color: var(--color07); } " +
+    ".embed .top, .embed .bottom { display: flex; flex-shrink: 0; justify-content: space-between; } " +
+    ".embed .top { margin-bottom: 0.5em; } " +
+    ".embed .date, .embed .date > a, .embed .likes > a, .embed .title { color: var(--color07); } " +
     ".embed .date { font-size: small; text-align: right; } " +
+    ".embed .likes { font-size: small; margin-top: 5px; } " +
+    ".embed .likes .icon { width: 20px; height: 20px; } " +
     ".embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; } " +
     ".twi.embed > .cts > .placeholder { display: inline-block; } " +
     ".embedContainer > .embed.twi .cts > .placeholder { border: 0; } " +
