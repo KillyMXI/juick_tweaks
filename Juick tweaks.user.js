@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.7
-// @date        2016.09.02 - 2016.11.28
+// @version     2.7.9
+// @date        2016.09.02 - 2016.11.29
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -20,6 +20,7 @@
 // @connect     flickr.com
 // @connect     flic.kr
 // @connect     deviantart.com
+// @connect     slideshare.net
 // @connect     gist.github.com
 // @connect     codepen.io
 // @connect     pixiv.net
@@ -1301,6 +1302,44 @@ function getEmbedableLinkTypes() {
             div.innerHTML = '<div class="top">' + titleDiv + '</div> <hr/> <div class="desc">' + json.html + '</div>';
 
             div.className = div.className.replace(' loading', ' loaded');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
+      name: 'SlideShare',
+      id: 'embed_slideshare',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-\w]+)/i,
+      makeNode: function(aNode, reResult) {
+        var slideshareType = this;
+        var [url, author, id] = reResult;
+
+        var div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.className = 'slideshare embed loading';
+
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url,
+          onload: function(response) {
+            if(response.status != 200) {
+              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, function(){return slideshareType.makeNode(aNode, reResult);});
+              return;
+            }
+            var json = JSON.parse(response.responseText);
+            var baseSize = 640;
+            var newH = 1.0 * baseSize / json.width * json.height;
+            var iframeStr = json.html
+                                .match(/<iframe[^>]+>[\s\S]*?<\/iframe>/i)[0]
+                                .replace(/width="\d+"/i, 'width="' + baseSize + '"')
+                                .replace(/height="\d+"/i, 'height="' + newH + '"');
+            div.innerHTML = iframeStr;
+            div.className = div.className.replace(' embed loading', '');
           }
         });
 
