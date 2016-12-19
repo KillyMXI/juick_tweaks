@@ -1,4 +1,4 @@
-Несколько фич для juick.com
+Несколько фич для [juick.com](http://juick.com/)
 
 * вставка картинок (jpg, png, gif, svg), видео (webm, mp4, youtube, vimeo, dailymotion, coub), кода (gist, jsfiddle, codepen) и прочего (**juick**, twitter, facebook, tumblr, reddit, wordpress, slideshare, bandcamp, soundcloud, instagram, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re и некоторых других) из ссылок в постах;
 * фильтрация постов и комментариев по авторам и тегам;
