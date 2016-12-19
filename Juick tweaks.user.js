@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.10
-// @date        2016.09.02 - 2016.12.01
+// @version     2.7.11
+// @date        2016.09.02 - 2016.12.02
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -693,12 +693,13 @@ function getEmbedableLinkTypes() {
             var withPhoto = (msg.photo !== undefined);
             var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
             var hasReplies = (msg.replies !== undefined && msg.replies > 0);
+            var isNsfw = withPhoto && msg.tags.some(t => t.toUpperCase() == 'NSFW');
 
             var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
             var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
             var avatarStr = '<div class="msg-avatar"><a href="/' + msg.user.uname + '/"><img src="//i.juick.com/a/' + msg.user.uid + '.png" alt="' + msg.user.uname + '"></a></div>';
             var tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(function(x) { return '<a href="http://juick.com/' + msg.user.uname + '/?tag=' + encodeURIComponent(x) + '">' + x + '</a>'; }).join('') + '</div>' : '';
-            var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img src="' + msg.photo.small + '"/></a></div>' : '';
+            var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img ' + (isNsfw ? 'class="nsfw" ' : '') + 'src="' + msg.photo.small + '"/></a></div>' : '';
             var titleDiv = '<div class="title">' + userLink + '</div>';
             var dateDiv = '<div class="date"><a href="' + linkStr + '">' + msg.timestamp + '</a></div>';
             var replyStr = (hasReplies)
@@ -2376,8 +2377,8 @@ function addStyle() {
     ".danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: var(--color07); } " +
     ".danbooru.embed.loaded { min-height: 110px; }" +
     ".danbooru.embed:hover .booru-tags { display: block; } " +
-    ".embed .rating_e { opacity: 0.1; } " +
-    ".embed .rating_e:hover { opacity: 1.0; } " +
+    ".embed .rating_e, .embed img.nsfw { opacity: 0.1; } " +
+    ".embed .rating_e:hover, .embed img.nsfw:hover { opacity: 1.0; } " +
     ".embedLink:after { content: ' ↓' } " +
     ".tweaksSettings * { box-sizing: border-box; } " +
     ".tweaksSettings table { border-collapse: collapse; } " +
