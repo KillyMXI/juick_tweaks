@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.22
-// @date        2016.09.02 - 2016.12.19
+// @version     2.7.23
+// @date        2016.09.02 - 2016.12.20
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -506,8 +506,8 @@ function turnIntoCts(node, makeNodeCallback) {
 }
 
 function makeCts(makeNodeCallback, title) {
-  var ctsNode = document.createElement('div');
-  var placeholder = document.createElement('div');
+  let ctsNode = document.createElement('div');
+  let placeholder = document.createElement('div');
   placeholder.className = 'placeholder';
   placeholder.innerHTML = title;
   ctsNode.className = 'cts';
@@ -517,7 +517,7 @@ function makeCts(makeNodeCallback, title) {
 }
 
 function makeIframe(src, w, h, scrolling='no') {
-  var iframe = document.createElement("iframe");
+  let iframe = document.createElement('iframe');
   iframe.width = w;
   iframe.height = h;
   iframe.frameBorder = 0;
@@ -528,18 +528,20 @@ function makeIframe(src, w, h, scrolling='no') {
 }
 
 function makeIframeWithHtmlAndId(myHTML) {
-  var id = randomId();
-  var script =
-    "(function(html){ var iframe = document.createElement('iframe'); iframe.id='" + id +
-    "'; iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();}; " +
-    "document.getElementsByTagName('body')[0].appendChild(iframe); })(" + JSON.stringify(myHTML) + ");";
+  let id = randomId();
+  let script =  `(function(html){
+                   var iframe = document.createElement('iframe');
+                   iframe.id='${id}';
+                   iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();};
+                   document.getElementsByTagName('body')[0].appendChild(iframe);
+                 })(${JSON.stringify(myHTML)});`;
   window.eval(script);
   return id;
 };
 
 function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
-  var iframeId = makeIframeWithHtmlAndId(html);
-  var iframe = document.getElementById(iframeId);
+  let iframeId = makeIframeWithHtmlAndId(html);
+  let iframe = document.getElementById(iframeId);
   iframe.className = 'newIframe';
   iframe.width = w;
   iframe.height = h;
@@ -555,13 +557,13 @@ function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
 
 // this doesn't work in FF + GreaseMonkey.
 function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
-  var iframe = document.createElement("iframe");
+  let iframe = document.createElement('iframe');
   iframe.className = 'newIframe';
   iframe.width = w;
   iframe.height = h;
   iframe.frameBorder = 0;
   iframe.onload = function() {
-    var doc = iframe.contentWindow.document;
+    let doc = iframe.contentWindow.document;
     doc.open();
     doc.write(html);
     doc.close();
@@ -580,8 +582,8 @@ function loadScript(url, async=false, callback, once=false)
     return;
   }
 
-  var head = document.getElementsByTagName('head')[0];
-  var script = document.createElement('script');
+  let head = document.getElementsByTagName('head')[0];
+  let script = document.createElement('script');
   script.type = 'text/javascript';
   script.src = url;
   if(async) { script.setAttribute('async', ''); }
@@ -595,21 +597,21 @@ function loadScript(url, async=false, callback, once=false)
 }
 
 function splitScriptsFromHtml(html) {
-  var scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
-  var scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(
+  const scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
+  let scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(
     m => {
-      var [, url, s] = m;
+      let [, url, s] = m;
       return (url !== undefined)
         ? { call: function(){ loadScript(url, true); } }
         : { call: function(){ setTimeout(window.eval(s), 0); } };
     }
   );
-  var strippedHtml = html.replace(scriptRe, '');
+  let strippedHtml = html.replace(scriptRe, '');
   return [strippedHtml, scripts];
 }
 
 function extractDomain(url) {
-  var domainRe = /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i;
+  const domainRe = /^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/\n]+)/i;
   return domainRe.exec(url)[1];
 }
 
@@ -618,10 +620,10 @@ function isDefaultLinkText(aNode) {
 }
 
 function urlReplace(match, p1, p2, p3, offset, string) {
-  var isBrackets = (p1 !== undefined);
+  let isBrackets = (p1 !== undefined);
   return (isBrackets)
-    ? '<a href="' + (p2 || p3) + '">' + p1 + '</a>'
-    : '<a href="' + match + '">' + extractDomain(match) + '</a>';
+    ? `<a href="${p2 || p3}">${p1}</a>`
+    : `<a href="${match}">${extractDomain(match)}</a>`;
 }
 
 function bqReplace(match, offset, string) {
@@ -629,13 +631,13 @@ function bqReplace(match, offset, string) {
 }
 
 function messageReplyReplace(match, mid, rid, offset, string) {
-  var isReply = (rid !== undefined);
+  let isReply = (rid !== undefined);
   return '<a href="//juick.com/' + mid + (isReply ? '#' + rid : '') + '">' + match + '</a>';
 }
 
 function juickPostParse(txt) {
-  var urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
-  var bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
+  const urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
+  const bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
   return htmlEscape(txt)
            .replace(urlRe, urlReplace)
            .replace(bqRe, bqReplace)
@@ -645,7 +647,7 @@ function juickPostParse(txt) {
 }
 
 function juickId([, userId, postId, replyId]) {
-  var isReply = ((replyId !== undefined) && (replyId != '0'));
+  let isReply = ((replyId !== undefined) && (replyId != '0'));
   return '#' + postId + (isReply ? '/' + replyId : '');
 }
 
@@ -782,7 +784,7 @@ function getEmbedableLinkTypes() {
       name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/v\/)([-\w]+)(?:&(?:amp;)?(?:(?!list=)\w+=[-\w]+))*(?:&(?:amp;)?list=([-\w]+))?(?:&(?:amp;)?(?:\w+=[-\w]+))*|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
+      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)(?:&(?:amp;)?(?:(?!list=)\w+=[-\w]+))*(?:&(?:amp;)?list=([-\w]+))?(?:&(?:amp;)?(?:\w+=[-\w]+))*|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
         let [url, v, vlist, plist] = reResult;
         let iframeUrl = (plist !== undefined)
@@ -878,10 +880,10 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-\w]+)\/?/i,
       makeNode: function(aNode, reResult) {
-        var mixcloudType = this;
-        var [url, author, mix] = reResult;
+        let thisType = this;
+        let [url, author, mix] = reResult;
 
-        var div = document.createElement("div");
+        let div = document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'mixcloud embed loading';
 
@@ -890,12 +892,12 @@ function getEmbedableLinkTypes() {
           url: 'https://www.mixcloud.com/oembed/?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+              div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return mixcloudType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
+            let json = JSON.parse(response.responseText);
             div.innerHTML = json.html;
             div.className = div.className.replace(' embed loading', '');
           }
@@ -919,35 +921,29 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:(?:www\.)?flickr\.com\/photos\/([\w@-]+)\/(\d+)|flic.kr\/p\/(\w+))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
-        var flickrType = this;
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        let thisType = this;
+        let [url] = reResult;
+        let div = document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'flickr embed loading';
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(reResult[0]),
+          url: 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+              div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return flickrType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
+            let json = JSON.parse(response.responseText);
 
-            var imageUrl = (json.url !== undefined) ? json.url : json.thumbnail_url;
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = imageUrl;//.replace('_b.', '_z.');
-            aNode2.href = aNode.href;
-            aNode2.appendChild(imgNode);
-
-            var titleDiv = `<div class="title"><a href="${json.web_page}"> ${json.title}</a>`;
-            if(json.flickr_type != 'photo') { titleDiv += ` (${json.flickr_type})`; }
-            titleDiv += ` by <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = `<div class="top">${titleDiv}</div>`;
-            div.appendChild(aNode2);
+            let imageUrl = (json.url !== undefined) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
+            let imageStr = `<a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+            let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
+            let titleDiv = `<div class="title"><a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
+            div.innerHTML = '<div class="top">' + titleDiv + '</div>' + imageStr;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -962,9 +958,9 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([\w-]+)/i,
       makeNode: function(aNode, reResult) {
-        var [url, userId, workId] = reResult;
-        var daType = this;
-        var div = document.createElement("div");
+        let [url, userId, workId] = reResult;
+        let thisType = this;
+        let div = document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'deviantart embed loading';
 
@@ -973,31 +969,25 @@ function getEmbedableLinkTypes() {
           url: 'https://backend.deviantart.com/oembed?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return daType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
+            let json = JSON.parse(response.responseText);
 
-            var date = new Date(json.pubdate);
-            var dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
-            var titleDiv = `<div class="title"><a href="${url}">${json.title}</a>`;
-            if(json.type != 'photo') { titleDiv += ` (${json.type})`; }
-            titleDiv += ` by <a href="${json.author_url}">${json.author_name}</a></div>`;
+            let date = new Date(json.pubdate);
+            let typeStr = (json.type == 'photo') ? '' : ` (${json.type})`;
+            let dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
+            let titleDiv = `<div class="title"><a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>`;
 
             if((json.type == 'rich') && (json.html !== undefined)) {
               div.innerHTML += `<div class="desc">${json.html}...</div>`;
             } else {
-              var imageUrl = (json.fullsize_url !== undefined) ? json.fullsize_url : (json.url !== undefined) ? json.url : json.thumbnail_url;
-              var aNode2 = document.createElement("a");
-              var imgNode = document.createElement("img");
-              imgNode.src = imageUrl;
-              if(json.safety == 'adult') { imgNode.className = 'rating_e'; }
-              aNode2.href = aNode.href;
-              aNode2.appendChild(imgNode);
-              div.appendChild(aNode2);
+              let imageClassStr = (json.safety == 'adult') ? 'class="rating_e"' : '';
+              let imageUrl = (json.fullsize_url !== undefined) ? json.fullsize_url : (json.url !== undefined) ? json.url : json.thumbnail_url;
+              div.innerHTML += `<a href="${aNode.href}"><img ${imageClassStr} src="${imageUrl}"></a>`;
             }
 
             div.className = div.className.replace(' loading', '');
@@ -1241,24 +1231,25 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|np\.|m\.)?reddit\.com\/r\/([\w]+)\/comments\/(\w+)(?:\/(?:\w+(?:\/(\w+)?)?)?)?/i,
       makeNode: function(aNode, reResult) {
-        var redditType = this;
-        var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
+        let thisType = this;
+        let [url] = reResult;
+        let div = document.createElement("div");
+        div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
         div.className = 'reddit embed loading';
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://www.reddit.com/oembed?url=' + encodeURIComponent(reResult[0]),
+          url: 'https://www.reddit.com/oembed?url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return redditType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var [h, ss] = splitScriptsFromHtml(json.html);
-            ss.forEach(s => { s.call(); });
+            let json = JSON.parse(response.responseText);
+            let [h, ss] = splitScriptsFromHtml(json.html);
+            ss.forEach(s => s.call());
             div.innerHTML += h;
             waitAndRun(
               () => { var iframe = div.querySelector('iframe'); return (iframe !== null && (parseInt(iframe.height) > 30)); },
@@ -1271,7 +1262,7 @@ function getEmbedableLinkTypes() {
               () => {
                 div.textContent = 'Failed to load (time out)';
                 div.className = div.className.replace(' loading', ' failed');
-                turnIntoCts(div, function(){return redditType.makeNode(aNode, reResult);});
+                turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               },
               100,
               30
@@ -1288,26 +1279,28 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w]+)(?:\/)?/i,
       makeNode: function(aNode, reResult) {
-        var wordpressType = this;
-        var id = reResult[2];
+        let thisType = this;
+        let [url] = reResult;
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        let div = document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'wordpress embed loading';
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://public-api.wordpress.com/oembed/1.0/?format=json&for=juick.com&url=' + reResult[0],
+          url: 'https://public-api.wordpress.com/oembed/1.0/?format=json&for=juick.com&url=' + encodeURIComponent(url),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+              console.log('Failed to load ' + url);
+              console.log(response);
+              div.textContent = `Failed to load (maybe this article can't be embedded)`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return wordpressType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var titleDiv = '<div class="title">"<a href="' + reResult[0] + '">' + json.title + '</a>" by <a href="' + json.provider_url + '">' + json.provider_name + '</a> / <a href="' + json.author_url + '">' + json.author_name + '</a></div>';
-            div.innerHTML = '<div class="top">' + titleDiv + '</div> <hr/> <div class="desc">' + json.html + '</div>';
+            let json = JSON.parse(response.responseText);
+            let titleDiv = `<div class="title">"<a href="${url}">${json.title}</a>" by <a href="${json.provider_url}">${json.provider_name}</a> / <a href="${json.author_url}">${json.author_name}</a></div>`;
+            div.innerHTML = `<div class="top">${titleDiv}</div><hr/><div class="desc">${json.html}</div>`;
 
             div.className = div.className.replace(' loading', ' loaded');
           }
@@ -1322,10 +1315,10 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-\w]+)/i,
       makeNode: function(aNode, reResult) {
-        var slideshareType = this;
-        var [url, author, id] = reResult;
+        let thisType = this;
+        let [url, author, id] = reResult;
 
-        var div = document.createElement("div");
+        let div = document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'slideshare embed loading';
 
@@ -1334,18 +1327,18 @@ function getEmbedableLinkTypes() {
           url: 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url,
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return slideshareType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var baseSize = 640;
-            var newH = 1.0 * baseSize / json.width * json.height;
-            var iframeStr = json.html
+            let json = JSON.parse(response.responseText);
+            let baseSize = 640;
+            let newH = 1.0 * baseSize / json.width * json.height;
+            let iframeStr = json.html
                                 .match(/<iframe[^>]+>[\s\S]*?<\/iframe>/i)[0]
-                                .replace(/width="\d+"/i, 'width="' + baseSize + '"')
-                                .replace(/height="\d+"/i, 'height="' + newH + '"');
+                                .replace(/width="\d+"/i, `width="${baseSize}"`)
+                                .replace(/height="\d+"/i, `height="${newH}"`);
             div.innerHTML = iframeStr;
             div.className = div.className.replace(' embed loading', '');
           }
@@ -1360,11 +1353,11 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
       makeNode: function(aNode, reResult) {
-        var gistType = this;
-        var id = reResult[2];
+        let thisType = this;
+        let [url, , id] = reResult;
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        let div = document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'gistEmbed embed loading';
 
         GM_xmlhttpRequest({
@@ -1372,15 +1365,16 @@ function getEmbedableLinkTypes() {
           url: 'https://gist.github.com/' + id + '.json',
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return gistType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var titleDiv = '<div class="title">"' + json.description + '" by <a href="https://gist.github.com/' + json.owner + '">' + json.owner + '</a></div>';
-            var dateDiv = '<div class="date">' + (new Date(json.created_at).toLocaleDateString('ru-RU')) + '</div>';
-            var stylesheet = '<link rel="stylesheet" href="' + htmlEscape(json.stylesheet) + '"></link>';
+            let json = JSON.parse(response.responseText);
+            let date = new Date(json.created_at).toLocaleDateString('ru-RU');
+            let titleDiv = `<div class="title">"${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a></div>`;
+            let dateDiv = `<div class="date">${date}</div>`;
+            let stylesheet = `<link rel="stylesheet" href="${htmlEscape(json.stylesheet)}"></link>`;
             div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + stylesheet + json.div;
 
             div.className = div.className.replace(' loading', ' loaded');
@@ -1396,8 +1390,8 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
       makeNode: function(aNode, reResult) {
-        var endsWithSlash = reResult[1].endsWith('/');
-        return wrapIntoTag(makeIframe('' + reResult[1] + (endsWithSlash ? '' : '/') + 'embedded/', '100%', 500), 'div', 'jsfiddle');
+        let embedUrl = reResult[1].replace(/[^\/]$/, '$&/') + 'embedded/';
+        return wrapIntoTag(makeIframe(embedUrl, '100%', 500), 'div', 'jsfiddle');
       }
     },
     {
@@ -1406,24 +1400,25 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/codepen\.io\/(\w+)\/(?:pen|full)\/(\w+)/i,
       makeNode: function(aNode, reResult) {
-        var codepenType = this;
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        let thisType = this;
+        let [url] = reResult;
+        let div = document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 65);
         div.className = 'codepen embed loading';
 
         GM_xmlhttpRequest({
           method: "GET",
-          url: 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(reResult[0].replace('/full/', '/pen/')),
+          url: 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(url.replace('/full/', '/pen/')),
           onload: function(response) {
             if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return codepenType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var titleDiv = '<div class="title">"' + json.title + '" by <a href="' + json.author_url + '">' + json.author_name + '</a></div>';
-            div.innerHTML = '<div class="top">' + titleDiv + '</div>' + json.html;
+            let json = JSON.parse(response.responseText);
+            let titleDiv = `<div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>`;
+            div.innerHTML = `<div class="top">${titleDiv}</div>${json.html}`;
 
             div.className = div.className.replace(' loading', '');
           }
