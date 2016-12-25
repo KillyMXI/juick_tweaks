@@ -1,6 +1,10 @@
 Несколько фич для [juick.com](http://juick.com/)
 
-* вставка картинок (jpg, png, gif, svg), видео (webm, mp4, youtube, vimeo, dailymotion, coub), кода (gist, jsfiddle, codepen) и прочего (**juick**, twitter, facebook, tumblr, reddit, wordpress, slideshare, bandcamp, soundcloud, instagram, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re и некоторых других) из ссылок в постах;
+* вставка картинок (jpg, png, gif, svg, instagram, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re) из ссылок в постах;
+* вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub);
+* вставка музыки (mp3, ogg, bandcamp, soundcloud, mixcloud);
+* вставка кода (gist, jsfiddle, codepen);
+* вставка из других источников (**juick**, twitter, facebook, tumblr, reddit, wordpress, slideshare и других);
 * фильтрация постов и комментариев по авторам и тегам;
 * пользовательские теги (/user/?tag=) в постах вместо общих (/tag/);
 * сортировка и цветовое кодирование тегов на странице /&lt;user&gt;/tags;

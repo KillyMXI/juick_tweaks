@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.7.23
-// @date        2016.09.02 - 2016.12.20
+// @version     2.8.0
+// @date        2016.09.02 - 2016.12.25
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -36,6 +36,20 @@
 // @connect     tumblr.com
 // @connect     reddit.com
 // @connect     wordpress.com
+// @connect     lenta.ru
+// @connect     meduza.io
+// @connect     rbc.ru
+// @connect     tjournal.ru
+// @connect     *.newsru.com
+// @connect     *.itar-tass.com
+// @connect     tass.ru
+// @connect     rublacklist.net
+// @connect     mk.ru
+// @connect     kp.ru
+// @connect     republic.ru
+// @connect     bash.im
+// @connect     ixbt.com
+// @connect     *
 // ==/UserScript==
 
 
@@ -192,6 +206,23 @@ function waitAndRun(test, doneCallback, timeoutCallback, tick=100, count) {
 
 function randomId() {
   return Math.random().toString(36).substr(2,11) + Date.now().toString(36).substr(-3,3);
+}
+
+function matchWildcard(str, wildcard) {
+  let ww = wildcard.split('*');
+  let startFrom = 0;
+  for(var i = 0; i < ww.length; i++) {
+    let w = ww[i];
+    if(w == '') { continue; }
+    let wloc = str.indexOf(w, startFrom);
+    if(wloc == -1) { return false; }
+    let wend = wloc + w.length;
+    let headCondition = (i > 0) || (wloc == 0);
+    let tailCondition = (i < ww.length - 1) || ((i > 0) ? str.endsWith(w) : (str.substr(wloc) == w));
+    if(!headCondition || !tailCondition) { return false; }
+    startFrom = wend;
+  }
+  return true;
 }
 
 
@@ -769,7 +800,7 @@ function getEmbedableLinkTypes() {
       }
     },
     {
-      name: 'Webm and mp4 videos',
+      name: 'Webm and mp4 video',
       id: 'embed_webm_and_mp4_videos',
       ctsDefault: false,
       re: /\.(webm|mp4)(?:\?[\w&;\?=]*)?$/i,
@@ -778,6 +809,18 @@ function getEmbedableLinkTypes() {
         video.src = aNode.href;
         video.setAttribute('controls', '');
         return wrapIntoTag(video, 'div', 'video');
+      }
+    },
+    {
+      name: 'Mp3 and ogg audio',
+      id: 'embed_sound_files',
+      ctsDefault: false,
+      re: /\.(mp3|ogg)(?:\?[\w&;\?=]*)?$/i,
+      makeNode: function(aNode, reResult) {
+        var audio = document.createElement("audio");
+        audio.src = aNode.href;
+        audio.setAttribute('controls', '');
+        return wrapIntoTag(audio, 'div', 'audio');
       }
     },
     {
@@ -1825,39 +1868,136 @@ function getEmbedableLinkTypes() {
       linkTextUpdate: function(aNode, reResult) {
         aNode.textContent += ' (' + reResult[1] + ')';
       }
+    },
+    {
+      name: 'Use meta for other links (whitelist)',
+      id: 'embed_whitelisted_domains',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
+      makeNode: function(aNode, reResult) {
+        let domain = aNode.hostname;
+        domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
+        if(!domainsWhitelist.some(w => matchWildcard(domain, w))) { return; }
+
+        let thisType = this;
+        let [url] = reResult;
+        let div = document.createElement("div");
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
+        div.className = 'other embed loading ' + domain.replace(/\./g, '_');
+
+        let unembed = (reason) => { if(reason !== undefined){console.log(`${reason} - ${url}`);}; div.innerHTML = ''; div.className = 'notEmbed'; aNode.classList.add('notEmbed'); }
+
+        GM_xmlhttpRequest({
+          method: "HEAD",
+          url: url,
+          timeout: 1000,
+          onload: function(response) {
+            if(response.status != 200) {
+              unembed(`Failed to load (${response.status} - ${response.statusText})`);
+              return;
+            }
+            const headRe = /^([\w-]+): (.+)$/gmi;
+            let headerMatches = getAllMatchesAndCaptureGroups(headRe, response.responseHeaders);
+            let [, , contentType] = headerMatches.find(m => (m[1].toLowerCase() == 'content-type'));
+
+            if(contentType !== undefined && contentType.match(/^text\/html\b/i)) {
+
+              GM_xmlhttpRequest({
+                method: "GET",
+                url: url,
+                timeout: 1000,
+                onload: function(response) {
+                  if(response.status != 200) {
+                    unembed(`Failed to load (${response.status} - ${response.statusText})`);
+                    return;
+                  }
+
+                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*\/?>/gmi;
+                  let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
+                  let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
+                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'];
+                  let image = meta['twitter:image'] || meta['og:image'];
+                  let description = meta['twitter:description'] || meta['og:description'] || meta['description'];
+
+                  if(title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
+                    let titleDiv = `<div class="title"><a href="${url}">${title}</a></div>`;
+                    let imageStr = (image !== undefined) ? `<a href="${url}"><img src="${image}" /></a>` : '';
+                    description = htmlDecode(description).replace(/\n+/g,'<br/>');
+                    div.innerHTML = `<div class="top">${titleDiv}</div>${imageStr}<div class="desc">${description}</div>`;
+                    div.className = div.className.replace(' loading', '');
+                  } else {
+                    unembed();
+                  }
+                },
+                ontimeout: function(response) {
+                  unembed('timeout');
+                },
+                onerror: function(response) {
+                  unembed('some error');
+                }
+              }); // end of GET request
+
+            } else {
+              unembed('not text/html');
+              console.log(response.responseHeaders);
+            }
+          },
+          ontimeout: function(response) {
+            unembed('timeout');
+          },
+          onerror: function(response) {
+            unembed('some error');
+          }
+        }); // end of HEAD request
+
+        return div;
+      }
     }
   ];
 }
 
+function getDefaultDomainWhitelist() {
+  return [
+    'lenta.ru',
+    'meduza.io',
+    'rbc.ru',
+    'tjournal.ru',
+    '*.newsru.com',
+    '*.itar-tass.com',
+    'tass.ru',
+    'rublacklist.net',
+    'mk.ru',
+    'kp.ru',
+    'republic.ru',
+    'bash.im',
+    'ixbt.com'
+  ];
+}
+
 function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
-  var anyEmbed = false;
-  var isAfterNode = (afterNode !== undefined);
-  var linkId = (aNode.href.replace(/^https?:/i, ''));
-  var sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
+  let anyEmbed = false;
+  let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/i,''));
+  let sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
   if(sameEmbed === null) {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
       if(GM_getValue(linkType.id, true)) {
-        var reResult = linkType.re.exec(aNode.href);
-        var matched = (reResult !== null);
-        if(matched) {
-          aNode.classList.add('embedLink');
-          var newNode;
-          var isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
+        let reResult = linkType.re.exec(aNode.href);
+        if(reResult !== null) {
+          let newNode;
+          let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
-            var linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
+            let linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
             newNode = makeCts(() => linkType.makeNode(aNode, reResult), 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
           }
-          if(newNode === null) {
-            console.log('' + linkType + ' returned null instead of a new node for ' + aNode.href);
-            return false;
-          }
+          if(!newNode) { return false; }
+          aNode.classList.add('embedLink');
           if(GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
             linkType.linkTextUpdate(aNode, reResult);
           }
           newNode.setAttribute('data-linkid', linkId);
-          if(isAfterNode) {
+          if(afterNode !== undefined) {
             insertAfter(newNode, afterNode);
           } else {
             container.appendChild(newNode);
@@ -1871,26 +2011,26 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
 }
 
 function embedLinks(aNodes, container, alwaysCts, afterNode) {
-  var anyEmbed = false;
-  var embedableLinkTypes = getEmbedableLinkTypes();
+  let anyEmbed = false;
+  let embedableLinkTypes = getEmbedableLinkTypes();
   [].forEach.call(aNodes, function(aNode, i, arr) {
-    var isEmbedded = embedLink(aNode, embedableLinkTypes, container, alwaysCts, afterNode);
+    let isEmbedded = embedLink(aNode, embedableLinkTypes, container, alwaysCts, afterNode);
     anyEmbed = anyEmbed || isEmbedded;
   });
   return anyEmbed;
 }
 
 function splitUsersAndTagsLists(str) {
-  var items = str.split(/[\s,]+/);
-  var users = items.filter(x => x.startsWith('@')).map(x => x.replace('@','').toLowerCase());
-  var tags = items.filter(x => x.startsWith('*')).map(x => x.replace('*','').toLowerCase());
+  let items = str.split(/[\s,]+/);
+  let users = items.filter(x => x.startsWith('@')).map(x => x.replace('@','').toLowerCase());
+  let tags = items.filter(x => x.startsWith('*')).map(x => x.replace('*','').toLowerCase());
   return [users, tags];
 }
 
 function articleInfo(article) {
-  var userId = article.querySelector("div.msg-avatar > a > img").alt;
-  var tagsDiv = article.querySelector(".msg-tags");
-  var tags = [];
+  let userId = article.querySelector('div.msg-avatar > a > img').alt;
+  let tagsDiv = article.querySelector('.msg-tags');
+  let tags = [];
   if(tagsDiv !== null) {
     [].forEach.call(tagsDiv.childNodes, function(item, i, arr) {
       tags.push(item.textContent.toLowerCase());
@@ -1900,45 +2040,45 @@ function articleInfo(article) {
 }
 
 function isFilteredX(x, filteredUsers, filteredTags) {
-  var {userId, tags} = articleInfo(x);
+  let {userId, tags} = articleInfo(x);
   return (filteredUsers !== undefined && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
          || (intersect(tags, filteredTags).length > 0);
 }
 
 function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags) {
-  var isCtsPost = isFilteredX(x, ctsUsers, ctsTags);
-  var allLinks = x.querySelectorAll(allLinksSelector);
-  var embedContainer = document.createElement("div");
+  let isCtsPost = isFilteredX(x, ctsUsers, ctsTags);
+  let allLinks = x.querySelectorAll(allLinksSelector);
+  let embedContainer = document.createElement('div');
   embedContainer.className = 'embedContainer';
-  var anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
-  if(anyEmbed){
-    var beforeNode = x.querySelector(beforeNodeSelector);
+  let anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
+  if(anyEmbed) {
+    let beforeNode = x.querySelector(beforeNodeSelector);
     x.insertBefore(embedContainer, beforeNode);
   }
 }
 
 function embedLinksToArticles() {
-  var [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
-  var beforeNodeSelector = 'nav.l';
-  var allLinksSelector = 'p:not(.ir) a, pre a';
-  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
+  let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
+  let beforeNodeSelector = 'nav.l';
+  let allLinksSelector = 'p:not(.ir) a, pre a';
+  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
 
 function embedLinksToPost() {
-  var [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
-  var beforeNodeSelector = '.msg-txt + *';
-  var allLinksSelector = '.msg-txt a';
-  [].forEach.call(document.querySelectorAll("#content .msg-cont"), function(msg, i, arr) {
+  let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
+  let beforeNodeSelector = '.msg-txt + *';
+  let allLinksSelector = '.msg-txt a';
+  [].forEach.call(document.querySelectorAll('#content .msg-cont'), function(msg, i, arr) {
     embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
 
 function filterArticles() {
-  var [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
-  var keepHeader = GM_getValue('filtered_posts_keep_header', true);
-  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
+  let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
+  let keepHeader = GM_getValue('filtered_posts_keep_header', true);
+  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     var isFilteredPost = isFilteredX(article, filteredUsers, filteredTags);
     if(isFilteredPost) {
       if(keepHeader) {
@@ -1955,10 +2095,10 @@ function filterArticles() {
 
 function filterPostComments() {
   if(!GM_getValue('filter_comments_too', false)) { return; }
-  var [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
-  var keepHeader = GM_getValue('filtered_posts_keep_header', true);
-  [].forEach.call(document.querySelectorAll("#content #replies .msg-cont"), function(reply, i, arr) {
-    var isFilteredComment = isFilteredX(reply, filteredUsers, filteredTags);
+  let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
+  let keepHeader = GM_getValue('filtered_posts_keep_header', true);
+  [].forEach.call(document.querySelectorAll('#content #replies .msg-cont'), function(reply, i, arr) {
+    let isFilteredComment = isFilteredX(reply, filteredUsers, filteredTags);
     if(isFilteredComment) {
       reply.classList.add('filteredComment');
       reply.querySelector('.msg-txt').remove();
@@ -1978,7 +2118,7 @@ function filterPostComments() {
 
 function checkReply(allPostsSelector, replySelector) {
   [].forEach.call(document.querySelectorAll(allPostsSelector), function(post, i, arr) {
-    var replyNode = post.querySelector(replySelector);
+    let replyNode = post.querySelector(replySelector);
     if(replyNode === null) {
       post.classList.add('readonly');
     }
@@ -2086,7 +2226,9 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
   var wrapper = document.createElement("div");
   wrapper.className = 'ta-wrapper';
   var textarea = document.createElement("textarea");
+  textarea.className = id;
   textarea.placeholder = placeholder;
+  textarea.title = placeholder;
   textarea.value = GM_getValue(id, defaultString);
   textarea.oninput = function(e) { GM_setValue(id, textarea.value); };
   wrapper.appendChild(textarea);
@@ -2096,108 +2238,120 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
 }
 
 function showUserscriptSettings() {
-  var contentBlock = document.querySelector("#content > article");
+  let contentBlock = document.querySelector('#content > article');
   while (contentBlock.firstChild) {
     contentBlock.removeChild(contentBlock.firstChild);
   }
 
-  var h1 = document.createElement("h1");
+  let h1 = document.createElement('h1');
   h1.textContent = 'Tweaks';
 
-  var fieldset1 = document.createElement("fieldset");
-  var legend1 = document.createElement("legend");
-  legend1.textContent = 'UI';
-  fieldset1.appendChild(legend1);
+  let uiFieldset = document.createElement('fieldset');
+  { // UI
+    let uiLegend = document.createElement('legend');
+    uiLegend.textContent = 'UI';
+    uiFieldset.appendChild(uiLegend);
 
-  var list1 = document.createElement("ul");
-  var allSettings = getUserscriptSettings();
-  [].forEach.call(allSettings, function(item, i, arr) {
-    var liNode = document.createElement("li");
-    var p = document.createElement("p");
-    p.appendChild(makeSettingsCheckbox(item.name, item.id, item.enabledByDefault));
-    liNode.appendChild(p);
-    list1.appendChild(liNode);
-  });
-  fieldset1.appendChild(list1);
+    let list1 = document.createElement('ul');
+    let allSettings = getUserscriptSettings();
+    [].forEach.call(allSettings, function(item, i, arr) {
+      let liNode = document.createElement('li');
+      let p = document.createElement('p');
+      p.appendChild(makeSettingsCheckbox(item.name, item.id, item.enabledByDefault));
+      liNode.appendChild(p);
+      list1.appendChild(liNode);
+    });
+    uiFieldset.appendChild(list1);
+  }
 
-  var fieldset2 = document.createElement("fieldset");
-  var legend2 = document.createElement("legend");
-  legend2.textContent = 'Embedding';
-  fieldset2.appendChild(legend2);
+  let embeddingFieldset = document.createElement('fieldset');
+  { // Embedding
+    let legend2 = document.createElement('legend');
+    legend2.textContent = 'Embedding';
+    embeddingFieldset.appendChild(legend2);
 
-  var table2 = document.createElement("table");
-  table2.style.width = '100%';
-  var embedableLinkTypes = getEmbedableLinkTypes();
-  [].forEach.call(embedableLinkTypes, function(linkType, i, arr) {
-    var row = document.createElement("tr");
-    row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, true), 'td'));
-    row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
-    table2.appendChild(row);
-  });
-  fieldset2.appendChild(table2);
+    let table2 = document.createElement('table');
+    table2.style.width = '100%';
+    let embedableLinkTypes = getEmbedableLinkTypes();
+    [].forEach.call(embedableLinkTypes, function(linkType, i, arr) {
+      let row = document.createElement("tr");
+      row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, true), 'td'));
+      row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
+      table2.appendChild(row);
+    });
+    embeddingFieldset.appendChild(table2);
 
-  var updateLinkTextCheckbox = makeSettingsCheckbox('Обновлять текст ссылок, если возможно (например, "juick.com" на #123456/7)', 'enable_link_text_update', true);
-  var ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
-  ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
-  fieldset2.appendChild(document.createElement('hr'));
-  fieldset2.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
-  fieldset2.appendChild(wrapIntoTag(updateLinkTextCheckbox, 'p'));
+    let domainsWhitelist = makeSettingsTextbox('Domains whitelist ("*" wildcard is supported)', 'domains_whitelist', getDefaultDomainWhitelist().join("\n"), 'One domain per line. "*" wildcard is supported');
+    embeddingFieldset.appendChild(wrapIntoTag(domainsWhitelist, 'p'));
 
-  var fieldset4 = document.createElement("fieldset");
-  var legend4 = document.createElement("legend");
-  legend4.textContent = 'Filtering';
-  fieldset4.appendChild(legend4);
+    let updateLinkTextCheckbox = makeSettingsCheckbox('Обновлять текст ссылок, если возможно (например, "juick.com" на #123456/7)', 'enable_link_text_update', true);
+    let ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
+    ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
+    embeddingFieldset.appendChild(document.createElement('hr'));
+    embeddingFieldset.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
+    embeddingFieldset.appendChild(wrapIntoTag(updateLinkTextCheckbox, 'p'));
+  }
 
-  var filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из общей ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
-  filteringUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
-  var keepHeadersCheckbox = makeSettingsCheckbox('Оставлять заголовки постов', 'filtered_posts_keep_header', true);
-  var filterCommentsCheckbox = makeSettingsCheckbox('Также фильтровать комментарии этих юзеров', 'filter_comments_too', false);
-  fieldset4.appendChild(wrapIntoTag(filteringUsersAndTags, 'p'));
-  fieldset4.appendChild(wrapIntoTag(keepHeadersCheckbox, 'p'));
-  fieldset4.appendChild(wrapIntoTag(filterCommentsCheckbox, 'p'));
+  let filterinFieldset = document.createElement('fieldset');
+  { // Filtering
+    let legend4 = document.createElement('legend');
+    legend4.textContent = 'Filtering';
+    filterinFieldset.appendChild(legend4);
 
-  var resetButton = document.createElement("button");
-  resetButton.textContent='Reset userscript settings to default';
-  resetButton.onclick = function(){
-    if(!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
-    var keys = GM_listValues();
-    for (var i=0, key=null; key=keys[i]; i++) {
-      GM_deleteValue(key);
-    }
-    showUserscriptSettings();
-    alert('Done!');
-  };
+    let filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из общей ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
+    filteringUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
+    let keepHeadersCheckbox = makeSettingsCheckbox('Оставлять заголовки постов', 'filtered_posts_keep_header', true);
+    let filterCommentsCheckbox = makeSettingsCheckbox('Также фильтровать комментарии этих юзеров', 'filter_comments_too', false);
+    filterinFieldset.appendChild(wrapIntoTag(filteringUsersAndTags, 'p'));
+    filterinFieldset.appendChild(wrapIntoTag(keepHeadersCheckbox, 'p'));
+    filterinFieldset.appendChild(wrapIntoTag(filterCommentsCheckbox, 'p'));
+  }
 
+  let resetButton = document.createElement('button');
+  { // Reset button
+    resetButton.textContent='Reset userscript settings to default';
+    resetButton.onclick = function(){
+      if(!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
+      let keys = GM_listValues();
+      for (var i=0, key=null; key=keys[i]; i++) {
+        GM_deleteValue(key);
+      }
+      showUserscriptSettings();
+      alert('Done!');
+    };
+  }
 
-  var fieldset3 = document.createElement("fieldset");
-  var legend3 = document.createElement("legend");
-  legend3.textContent = 'Version info';
-  var ver1 = document.createElement("p");
-  var ver2 = document.createElement("p");
-  ver1.textContent = 'Greasemonkey (or your script runner) version: ' + GM_info.version;
-  ver2.textContent = 'Userscript version: ' + GM_info.script.version;
-  fieldset3.appendChild(legend3);
-  fieldset3.appendChild(ver1);
-  fieldset3.appendChild(ver2);
+  let versionInfoFieldset = document.createElement('fieldset');
+  { // Version info
+    let legend3 = document.createElement('legend');
+    legend3.textContent = 'Version info';
+    let ver1 = document.createElement('p');
+    let ver2 = document.createElement('p');
+    ver1.textContent = 'Greasemonkey (or your script runner) version: ' + GM_info.version;
+    ver2.textContent = 'Userscript version: ' + GM_info.script.version;
+    versionInfoFieldset.appendChild(legend3);
+    versionInfoFieldset.appendChild(ver1);
+    versionInfoFieldset.appendChild(ver2);
+  }
 
-  var support = document.createElement("p");
+  let support = document.createElement('p');
   support.innerHTML = 'Feedback and feature requests <a href="http://juick.com/killy/?tag=userscript">here</a>.';
 
   contentBlock.appendChild(h1);
-  contentBlock.appendChild(fieldset1);
-  contentBlock.appendChild(fieldset2);
-  contentBlock.appendChild(fieldset4);
+  contentBlock.appendChild(uiFieldset);
+  contentBlock.appendChild(embeddingFieldset);
+  contentBlock.appendChild(filterinFieldset);
   contentBlock.appendChild(resetButton);
-  contentBlock.appendChild(fieldset3);
+  contentBlock.appendChild(versionInfoFieldset);
   contentBlock.appendChild(support);
 
   contentBlock.className = 'tweaksSettings';
 }
 
 function addTweaksSettingsButton() {
-  var tabsList = document.querySelector("#pagetabs > ul");
-  var liNode = document.createElement("li");
-  var aNode = document.createElement("a");
+  let tabsList = document.querySelector('#pagetabs > ul');
+  let liNode = document.createElement('li');
+  let aNode = document.createElement('a');
   aNode.textContent = 'Tweaks';
   aNode.href = '#tweaks';
   aNode.onclick = function(e){ e.preventDefault(); showUserscriptSettings(); };
@@ -2347,6 +2501,7 @@ function addStyle() {
     ".embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; } " +
     ".embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; } " +
     ".embedContainer img, .embedContainer video { max-width: 100%; max-height: 80vh; } " +
+    ".embedContainer audio { width: 100%; } " +
     ".embedContainer iframe { overflow:hidden; resize: vertical; } " +
     ".embedContainer > .embed { width: 100%; border: 1px solid var(--color02); padding: 0.5em; display: flex; flex-direction: column; } " +
     ".embedContainer > .embed.loading, .embedContainer > .embed.failed { text-align: center; color: var(--color07); padding: 0; } " +
@@ -2394,6 +2549,7 @@ function addStyle() {
     ".tweaksSettings > button { margin-top: 25px; } " +
     ".tweaksSettings .ta-wrapper { width: 100%; height: 100%; } " +
     ".tweaksSettings .ta-wrapper > textarea { width: 100%; height: 100%; } " +
+    ".tweaksSettings textarea.domains_whitelist { min-height: 72pt; }" +
     ".embedContainer > .cts { width: 100%; }" +
     ".embedContainer .cts > .placeholder { border: 1px dotted var(--color03); color: var(--color07); text-align: center; cursor: pointer; word-wrap: break-word; } " +
     ".cts > .placeholder { position: relative; } " +
