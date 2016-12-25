@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.8.0
+// @version     2.8.1
 // @date        2016.09.02 - 2016.12.25
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -1874,13 +1874,15 @@ function getEmbedableLinkTypes() {
       id: 'embed_whitelisted_domains',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
-      makeNode: function(aNode, reResult) {
+      match: function(aNode, reResult) {
         let domain = aNode.hostname;
-        domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
-        if(!domainsWhitelist.some(w => matchWildcard(domain, w))) { return; }
-
+        let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
+        return domainsWhitelist.some(w => matchWildcard(domain, w));
+      },
+      makeNode: function(aNode, reResult) {
         let thisType = this;
         let [url] = reResult;
+        let domain = aNode.hostname;
         let div = document.createElement("div");
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'other embed loading ' + domain.replace(/\./g, '_');
@@ -1983,6 +1985,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
       if(GM_getValue(linkType.id, true)) {
         let reResult = linkType.re.exec(aNode.href);
         if(reResult !== null) {
+          if((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
           let newNode;
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
