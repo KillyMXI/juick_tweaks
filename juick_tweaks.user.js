@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.8.1
-// @date        2016.09.02 - 2016.12.25
+// @version     2.8.5
+// @date        2016.09.02 - 2016.12.29
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -609,7 +609,7 @@ function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
 function loadScript(url, async=false, callback, once=false)
 {
   if(once && [].some.call(document.scripts, s => s.src == url)) {
-    console.log(url + ' is already loaded');
+    if(typeof callback == 'function') { callback(); }
     return;
   }
 
@@ -624,6 +624,17 @@ function loadScript(url, async=false, callback, once=false)
     script.onload = callback;
   }
 
+  head.appendChild(script);
+}
+
+function addScript(scriptString, once=false)
+{
+  if(once && [].some.call(document.scripts, s => s.text == scriptString)) { return; }
+
+  let head = document.getElementsByTagName('head')[0];
+  let script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.text = scriptString;
   head.appendChild(script);
 }
 
@@ -1192,13 +1203,9 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/(?:posts|videos|photos)\/[\w:./]+(?:\?[\w=%&.]+)?|(?:photo|video)\.php\?[\w=%&.]+)/i,
       makeNode: function(aNode, reResult) {
-        var facebookType = this;
-        var script = '(function(d, s, id) { var js, fjs = d.getElementsByTagName(s)[0]; if (d.getElementById(id)) return; ' +
-            'js = d.createElement(s); js.id = id; js.src = "https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3"; fjs.parentNode.insertBefore(js, fjs); ' +
-            '}(document, "script", "facebook-jssdk"));';
-        setTimeout(window.eval(script), 0);
-        var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span><div class="fb-post" data-href="' + aNode.href + '" data-width="640">';
+        setTimeout(loadScript('https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3', false, undefined, true), 0);
+        let div = document.createElement('div');
+        div.innerHTML = `<span>loading ${naiveEllipsis(reResult[0], 60)}</span><div class="fb-post" data-href="${aNode.href}" data-width="640" />`;
         div.className = 'fbEmbed embed loading';
         waitAndRun(
           () => (div.querySelector('iframe[height]') !== null),
@@ -1209,7 +1216,7 @@ function getEmbedableLinkTypes() {
           },
           () => {
             console.log('Juick tweaks: time out on facebook embedding, applying workaround.');
-            var embedUrl = 'https://www.facebook.com/plugins/post.php?width=640&height=570&href=' + encodeURIComponent(reResult[0]);
+            let embedUrl = 'https://www.facebook.com/plugins/post.php?width=640&height=570&href=' + encodeURIComponent(reResult[0]);
             div.innerHTML = '';
             div.appendChild(makeIframe(embedUrl, '100%', 570));
             div.classList.remove('embed');
@@ -1218,6 +1225,36 @@ function getEmbedableLinkTypes() {
           },
           100,
           15
+        );
+        return div;
+      }
+    },
+    {
+      name: 'Google+',
+      id: 'embed_google_plus',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/plus\.google\.com\/(?:u\/0\/)?(\d+|\+[\w%]+)\/posts\/(\w+)/i,
+      makeNode: function(aNode, reResult) {
+        let [url, author, postId] = reResult;
+        let div = document.createElement('div');
+        let id = randomId();
+        div.className = 'g-post';
+        div.className = 'gplusEmbed embed loading';
+        div.innerHTML = `<span>loading ${naiveEllipsis(url, 60)}</span><div id="${id}" />`;
+        setTimeout(loadScript('https://apis.google.com/js/plusone.js', false, () => {
+          addScript('({"parsetags": "explicit"})', true);
+          addScript(`gapi.post.render("${id}", {href: "${url}"});`, false);
+        }, false), 0);
+        waitAndRun(
+          () => (div.querySelector('div[style]') !== null),
+          () => {
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+            div.classList.remove('loading');
+          },
+          () => { div.textContent = 'Can\'t show this post'; },
+          100,
+          20
         );
         return div;
       }
