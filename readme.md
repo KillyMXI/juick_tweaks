@@ -4,7 +4,7 @@
 * вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub);
 * вставка музыки (mp3, ogg, bandcamp, soundcloud, mixcloud);
 * вставка кода (gist, jsfiddle, codepen);
-* вставка из других источников (**juick**, twitter, facebook, tumblr, reddit, wordpress, slideshare и других);
+* вставка из других источников (**juick**, twitter, facebook, google+, tumblr, reddit, wordpress, slideshare и других);
 * фильтрация постов и комментариев по авторам и тегам;
 * пользовательские теги (/user/?tag=) в постах вместо общих (/tag/);
 * сортировка и цветовое кодирование тегов на странице /&lt;user&gt;/tags;
