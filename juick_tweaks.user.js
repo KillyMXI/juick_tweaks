@@ -1320,7 +1320,7 @@ function getEmbedableLinkTypes() {
       name: 'WordPress',
       id: 'embed_wordpress',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w]+)(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w%\u0400-\u04FF]+)(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         let thisType = this;
         let [url] = reResult;
@@ -1893,13 +1893,13 @@ function getEmbedableLinkTypes() {
           method: "HEAD",
           url: url,
           timeout: 1000,
-          onload: function(response) {
-            if(response.status != 200) {
-              unembed(`Failed to load (${response.status} - ${response.statusText})`);
+          onload: function(response1) {
+            if(response1.status != 200) {
+              unembed(`Failed to load (${response1.status} - ${response1.statusText})`);
               return;
             }
             const headRe = /^([\w-]+): (.+)$/gmi;
-            let headerMatches = getAllMatchesAndCaptureGroups(headRe, response.responseHeaders);
+            let headerMatches = getAllMatchesAndCaptureGroups(headRe, response1.responseHeaders);
             let [, , contentType] = headerMatches.find(m => (m[1].toLowerCase() == 'content-type'));
 
             if(contentType !== undefined && contentType.match(/^text\/html\b/i)) {
@@ -1944,10 +1944,10 @@ function getEmbedableLinkTypes() {
               console.log(response.responseHeaders);
             }
           },
-          ontimeout: function(response) {
+          ontimeout: function(response1) {
             unembed('timeout');
           },
-          onerror: function(response) {
+          onerror: function(response1) {
             unembed('some error');
           }
         }); // end of HEAD request
