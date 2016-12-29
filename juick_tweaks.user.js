@@ -2363,16 +2363,15 @@ function addTweaksSettingsButton() {
 }
 
 function updateUserRecommendationStats(userId, pagesPerCall) {
-  var contentBlock = document.querySelector("section#content");
+  var contentBlock = document.querySelector('section#content');
   while (contentBlock.firstChild) {
     contentBlock.removeChild(contentBlock.firstChild);
   }
-  var article = document.createElement("article");
-  var oldestMid, oldestDate;
+  var article = document.createElement('article');
   var userCounters = {};
   var totalRecs = 0;
 
-  function recUpdate(depth) {
+  function recUpdate(depth, oldestMid, oldestDate) {
     if(depth <= 0) { return; }
 
     var url = 'http://juick.com/' + userId + '/?show=recomm' + ((oldestMid !== undefined) ? '&before=' + oldestMid : '');
@@ -2381,7 +2380,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
       url: url,
       onload: function(response) {
         if(response.status != 200) {
-          console.log("" + user.id + ": failed with " + response.status + ", " + response.statusText);
+          console.log(`${user.id}: failed with ${response.status}, ${response.statusText}`);
           return;
         }
 
@@ -2397,8 +2396,8 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         var oldestArticle = articles[articles.length - 1];
 
         var dateRe = /datetime\=\"([^\"]+) ([^\"]+)\"/i;
-        var [, oldestDate, oldestTime] = dateRe.exec(oldestArticle);
-        oldestDate = new Date(`${oldestDate}T${oldestTime}`);
+        var [, oldestDatePart, oldestTimePart] = dateRe.exec(oldestArticle);
+        oldestDate = new Date(`${oldestDatePart}T${oldestTimePart}`);
 
         var midRe = /data-mid="(\d+)"/i;
         var [, oldestMid] = midRe.exec(oldestArticle);
@@ -2427,20 +2426,20 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         }
 
         if(hasMore && (depth == 1)) {
-          var moreButton = document.createElement("button");
+          var moreButton = document.createElement('button');
           moreButton.style = 'float: right;';
           moreButton.textContent = 'Check older recommendations';
           moreButton.onclick = function(){
-            recUpdate(pagesPerCall);
+            recUpdate(pagesPerCall, oldestMid, oldestDate);
           };
           article.appendChild(moreButton);
         }
 
-        var datePNode = document.createElement("p");
-        datePNode.textContent = '' + totalRecs + ' recommendations since ' + oldestDate.toLocaleDateString('ru-RU');
+        var datePNode = document.createElement('p');
+        datePNode.textContent = `${totalRecs} recommendations since ${oldestDate.toLocaleDateString('ru-RU')}`;
         article.appendChild(datePNode);
 
-        var avgPNode = document.createElement("p");
+        var avgPNode = document.createElement('p');
         var now = new Date();
         var days = ((now - oldestDate) / 1000 / 60 / 60 / 24);
         var avg = totalRecs / days;
@@ -2448,13 +2447,13 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         article.appendChild(avgPNode);
 
         var userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
-        var ulNode = document.createElement("ul");
+        var ulNode = document.createElement('ul');
         ulNode.className = 'users';
         ulNode.innerHTML = userStrings.join('');
         article.appendChild(ulNode);
 
         if(hasMore) {
-          setTimeout(function(){ recUpdate(depth - 1); }, 100);
+          setTimeout(function(){ recUpdate(depth - 1, oldestMid, oldestDate); }, 100);
         } else {
           console.log('no more recommendations');
         }
@@ -2463,7 +2462,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
   } // recUpdate
 
-  recUpdate(pagesPerCall);
+  recUpdate(pagesPerCall, undefined, undefined);
 
   contentBlock.appendChild(article);
 }
