@@ -1870,6 +1870,20 @@ function getEmbedableLinkTypes() {
       }
     },
     {
+      name: 'Яндекс.Фотки',
+      id: 'embed_yandex_fotki',
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/img-fotki\.yandex\.ru\/get\/\d+\/[\w\.]+\/[\w]+$/i,
+      makeNode: function(aNode, reResult) {
+        var aNode2 = document.createElement("a");
+        var imgNode = document.createElement("img");
+        imgNode.src = aNode.href;
+        aNode2.href = aNode.href;
+        aNode2.appendChild(imgNode);
+        return aNode2;
+      }
+    },
+    {
       name: 'Use meta for other links (whitelist)',
       id: 'embed_whitelisted_domains',
       ctsDefault: false,
