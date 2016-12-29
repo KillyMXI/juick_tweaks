@@ -873,7 +873,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         var bandcampType = this;
         var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 60);
         div.className = 'bandcamp embed loading';
 
         GM_xmlhttpRequest({
@@ -967,7 +967,7 @@ function getEmbedableLinkTypes() {
         let thisType = this;
         let [url] = reResult;
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'flickr embed loading';
 
         GM_xmlhttpRequest({
@@ -1004,7 +1004,7 @@ function getEmbedableLinkTypes() {
         let [url, userId, workId] = reResult;
         let thisType = this;
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'deviantart embed loading';
 
         GM_xmlhttpRequest({
@@ -1326,7 +1326,7 @@ function getEmbedableLinkTypes() {
         let [url] = reResult;
 
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'wordpress embed loading';
 
         GM_xmlhttpRequest({
@@ -1362,7 +1362,7 @@ function getEmbedableLinkTypes() {
         let [url, author, id] = reResult;
 
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'slideshare embed loading';
 
         GM_xmlhttpRequest({
@@ -1400,7 +1400,7 @@ function getEmbedableLinkTypes() {
         let [url, , id] = reResult;
 
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'gistEmbed embed loading';
 
         GM_xmlhttpRequest({
@@ -1446,7 +1446,7 @@ function getEmbedableLinkTypes() {
         let thisType = this;
         let [url] = reResult;
         let div = document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 65);
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'codepen embed loading';
 
         GM_xmlhttpRequest({
@@ -1478,7 +1478,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         var pixivType = this;
         var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 65);
+        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 60);
         div.className = 'pixiv embed loading';
 
         GM_xmlhttpRequest({
@@ -1989,7 +1989,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           let newNode;
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           if(isCts) {
-            let linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 65);
+            let linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55);
             newNode = makeCts(() => linkType.makeNode(aNode, reResult), 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
