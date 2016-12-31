@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.8.5
-// @date        2016.09.02 - 2016.12.29
+// @version     2.8.6
+// @date        2016.09.02 - 2017.01.01
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -315,11 +315,15 @@ function addYearLinks() {
   var linksContainer = document.createElement("p");
   var years = [
     {y: (new Date()).getFullYear(), b: ""},
+    {y: 2016, b: "?before=2857956"},
     {y: 2015, b: "?before=2816362"},
     {y: 2014, b: "?before=2761245"},
     {y: 2013, b: "?before=2629477"},
     {y: 2012, b: "?before=2183986"},
-    {y: 2011, b: "?before=1695443"}
+    {y: 2011, b: "?before=1695443"},
+    {y: 2010, b: "?before=1140357"},
+    {y: 2009, b: "?before=453764"},
+    {y: 2008, b: "?before=20106"}
   ];
   years.forEach(function(item, i, arr) {
     var anode = document.createElement("a");
