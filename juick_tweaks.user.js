@@ -842,12 +842,28 @@ function getEmbedableLinkTypes() {
       name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:be\.com\/watch\?(?:[\w&=;]+&(?:amp;)?)?v=|\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)(?:&(?:amp;)?(?:(?!list=)\w+=[-\w]+))*(?:&(?:amp;)?list=([-\w]+))?(?:&(?:amp;)?(?:\w+=[-\w]+))*|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
+      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
-        let [url, v, vlist, plist] = reResult;
-        let iframeUrl = (plist !== undefined)
-                          ? '//www.youtube-nocookie.com/embed/videoseries?list=' + plist
-                          : '//www.youtube-nocookie.com/embed/' + v + ((vlist !== undefined) ? '?list=' + vlist : '?rel=0');
+        let [url, v, args, plist] = reResult;
+        let iframeUrl;
+        if(plist !== undefined) {
+          iframeUrl = '//www.youtube-nocookie.com/embed/videoseries?list=' + plist;
+        } else {
+          args = args.replace(/^\?/, '');
+          let arr = args.split('&').map(s => s.split('='));
+          let pp = {}; arr.forEach(z => pp[z[0]] = z[1]);
+          let embedArgs = { rel: '0' };
+          if(pp.t != undefined) {
+            const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s)$/i;
+            let [, t, h, m, s] = tre.exec(pp.t);
+            embedArgs['start'] = (+t) || ((+(h || 0))*60*60 + (+(m || 0))*60 + (+(s || 0)));
+          }
+          if(pp.list !== undefined) {
+            embedArgs['list'] = pp.list;
+          }
+          v = v || pp.v;
+          iframeUrl = '//www.youtube-nocookie.com/embed/' + v + '?' + Object.keys(embedArgs).map(k => `${k}=${embedArgs[k]}`).join('&');
+        }
         return wrapIntoTag(makeIframe(iframeUrl, 640, 360), 'div', 'youtube');
       }
     },
