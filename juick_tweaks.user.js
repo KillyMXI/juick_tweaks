@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.8.6
-// @date        2016.09.02 - 2017.01.01
+// @version     2.9.0
+// @date        2016.09.02 - 2017.01.02
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -77,6 +77,7 @@ if(isPost) {                            // на странице поста
   updateTagsOnAPostPage();
   addTagEditingLinkUnderPost();
   addCommentRemovalLinks();
+  bringCommentsIntoViewOnHover();
   embedLinksToPost();
 }
 
@@ -2192,6 +2193,89 @@ function filterPostComments() {
   });
 }
 
+function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0, threshold=0) {
+
+  function checkFullyVisible(node, threshold=0) {
+    let rect = node.getBoundingClientRect();
+    let viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+    let above = rect.top + threshold < 0;
+    let below = rect.bottom - threshold - viewHeight >= 0;
+    return !above && !below;
+  }
+
+  function resetMovementArtifacts(node) {
+    node.removeEventListener('transitionend', afterBackTransition, false);
+    node.classList.toggle('moved', false);
+    node.classList.toggle('hoverHighlight', false);
+  }
+
+  function moveNodeIntoView(node, avoidNode, avoidMargin=0, threshold=0) {
+    resetMovementArtifacts(node);
+    node.classList.toggle('hoverHighlight', true);
+    let onscreen = checkFullyVisible(node, threshold);
+    if(!onscreen) {
+      let parentNodeRect = node.parentNode.getBoundingClientRect();
+      let avoidNodeRect = avoidNode.getBoundingClientRect();
+      let [w, h] = [node.offsetWidth, node.offsetHeight];
+      let vtop = parentNodeRect.top;
+      let atop = avoidNodeRect.top - avoidMargin;
+      let ah = avoidNodeRect.height + 2*avoidMargin;
+      let wh = window.innerHeight;
+      let isAbove = (vtop < atop);
+      let moveAmount = isAbove ? (0-vtop-h+atop) : (0-vtop+atop+ah);
+      let availableSpace = isAbove ? (atop - avoidMargin) : (wh - atop - ah + avoidMargin);
+      if((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
+        node.classList.toggle('moved', true);
+        node.style.marginTop = `${moveAmount}px`;
+        node.parentNode.querySelector('.placeholder').setAttribute("style", `width: ${w}px; height: ${h}px;`);
+      }
+    }
+  }
+
+  function afterBackTransition(event) { resetMovementArtifacts(event.target); }
+
+  function moveNodeBack(node) {
+    const eventType = 'transitionend';
+    if(node.classList.contains('moved')) {
+      let parentNodeRect = node.parentNode.getBoundingClientRect();
+      let nodeRect = node.getBoundingClientRect();
+      if(Math.abs(parentNodeRect.top - nodeRect.top) > 1) {
+        node.addEventListener(eventType, afterBackTransition, false);
+      } else {
+        resetMovementArtifacts(node);
+      }
+      node.style.marginTop = '';
+    } else {
+      node.classList.toggle('hoverHighlight', false);
+    }
+  }
+
+  hoverTarget.addEventListener('mouseenter', e => {moveNodeIntoView(movable, avoidTarget, avoidMargin, threshold);}, false);
+  hoverTarget.addEventListener('mouseleave', e => {moveNodeBack(movable);}, false);
+  movable.parentNode.classList.toggle('movableContainer', true);
+  movable.classList.toggle('movable', true);
+  let parent = movable.parentNode;
+  if(!parent.querySelector('.placeholder')) {
+    var pldr = document.createElement('div');
+    pldr.className = 'placeholder';
+    parent.appendChild(pldr);
+  }
+}
+
+function bringCommentsIntoViewOnHover() {
+  if(!GM_getValue('enable_move_comment_into_view', true)) { return; }
+  let replies = Array.from(document.querySelectorAll('#replies li'));
+  let nodes = {};
+  replies.forEach(r => { nodes[r.id] = r.querySelector('div.msg-cont'); });
+  replies.forEach(r => {
+    let replyToLink = Array.from(r.querySelectorAll('.msg-links a')).find(a => /\d+/.test(a.hash));
+    if(replyToLink) {
+      let rtid = replyToLink.hash.replace(/^#/, '');
+      setMoveIntoViewOnHover(replyToLink, nodes[r.id], nodes[rtid], 5, 30);
+    }
+  });
+}
+
 function checkReply(allPostsSelector, replySelector) {
   [].forEach.call(document.querySelectorAll(allPostsSelector), function(post, i, arr) {
     let replyNode = post.querySelector(replySelector);
@@ -2282,6 +2366,11 @@ function getUserscriptSettings() {
       name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
       id: 'enable_blocklisters_styling',
       enabledByDefault: false
+    },
+    {
+      name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
+      id: 'enable_move_comment_into_view',
+      enabledByDefault: true
     }
   ];
 }
@@ -2635,6 +2724,12 @@ function addStyle() {
     ".filtered .msg-avatar { margin-bottom: 0px; } " +
     ".filteredComment.headless .msg-links { margin: 0px; } " +
     "article.readonly > p, div.readonly > .msg-txt { opacity: 0.55; } " +
+    ".movable { transition: all 0.2s ease-out 0.2s; transition-property: margin, margin-top; } " +
+    ".movable.moved { position: absolute; z-index: 10; } " +
+    ".movable.hoverHighlight { outline: 1px solid var(--color10) !important; } " +
+    ".movableContainer { position: relative; } " +
+    ".movableContainer .placeholder { display: none; } " +
+    ".movableContainer .moved+.placeholder { display: block; } " +
     ""
   );
 }
