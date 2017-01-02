@@ -1986,9 +1986,11 @@ function getEmbedableLinkTypes() {
                   }
 
                   const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*\/?>/gmi;
+                  const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
+                  let [, basicTitle] = titleRe.exec(response.responseText);
                   let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
                   let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
-                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'];
+                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle;
                   let image = meta['twitter:image'] || meta['og:image'];
                   let description = meta['twitter:description'] || meta['og:description'] || meta['description'];
 
