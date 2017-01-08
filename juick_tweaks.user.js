@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.9.0
-// @date        2016.09.02 - 2017.01.02
+// @version     2.10.0
+// @date        2016.09.02 - 2017.01.08
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -55,16 +55,16 @@
 
 // pages and elements =====================================================================================
 
-var content = document.getElementById("content");
-var isPost = (content !== null) && content.hasAttribute("data-mid");
-var isFeed = (document.querySelectorAll("#content article[data-mid]").length > 0);
+var content = document.getElementById('content');
+var isPost = (content !== null) && content.hasAttribute('data-mid');
+var isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
 var isCommonFeed = (/^(?:https?:)?\/\/juick\.com\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
 var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 var isTagsPage = window.location.pathname.endsWith('/tags');
 var isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
 var isSettingsPage = window.location.pathname.endsWith('/settings');
-var isUserColumn = (document.querySelector("aside#column > div#ctitle:not(.tag)") === null) ? false : true;
-var isUsersTable = (document.querySelector("table.users") === null) ? false : true;
+var isUserColumn = (document.querySelector('aside#column > div#ctitle:not(.tag)') === null) ? false : true;
+var isUsersTable = (document.querySelector('table.users') === null) ? false : true;
 
 
 // userscript features =====================================================================================
@@ -123,8 +123,14 @@ if(isSettingsPage) {                    // на странице настрое�
 
 Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
 
-String.prototype.count=function(s1) {
-  return (this.length - this.replace(new RegExp(s1,"g"), '').length) / s1.length;
+String.prototype.count = function(s1) {
+  return (this.length - this.replace(new RegExp(s1, 'g'), '').length) / s1.length;
+}
+
+Number.prototype.pad = function(size=2) {
+  let s = String(this);
+  while (s.length < size) { s = '0' + s; }
+  return s;
 }
 
 function intersect(a, b) {
@@ -136,71 +142,70 @@ function insertAfter(newNode, referenceNode) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
-function parseRgbColor(colorStr){
-  colorStr = colorStr.replace(/ /g,'').toLowerCase();
-  var [, r, g, b] = /^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/.exec(colorStr);
+function moveAll(fromNode, toNode) {
+  for (let c; c = fromNode.firstChild; ) { toNode.appendChild(c); }
+}
+
+function removeAllFrom(fromNode) {
+  for (let c; c = fromNode.lastChild; ) { fromNode.removeChild(c); }
+}
+
+function parseRgbColor(colorStr, fallback=[0,0,0]){
+  let [, r, g, b] = colorStr.replace(/ /g, '').match(/^rgb\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})\)$/i) || [, ...fallback];
   return [ +r, +g, +b ];
 }
 
-function getContrastColor(baseColor) {
-  return (baseColor[0] + baseColor[1] + baseColor[2] > 127*3) ? [0,0,0] : [255,255,255];
+function getContrastColor([r, g, b]) {
+  return (r + g + b > 127*3) ? [0,0,0] : [255,255,255];
 }
 
 function getAllMatchesAndCaptureGroups(re, str) {
-  var results = [], result;
-  while ((result = re.exec(str)) !== null) {
-    results.push(Array.from(result));
-  }
+  let results = [], result;
+  while ((result = re.exec(str)) !== null) { results.push(Array.from(result)); }
   return results;
 }
 
 function htmlDecode(str) {
-  var doc = new DOMParser().parseFromString(str, "text/html");
+  let doc = new DOMParser().parseFromString(str, 'text/html');
   return doc.documentElement.textContent;
 }
 
 function htmlEscape(html) {
-  var textarea = document.createElement('textarea');
+  let textarea = document.createElement('textarea');
   textarea.textContent = html;
   return textarea.innerHTML;
 }
 
-function naiveEllipsis(str, len) {
-  var ellStr = '...';
-  var ellLen = ellStr.length;
-  if(str.length <= len) { return str; }
-  var half = Math.floor((len - ellLen) / 2);
-  var left = str.substring(0, half);
-  var right = str.substring(str.length - (len - half - ellLen));
+function naiveEllipsis(str, len, ellStr='...') {
+  let ellLen = ellStr.length;
+  if (str.length <= len) { return str; }
+  let half = Math.floor((len - ellLen) / 2);
+  let left = str.substring(0, half);
+  let right = str.substring(str.length - (len - half - ellLen));
   return '' + left + ellStr + right;
 }
 
-function naiveEllipsisRight(str, len) {
-  var ellStr = '...';
-  var ellLen = ellStr.length;
+function naiveEllipsisRight(str, len, ellStr='...') {
+  let ellLen = ellStr.length;
   return (str.length <= len) ? str : str.substring(0, len - ellLen) + ellStr;
 }
 
 function wrapIntoTag(node, tagName, className) {
-  var tag = document.createElement(tagName);
-  if(className !== undefined) {
-    tag.className = className;
-  }
+  let tag = document.createElement(tagName);
+  if (className !== undefined) { tag.className = className; }
   tag.appendChild(node);
   return tag;
 }
 
 function waitAndRun(test, doneCallback, timeoutCallback, tick=100, count) {
-  if(test()) {
+  if (test()) {
     doneCallback();
   } else {
-    var newCount = (count === undefined) ? undefined : count - 1;
-    if(newCount === undefined || newCount > 0) {
-      setTimeout(function(){ waitAndRun(test, doneCallback, timeoutCallback, tick, newCount); }, tick);
+    let newCount = (count === undefined) ? undefined : count - 1;
+    if (newCount === undefined || newCount > 0) {
+      setTimeout(() => waitAndRun(test, doneCallback, timeoutCallback, tick, newCount), tick);
     } else {
-      if(typeof timeoutCallback == 'function') {
-        timeoutCallback();
-      }
+      if (typeof timeoutCallback == 'function') { timeoutCallback(); }
     }
   }
 }
@@ -214,79 +219,90 @@ function matchWildcard(str, wildcard) {
   let startFrom = 0;
   for(var i = 0; i < ww.length; i++) {
     let w = ww[i];
-    if(w == '') { continue; }
+    if (w == '') { continue; }
     let wloc = str.indexOf(w, startFrom);
-    if(wloc == -1) { return false; }
+    if (wloc == -1) { return false; }
     let wend = wloc + w.length;
     let headCondition = (i > 0) || (wloc == 0);
     let tailCondition = (i < ww.length - 1) || ((i > 0) ? str.endsWith(w) : (str.substr(wloc) == w));
-    if(!headCondition || !tailCondition) { return false; }
+    if (!headCondition || !tailCondition) { return false; }
     startFrom = wend;
   }
   return true;
 }
 
+// replaceTree :: (String, [{re: RegExp, with: String}]) -> String
+// replaceTree :: (String, [{re: RegExp, with: Function}]) -> String
+function replaceTree(txt, rules) {
+  for (let rule of rules) {
+    let match = rule.re.exec(txt);
+    if (match !== null) {
+      let parts = [txt.substring(0, match.index), txt.substring(rule.re.lastIndex)];
+      return parts.map(p => replaceTree(p, rules)).join(match[0].replace(rule.re, rule.with));
+    }
+  }
+  return txt;
+}
+
 
 // function definitions =====================================================================================
 
+function svgIconHtml(name) {
+  return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
+}
+
 function updateTagsOnAPostPage() {
-  if(!GM_getValue('enable_user_tag_links', true)) { return; }
-  var tagsDiv = document.querySelector("div.msg-tags");
-  if(tagsDiv === null) { return; }
-  var userId = document.querySelector("div.msg-avatar > a > img").alt;
-  [].forEach.call(tagsDiv.childNodes, function(item, i, arr) {
-    var link = item.href;
-    item.href = link.replace("tag/", userId + "/?tag=");
-  });
+  if (!GM_getValue('enable_user_tag_links', true)) { return; }
+  let tagsDiv = document.querySelector('div.msg-tags');
+  if (tagsDiv === null) { return; }
+  let userId = document.querySelector('div.msg-avatar > a > img').alt;
+  Array.from(tagsDiv.childNodes).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
 }
 
 function updateTagsInFeed() {
-  if(!GM_getValue('enable_user_tag_links', true)) { return; }
-  [].forEach.call(document.querySelectorAll("#content > article"), function(article, i, arr) {
-    if(!article.hasAttribute('data-mid')) { return; }
-    var userId = article.querySelector("div.msg-avatar > a > img").alt;
-    var tagsDiv = article.getElementsByClassName("msg-tags")[0];
-    if(tagsDiv === null) { return; }
-    [].forEach.call(tagsDiv.childNodes, function(item, j, arrj) {
-      var link = item.href;
-      item.href = link.replace("tag/", userId + "/?tag=");
-    });
+  if (!GM_getValue('enable_user_tag_links', true)) { return; }
+  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
+    if (!article.hasAttribute('data-mid')) { return; }
+    let userId = article.querySelector('div.msg-avatar > a > img').alt;
+    let tagsDiv = article.getElementsByClassName('msg-tags')[0];
+    if (tagsDiv === null) { return; }
+    Array.from(tagsDiv.childNodes).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
   });
 }
 
 function addTagEditingLinkUnderPost() {
-  if(!GM_getValue('enable_tags_editing_link', true)) { return; }
-  var mtoolbar = document.getElementById("mtoolbar").childNodes[0];
-  var canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
-  if(!canEdit) { return; }
-  var linode = document.createElement("li");
-  var anode = document.createElement("a");
-  var mid = document.getElementById("content").getAttribute("data-mid");
-  anode.href = "http://juick.com/post?body=%23" + mid + "+%2ATag";
-  anode.innerHTML = "<div style='background-position: -16px 0'></div>Теги";
+  if (!GM_getValue('enable_tags_editing_link', true)) { return; }
+  let mtoolbar = document.getElementById('mtoolbar').childNodes[0];
+  let canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
+  if (!canEdit) { return; }
+  let linode = document.createElement('li');
+  let anode = document.createElement('a');
+  let mid = document.getElementById('content').getAttribute('data-mid');
+  anode.href = 'http://juick.com/post?body=%23' + mid + '+%2ATag';
+  anode.innerHTML = '<div style="background-position: -16px 0"></div>Теги';
   linode.appendChild(anode);
   mtoolbar.appendChild(linode);
 }
 
 function addCommentRemovalLinks() {
-  if(!GM_getValue('enable_comment_removal_links', true)) { return; }
-  var myUserIdLink = document.querySelector("nav#actions > ul > li:nth-child(2) > a");
-  var myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
-  var commentsBlock = document.querySelector("ul#replies");
-  if((commentsBlock !== null) && (myUserId !== null)) {
+  if (!GM_getValue('enable_comment_removal_links', true)) { return; }
+  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
+  let myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
+  let commentsBlock = document.querySelector('ul#replies');
+  if ((commentsBlock !== null) && (myUserId !== null)) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
-      var postUserAvatar = linode.querySelector("div.msg-avatar > a > img");
-      if(postUserAvatar !== null) {
-        var postUserId = postUserAvatar.alt;
-        if(postUserId == myUserId) {
-          var linksBlock = linode.querySelector("div.msg-links");
-          var commentLink = linode.querySelector("div.msg-ts > a");
-          var postId = commentLink.pathname.replace('/','');
-          var commentId = commentLink.hash.replace('#','');
-          var anode = document.createElement("a");
-          anode.href = "http://juick.com/post?body=D+%23" + postId + "%2F" + commentId;
-          anode.innerHTML = "Удалить";
-          anode.style.cssFloat = "right";
+      let postUserAvatar = linode.querySelector('div.msg-avatar > a > img');
+      if (postUserAvatar !== null) {
+        let postUserId = postUserAvatar.alt;
+        if (postUserId == myUserId) {
+          let linksBlock = linode.querySelector('div.msg-links');
+          let commentLink = linode.querySelector('div.msg-ts > a');
+          let postId = commentLink.pathname.replace('/','');
+          let commentId = commentLink.hash.replace('#','');
+          let anode = document.createElement('a');
+          anode.href = `http://juick.com/post?body=D+%23${postId}%2F${commentId}`;
+          anode.innerHTML = 'Удалить';
+          anode.style.cssFloat = 'right';
           linksBlock.appendChild(anode);
         }
       }
@@ -295,10 +311,10 @@ function addCommentRemovalLinks() {
 }
 
 function addTagPageToolbar() {
-  if(!GM_getValue('enable_tag_page_toolbar', true)) { return; }
-  var asideColumn = document.querySelector("aside#column");
-  var tag = document.location.pathname.split("/").pop(-1);
-  var html = '<div id="ctitle" class="tag"><a href="/tag/%TAG%">*%TAGSTR%</a></div>' +
+  if (!GM_getValue('enable_tag_page_toolbar', true)) { return; }
+  let asideColumn = document.querySelector('aside#column');
+  let tag = document.location.pathname.split('/').pop(-1);
+  let html = '<div id="ctitle" class="tag"><a href="/tag/%TAG%">*%TAGSTR%</a></div>' +
       '<ul id="ctoolbar">' +
       '<li><a href="/post?body=S+%2a%TAG%" title="Подписаться"><div style="background-position: -16px 0"></div></a></li>' +
       '<li><a href="/post?body=BL+%2a%TAG%" title="Заблокировать"><div style="background-position: -80px 0"></div></a></li>' +
@@ -308,45 +324,45 @@ function addTagPageToolbar() {
 }
 
 function addYearLinks() {
-  if(!GM_getValue('enable_year_links', true)) { return; }
-  var userId = document.querySelector("div#ctitle a").textContent;
-  var asideColumn = document.querySelector("aside#column");
-  var hr1 = asideColumn.querySelector("p.tags + hr");
-  var hr2 = document.createElement("hr");
-  var linksContainer = document.createElement("p");
-  var years = [
-    {y: (new Date()).getFullYear(), b: ""},
-    {y: 2016, b: "?before=2857956"},
-    {y: 2015, b: "?before=2816362"},
-    {y: 2014, b: "?before=2761245"},
-    {y: 2013, b: "?before=2629477"},
-    {y: 2012, b: "?before=2183986"},
-    {y: 2011, b: "?before=1695443"},
-    {y: 2010, b: "?before=1140357"},
-    {y: 2009, b: "?before=453764"},
-    {y: 2008, b: "?before=20106"}
+  if (!GM_getValue('enable_year_links', true)) { return; }
+  let userId = document.querySelector('div#ctitle a').textContent;
+  let asideColumn = document.querySelector('aside#column');
+  let hr1 = asideColumn.querySelector('p.tags + hr');
+  let hr2 = document.createElement('hr');
+  let linksContainer = document.createElement('p');
+  let years = [
+    {y: (new Date()).getFullYear(), b: ''},
+    {y: 2016, b: '?before=2857956'},
+    {y: 2015, b: '?before=2816362'},
+    {y: 2014, b: '?before=2761245'},
+    {y: 2013, b: '?before=2629477'},
+    {y: 2012, b: '?before=2183986'},
+    {y: 2011, b: '?before=1695443'},
+    {y: 2010, b: '?before=1140357'},
+    {y: 2009, b: '?before=453764'},
+    {y: 2008, b: '?before=20106'}
   ];
-  years.forEach(function(item, i, arr) {
-    var anode = document.createElement("a");
+  years.forEach(item => {
+    let anode = document.createElement('a');
     anode.href = `/${userId}/${item.b}`;
     anode.textContent = item.y;
     linksContainer.appendChild(anode);
-    linksContainer.appendChild(document.createTextNode (" "));
+    linksContainer.appendChild(document.createTextNode(' '));
   });
   asideColumn.insertBefore(hr2, hr1);
   asideColumn.insertBefore(linksContainer, hr1);
 }
 
 function addSettingsLink() {
-  if(!GM_getValue('enable_settings_link', true)) { return; }
-  var columnUserId = document.querySelector("div#ctitle a").textContent;
-  var myUserIdLink = document.querySelector("nav#actions > ul > li:nth-child(2) > a");
-  var myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
-  if(columnUserId == myUserId) {
-    var asideColumn = document.querySelector("aside#column");
-    var ctitle = asideColumn.querySelector("#ctitle");
-    var anode = document.createElement("a");
-    anode.innerHTML = '<div class="icon icon--ei-gear icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-gear-icon"></use></svg></div>';
+  if (!GM_getValue('enable_settings_link', true)) { return; }
+  let columnUserId = document.querySelector('div#ctitle a').textContent;
+  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
+  let myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
+  if (columnUserId == myUserId) {
+    let asideColumn = document.querySelector('aside#column');
+    let ctitle = asideColumn.querySelector('#ctitle');
+    let anode = document.createElement('a');
+    anode.innerHTML = svgIconHtml('gear');
     anode.href = 'http://juick.com/settings';
     ctitle.appendChild(anode);
     ctitle.style.display = 'flex';
@@ -356,176 +372,179 @@ function addSettingsLink() {
 }
 
 function biggerAvatar() {
-  if(!GM_getValue('enable_big_avatar', true)) { return; }
-  var avatarImg = document.querySelector("div#ctitle a img");
+  if (!GM_getValue('enable_big_avatar', true)) { return; }
+  let avatarImg = document.querySelector('div#ctitle a img');
   avatarImg.src = avatarImg.src.replace('/as/', '/a/');
 }
 
-function loadTags(userId, doneCallback) {
-  setTimeout(function(){
-    GM_xmlhttpRequest({
-      method: "GET",
-      url: "http://juick.com/" + userId + "/tags",
-      onload: function(response) {
-        var re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
-        var result = re.exec(response.responseText);
-        if(result !== null) {
-          var tagsStr = result[1];
-          var tagsContainer = document.createElement('p');
-          tagsContainer.className += " tagsContainer";
-          tagsContainer.innerHTML = tagsStr;
-          doneCallback(tagsContainer);
-        } else {
-          console.log("no tags found");
+function loadTagsAsync(userId) {
+  return new Promise(function(resolve, reject) {
+    setTimeout(function(){
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: 'http://juick.com/' + userId + '/tags',
+        onload: function(response) {
+          const re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
+          let [result, tagsStr] = re.exec(response.responseText);
+          if(result !== null) {
+            let tagsContainer = document.createElement('p');
+            tagsContainer.classList.add('tagsContainer');
+            tagsContainer.innerHTML = tagsStr;
+            resolve(tagsContainer);
+          } else {
+            reject('no tags found');
+          }
         }
-      }
-    });
-  }, 50);
+      });
+    }, 50);
+  });
 }
 
 function addEasyTagsUnderPostEditorSharp() {
-  if(!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
-  var userId = document.querySelector("nav#actions > ul > li:nth-child(2) > a").textContent.replace('@', '');
-  loadTags(userId, function(tagsContainer){
-    var messageform = document.getElementById("newmessage");
-    var tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName("tags")[0];
-    messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
-    sortAndColorizeTagsInContainer(tagsContainer, 60, true);
-    [].forEach.call(tagsContainer.childNodes, function(item, i, arr) {
-      var newTag = item.textContent;
-      item.onclick = function() { tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); };
-      item.href = "#";
-    });
-  });
+  if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
+  let userId = document.querySelector('nav#actions > ul > li:nth-child(2) > a').textContent.replace('@', '');
+  loadTagsAsync(userId).then(
+    tagsContainer => {
+      let messageform = document.getElementById('newmessage');
+      let tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
+      messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
+      sortAndColorizeTagsInContainer(tagsContainer, 60, true);
+      Array.from(tagsContainer.childNodes).forEach(t => {
+        let newTag = t.textContent;
+        t.href = '';
+        t.onclick = (e => { e.preventDefault(); tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); });
+      })
+    },
+    reject => console.log(reject)
+  )
 }
 
 function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
-  tagsContainer.classList.add('tagsContainer');
-  var linkColor = parseRgbColor(getComputedStyle(tagsContainer.getElementsByTagName('A')[0]).color);
-  var p0 = 0.7; // 70% of color range is used for color coding
-  var maxC = 0.1;
-  var sortedTags = [];
-  [].forEach.call(tagsContainer.children, function(item, i, arr) {
-    var anode = (item.tagName == 'A') ? item : item.getElementsByTagName('a')[0];
-    var c = Math.log(parseInt(anode.title, 10));
+  let tags = Array.from(tagsContainer.querySelectorAll('a[title]'));
+  if (tags.length === 0) { return; }
+  let [r, g, b] = parseRgbColor(getComputedStyle(tags[0]).color);
+  let p0 = 0.7; // 70% of color range is used for color coding
+  let maxC = 0.1;
+  let sortedTags = tags.map(a => {
+    let c = Math.log(parseInt(a.title, 10));
     maxC = (c > maxC) ? c : maxC;
-    sortedTags.push({ c: c, a: anode, text: anode.textContent.toLowerCase()});
+    return { c: c, a: a, text: a.textContent.toLowerCase() };
   });
-  if((numberLimit !== null) && (sortedTags.length > numberLimit)) {
+  if ((numberLimit) && (sortedTags.length > numberLimit)) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
-  if(isSorting) {
+  if (isSorting) {
     sortedTags.sort((a, b) => a.text.localeCompare(b.text));
   }
-  while (tagsContainer.firstChild) {
-    tagsContainer.removeChild(tagsContainer.firstChild);
-  }
-  var [r, g, b] = linkColor;
-  sortedTags.forEach(function(item, i, arr) {
-    var c = item.c;
-    var p = (c/maxC-1)*p0+1; // normalize to [p0..1]
-    item.a.style.setProperty('color', `rgba(${r},${g},${b},${p})`, 'important');
-    tagsContainer.appendChild(item.a);
-    tagsContainer.appendChild(document.createTextNode (" "));
+  removeAllFrom(tagsContainer);
+  sortedTags.forEach(t => {
+    let p = (t.c/maxC - 1)*p0 + 1; // normalize to [p0..1]
+    t.a.style.setProperty('color', `rgba(${r},${g},${b},${p})`, 'important');
+    tagsContainer.appendChild(t.a);
+    tagsContainer.appendChild(document.createTextNode (' '));
   });
+  tagsContainer.classList.add('tagsContainer');
 }
 
 function sortTagsPage() {
-  if(!GM_getValue('enable_tags_page_coloring', true)) { return; }
-  var tagsContainer = document.querySelector("section#content > p");
+  if (!GM_getValue('enable_tags_page_coloring', true)) { return; }
+  let tagsContainer = document.querySelector('section#content > p');
   sortAndColorizeTagsInContainer(tagsContainer, null, true);
 }
 
 function colorizeTagsInUserColumn() {
-  if(!GM_getValue('enable_left_column_tags_coloring', true)) { return; }
-  var tagsContainer = document.querySelector("aside#column > p.tags");
+  if (!GM_getValue('enable_left_column_tags_coloring', true)) { return; }
+  let tagsContainer = document.querySelector('aside#column > p.tags');
+  let tagsLink = tagsContainer.lastChild;
   sortAndColorizeTagsInContainer(tagsContainer, null, false);
+  tagsContainer.appendChild(tagsLink);
 }
 
 function getLastArticleDate(html) {
-  var re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
-  //var re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
-  var [, dateStr, timeStr] = re.exec(html) || [];
+  const re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
+  //const re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
+  let [, dateStr, timeStr] = re.exec(html) || [];
   return (dateStr === undefined) ? null : new Date(`${dateStr}T${timeStr}`);
 }
 
-function processPage(url, retrievalFunction, doneCallback, timeout=100) {
-  GM_xmlhttpRequest({
-    method: "GET",
-    url: url,
-    onload: function(response) {
-      var result = null;
-      if(response.status != 200) {
-        console.log("" + url + ": failed with " + response.status + ", " + response.statusText);
-      } else {
-        result = retrievalFunction(response.responseText);
+function processPageAsync(url, retrievalFunction, timeout=110) {
+  return new Promise(function(resolve, reject) {
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: url,
+      onload: function(response) {
+        let result = null;
+        if (response.status != 200) {
+          console.log(`${url}: failed with ${response.status}, ${response.statusText}`);
+        } else {
+          result = retrievalFunction(response.responseText);
+        }
+        setTimeout(() => resolve(result), timeout);
       }
-      setTimeout(function(){ doneCallback(result) }, timeout);
+    });
+  });
+}
+
+function loadUserDatesAsync(unprocessedUsers, processedUsers=[]) {
+  return new Promise(function(resolve, reject) {
+    if (unprocessedUsers.length === 0) {
+      resolve(processedUsers);
+    } else {
+      let user = unprocessedUsers.splice(0,1)[0];
+      //let postsUrl = "http://api.juick.com/messages?uname=" + user.id;
+      let postsUrl = 'http://juick.com/' + user.id + '/';
+      let recsUrl = 'http://juick.com/' + user.id + '/?show=recomm';
+
+      processPageAsync(postsUrl, getLastArticleDate).then(lastPostDate => {
+        processPageAsync(recsUrl, getLastArticleDate).then(lastRecDate => {
+          let date = (lastPostDate > lastRecDate) ? lastPostDate : lastRecDate;
+          if (date === null) {
+            console.log(`${user.id}: no posts or recommendations found`);
+          } else {
+            user.date = date;
+            user.a.appendChild(document.createTextNode (` (${date.getFullYear()}-${(date.getMonth()+1).pad(2)}-${date.getDate().pad(2)})` ));
+          }
+          processedUsers.push(user);
+          loadUserDatesAsync(unprocessedUsers, processedUsers).then(rr => resolve(rr));
+        });
+      });
     }
   });
 }
 
-function loadUserDates(unprocessedUsers, processedUsers, doneCallback) {
-  if(unprocessedUsers.length === 0) {
-    doneCallback();
-  } else {
-    var user = unprocessedUsers.splice(0,1)[0];
-    //var postsUrl = "http://api.juick.com/messages?uname=" + user.id;
-    var postsUrl = 'http://juick.com/' + user.id + '/';
-    var recsUrl = 'http://juick.com/' + user.id + '/?show=recomm';
-
-    processPage(postsUrl, getLastArticleDate, function(lastPostDate) {
-      processPage(recsUrl, getLastArticleDate, function(lastRecDate) {
-        var date = (lastPostDate > lastRecDate) ? lastPostDate : lastRecDate;
-        if(date === null) {
-            console.log("" + user.id + ": no posts or recommendations found");
-        } else {
-          user.date = date;
-          user.a.appendChild(document.createTextNode (` (${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()})` ));
-        }
-
-        processedUsers.push(user);
-        loadUserDates(unprocessedUsers, processedUsers, doneCallback);
-      });
-    });
-  }
-}
-
 function sortUsers() {
-  var contentBlock = document.getElementById("content");
-  var button = document.getElementById("usersSortingButton");
+  let contentBlock = document.getElementById('content');
+  let button = document.getElementById('usersSortingButton');
   button.parentNode.removeChild(button);
-  var usersTable = document.querySelector("table.users");
-  var unsortedUsers = [];
-  var sortedUsers = [];
-  [].forEach.call(usersTable.firstChild.children, function(tr, i, arr){
-    [].forEach.call(tr.children, function(td, j, arrj){
-      var anode = td.firstChild;
-      var userId = anode.pathname.replace(/\//g, '');
-      unsortedUsers.push({a: anode, id: userId, date: (new Date(1970, 1, 1))});
-    });
+  let usersTable = document.querySelector('table.users');
+  let unprocessedUsers = Array.from(usersTable.querySelectorAll('td')).map(td => {
+    let anode = td.firstChild;
+    let userId = anode.pathname.replace(/\//g, '');
+    return {a: anode, id: userId, date: (new Date(1970, 1, 1))};
   });
-  loadUserDates(unsortedUsers, sortedUsers, function(){
-    sortedUsers.sort((b, a) => (a.date > b.date) - (a.date < b.date));
-    usersTable.parentNode.removeChild(usersTable);
-    var ul = document.createElement("ul");
-    ul.className = 'users';
-    sortedUsers.forEach(function(user, i, arr){
-      var li = document.createElement("li");
-      li.appendChild(user.a);
-      ul.appendChild(li);
-    });
-    contentBlock.appendChild(ul);
-  });
+  loadUserDatesAsync(unprocessedUsers).then(
+    processedUsers => {
+      processedUsers.sort((b, a) => (a.date > b.date) - (a.date < b.date));
+      usersTable.parentNode.removeChild(usersTable);
+      let ul = document.createElement('ul');
+      ul.className = 'users';
+      processedUsers.forEach(user => {
+        let li = document.createElement('li');
+        li.appendChild(user.a);
+        ul.appendChild(li);
+      });
+      contentBlock.appendChild(ul);
+    }
+  );
 }
 
 function addUsersSortingButton() {
-  if(!GM_getValue('enable_users_sorting', true)) { return; }
-  var contentBlock = document.getElementById("content");
-  var usersTable = document.querySelector("table.users");
-  var button = document.createElement("button");
+  if (!GM_getValue('enable_users_sorting', true)) { return; }
+  let contentBlock = document.getElementById('content');
+  let usersTable = document.querySelector('table.users');
+  let button = document.createElement('button');
   button.id = 'usersSortingButton';
-  button.textContent="Sort by date";
+  button.textContent='Sort by date';
   button.onclick = sortUsers;
   contentBlock.insertBefore(button, usersTable);
 }
@@ -533,11 +552,15 @@ function addUsersSortingButton() {
 function turnIntoCts(node, makeNodeCallback) {
   node.onclick = function(e){
     e.preventDefault();
-    var newNode = makeNodeCallback();
-    if(this.hasAttribute('data-linkid')) {
-      newNode.setAttribute('data-linkid', this.getAttribute('data-linkid'));
+    let newNode = makeNodeCallback();
+    if(newNode !== node) {
+      removeAllFrom(node);
+      moveAll(newNode, node);
+      node.className = newNode.className;
+    } else {
+      node.onclick = '';
+      node.classList.remove('cts');
     }
-    this.parentNode.replaceChild(newNode, this);
   };
 }
 
@@ -582,10 +605,10 @@ function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
   iframe.width = w;
   iframe.height = h;
   iframe.frameBorder = 0;
-  if(typeof onloadCallback == 'function') {
-    iframe.addEventListener("load", function(){ onloadCallback(iframe.contentWindow.document); }, false);
+  if (typeof onloadCallback == 'function') {
+    iframe.addEventListener('load', () => onloadCallback(iframe.contentWindow.document), false);
   }
-  if(typeof onerrorCallback == 'function') {
+  if (typeof onerrorCallback == 'function') {
     iframe.onerror = onerrorCallback;
   }
   return iframe;
@@ -603,18 +626,17 @@ function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
     doc.open();
     doc.write(html);
     doc.close();
-    if(typeof onloadCallback == 'function') { onloadCallback(doc); }
+    if (typeof onloadCallback == 'function') { onloadCallback(doc); }
   };
-  if(typeof onerrorCallback == 'function') {
+  if (typeof onerrorCallback == 'function') {
     iframe.onerror = onerrorCallback;
   }
   return iframe;
 }
 
-function loadScript(url, async=false, callback, once=false)
-{
-  if(once && [].some.call(document.scripts, s => s.src == url)) {
-    if(typeof callback == 'function') { callback(); }
+function loadScript(url, async=false, callback, once=false) {
+  if (once && [].some.call(document.scripts, s => s.src == url)) {
+    if (typeof callback == 'function') { callback(); }
     return;
   }
 
@@ -622,10 +644,9 @@ function loadScript(url, async=false, callback, once=false)
   let script = document.createElement('script');
   script.type = 'text/javascript';
   script.src = url;
-  if(async) { script.setAttribute('async', ''); }
+  if (async) { script.setAttribute('async', ''); }
 
-  if(typeof callback == 'function') {
-    //script.onreadystatechange = callback;
+  if (typeof callback == 'function') {
     script.onload = callback;
   }
 
@@ -634,7 +655,7 @@ function loadScript(url, async=false, callback, once=false)
 
 function addScript(scriptString, once=false)
 {
-  if(once && [].some.call(document.scripts, s => s.text == scriptString)) { return; }
+  if (once && [].some.call(document.scripts, s => s.text == scriptString)) { return; }
 
   let head = document.getElementsByTagName('head')[0];
   let script = document.createElement('script');
@@ -645,14 +666,12 @@ function addScript(scriptString, once=false)
 
 function splitScriptsFromHtml(html) {
   const scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
-  let scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(
-    m => {
+  let scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(m => {
       let [, url, s] = m;
       return (url !== undefined)
         ? { call: function(){ loadScript(url, true); } }
         : { call: function(){ setTimeout(window.eval(s), 0); } };
-    }
-  );
+  });
   let strippedHtml = html.replace(scriptRe, '');
   return [strippedHtml, scripts];
 }
@@ -678,19 +697,20 @@ function bqReplace(match, offset, string) {
 }
 
 function messageReplyReplace(match, mid, rid, offset, string) {
-  let isReply = (rid !== undefined);
-  return '<a href="//juick.com/' + mid + (isReply ? '#' + rid : '') + '">' + match + '</a>';
+  let msgPart = (mid) ? '//juick.com/' + mid : '';
+  let replyPart = (rid) ? '#' + rid : '';
+  return `<a href="${msgPart}${replyPart}">${match}</a>`;
 }
 
 function juickPostParse(txt) {
   const urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
   const bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
-  return htmlEscape(txt)
-           .replace(urlRe, urlReplace)
-           .replace(bqRe, bqReplace)
-           .replace(/\n/g,'<br/>')
-           .replace(/\B#(\d+)(?:\/(\d+))?\b/gmi, messageReplyReplace)
-           .replace(/\B@([\w-]+)\b/gmi, "<a href=\"//juick.com/$1\">@$1</a>");
+  return replaceTree(htmlEscape(txt).replace(bqRe, bqReplace), [
+    {re: urlRe, with: urlReplace},
+    {re: /\n/g, with: '<br/>'},
+    {re: /\B(?:#(\d+))?(?:\/(\d+))?\b/gmi, with: messageReplyReplace},
+    {re: /\B@([\w-]+)\b/gmi, with: '<a href="//juick.com/$1">@$1</a>'}
+  ]);
 }
 
 function juickId([, userId, postId, replyId]) {
@@ -705,70 +725,79 @@ function getEmbedableLinkTypes() {
       id: 'embed_juick',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
-      makeNode: function(aNode, reResult) {
-        var juickType = this;
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, userId, msgId, replyId] = reResult;
 
-        var isReply = ((reResult[3] !== undefined) && (reResult[3] !== '0'));
-        var mrid = (isReply) ? parseInt(reResult[3], 10) : 0;
-        var idStr = juickId(reResult);
-        var linkStr = '//juick.com/' + reResult[2] + ((isReply) ? '#' + mrid : '');
+        let isReply = ((replyId !== undefined) && (replyId !== '0'));
+        let mrid = (isReply) ? parseInt(replyId, 10) : 0;
+        let idStr = juickId(reResult);
+        let linkStr = '//juick.com/' + msgId + ((isReply) ? '#' + mrid : '');
 
-        var div = document.createElement("div");
+        if (GM_getValue('enable_move_into_view_on_same_page', true)) {
+          let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
+          if (thisPageMsgMatch && thisPageMsgMatch[1] == msgId) {
+            let linkedItem = Array.from(document.querySelectorAll('li.msg')).find(x => x.id == replyId || (mrid == 0 && x.id == 'msg-' + msgId));
+            if (linkedItem) {
+              let thisMsg = aNode.closest('li.msg > div.msg-cont');
+              let linkedMsg = linkedItem.querySelector('div.msg-cont');
+              setMoveIntoViewOnHover(aNode, thisMsg, linkedMsg, 5, 30);
+              return;
+            }
+          }
+        }
+
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + idStr;
         div.className = 'juickEmbed embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: 'https://api.juick.com/thread?mid=' + reResult[2],
+          method: 'GET',
+          url: 'https://api.juick.com/thread?mid=' + msgId,
           onload: function(response) {
 
-            if(response.status != 200) {
-              div.textContent = 'Failed to load ' + idStr + ' (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load ${idStr} (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return juickType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var threadInfo = JSON.parse(response.responseText);
-            var msg = (!isReply) ? threadInfo[0] : threadInfo.find(function(x) {return (x.rid == mrid);});
-            if((msg == undefined)) {
+            let threadInfo = JSON.parse(response.responseText);
+            let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
+            if (msg === undefined) {
               div.textContent = '' + idStr + ' doesn\'t exist';
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return juickType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
 
-            var withTags = (msg.tags !== undefined);
-            var withPhoto = (msg.photo !== undefined);
-            var withLikes = (msg.likes !== undefined && msg.likes > 0);
-            var isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
-            var withReplies = (msg.replies !== undefined && msg.replies > 0);
-            var isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
+            let withTags = (msg.tags !== undefined);
+            let withPhoto = (msg.photo !== undefined);
+            let withLikes = (msg.likes !== undefined && msg.likes > 0);
+            let isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
+            let withReplies = (msg.replies !== undefined && msg.replies > 0);
+            let isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
 
-            var msgLink = '<a href="' + linkStr + '">' + idStr + '</a>';
-            var userLink = '<a href="//juick.com/' + msg.user.uname + '/">@' + msg.user.uname + '</a>';
-            var avatarStr = '<div class="msg-avatar"><a href="/' + msg.user.uname + '/"><img src="//i.juick.com/a/' + msg.user.uid + '.png" alt="' + msg.user.uname + '"></a></div>';
-            var tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(function(x) { return '<a href="http://juick.com/' + msg.user.uname + '/?tag=' + encodeURIComponent(x) + '">' + x + '</a>'; }).join('') + '</div>' : '';
-            var photoStr = (withPhoto) ? '<div><a href="' + msg.photo.medium + '"><img ' + (isNsfw ? 'class="nsfw" ' : '') + 'src="' + msg.photo.small + '"/></a></div>' : '';
-            var titleDiv = '<div class="title">' + userLink + '</div>';
-            var dateDiv = '<div class="date"><a href="' + linkStr + '">' + msg.timestamp + '</a></div>';
-            var replyStr = (isReplyToOp)
-                             ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '">#' + msg.mid + '</a>'
-                             : (isReply)
-                               ? 'in reply to <a class="whiteRabbit" href="//juick.com/' + msg.mid + '#' + msg.replyto + '">#' + msg.mid + '/' + msg.replyto + '</a>'
-                               : '';
-            var replyDiv = '<div class="embedReply msg-links">' + msgLink + ((replyStr.length > 0) ? ' ' + replyStr : '') + '</div>';
-            var heartIcon = '<div class="icon icon--ei-heart icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-heart-icon"></use></svg></div>';
-            var commentIcon = '<div class="icon icon--ei-comment icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-comment-icon"></use></svg></div>';
-            var likesDiv = (withLikes) ? '<div class="likes"><a href="' + linkStr + '">' + heartIcon + msg.likes + '</a></div>' : '';
-            var commentsDiv = (withReplies) ? '<div class="replies"><a href="' + linkStr + '">' + commentIcon + msg.replies + '</a></div>' : '';
-            var description = juickPostParse(msg.body);
-            var descDiv = '<div class="desc">' + description + '</div>';
-            div.innerHTML =
-              '<div class="top">' + avatarStr + '<div class="top-right"><div class="top-right-1st">' + titleDiv + dateDiv + '</div><div class="top-right-2nd">' + tagsStr + '</div></div></div>' +
-              descDiv + photoStr + '<div class="bottom">' + replyDiv + '<div class="right">' + likesDiv + commentsDiv + '</div></div>';
+            let msgLink = `<a href="${linkStr}">${idStr}</a>`;
+            let userLink = `<a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a>`;
+            let avatarStr = `<div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>`;
+            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="http://juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
+            let photoStr = (withPhoto) ? `<div><a href="${msg.photo.medium}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${msg.photo.small}"/></a></div>` : '';
+            let titleDiv = `<div class="title">${userLink}</div>`;
+            let dateDiv = `<div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>`;
+            let replyStr = (isReply)
+                             ? ` in reply to <a class="whiteRabbit" href="//juick.com/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
+                             : '';
+            let replyDiv = `<div class="embedReply msg-links">${msgLink}${replyStr}</div>`;
+            let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
+            let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
+            let description = juickPostParse(msg.body);
+            let descDiv = '<div class="desc">' + description + '</div>';
+            let topDiv = `<div class="top">${avatarStr}<div class="top-right"><div class="top-right-1st">${titleDiv}${dateDiv}</div><div class="top-right-2nd">${tagsStr}</div></div></div>`;
+            div.innerHTML = `${topDiv}${descDiv}${photoStr}<div class="bottom">${replyDiv}<div class="right">${likesDiv}${commentsDiv}</div></div>`;
 
-            var allLinks = div.querySelectorAll(".desc a, .embedReply a.whiteRabbit");
-            var embedContainer = div.parentNode;
+            let allLinks = div.querySelectorAll('.desc a, .embedReply a.whiteRabbit');
+            let embedContainer = div.parentNode;
             embedLinks(Array.prototype.slice.call(allLinks).reverse(), embedContainer, true, div);
 
             div.className = div.className.replace(' loading', '');
@@ -781,7 +810,7 @@ function getEmbedableLinkTypes() {
         return juickId(reResult);
       },
       linkTextUpdate: function(aNode, reResult) {
-        if(isDefaultLinkText(aNode)) {
+        if (isDefaultLinkText(aNode)) {
           //var isUser = (reResult[1] !== undefined);
           aNode.textContent = juickId(reResult); // + ((!isReply && isUser) ? ' (@' + reResult[1] + ')' : '');
         }
@@ -793,12 +822,12 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /\.(jpeg|jpg|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
-        var aNode2 = document.createElement("a");
-        var imgNode = document.createElement("img");
+        let aNode2 = document.createElement('a');
+        let imgNode = document.createElement('img');
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return aNode2;
+        return wrapIntoTag(aNode2, 'div');
       }
     },
     {
@@ -807,12 +836,12 @@ function getEmbedableLinkTypes() {
       ctsDefault: true,
       re: /\.gif(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
-        var aNode2 = document.createElement("a");
-        var imgNode = document.createElement("img");
+        let aNode2 = document.createElement('a');
+        let imgNode = document.createElement('img');
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return aNode2;
+        return wrapIntoTag(aNode2, 'div');
       }
     },
     {
@@ -821,7 +850,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /\.(webm|mp4)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
-        var video = document.createElement("video");
+        let video = document.createElement('video');
         video.src = aNode.href;
         video.setAttribute('controls', '');
         return wrapIntoTag(video, 'div', 'video');
@@ -833,7 +862,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /\.(mp3|ogg)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
-        var audio = document.createElement("audio");
+        let audio = document.createElement('audio');
         audio.src = aNode.href;
         audio.setAttribute('controls', '');
         return wrapIntoTag(audio, 'div', 'audio');
@@ -847,19 +876,19 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let [url, v, args, plist] = reResult;
         let iframeUrl;
-        if(plist !== undefined) {
+        if (plist !== undefined) {
           iframeUrl = '//www.youtube-nocookie.com/embed/videoseries?list=' + plist;
         } else {
           args = args.replace(/^\?/, '');
           let arr = args.split('&').map(s => s.split('='));
           let pp = {}; arr.forEach(z => pp[z[0]] = z[1]);
           let embedArgs = { rel: '0' };
-          if(pp.t != undefined) {
+          if (pp.t != undefined) {
             const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s)$/i;
             let [, t, h, m, s] = tre.exec(pp.t);
             embedArgs['start'] = (+t) || ((+(h || 0))*60*60 + (+(m || 0))*60 + (+(s || 0)));
           }
-          if(pp.list !== undefined) {
+          if (pp.list !== undefined) {
             embedArgs['list'] = pp.list;
           }
           v = v || pp.v;
@@ -902,36 +931,37 @@ function getEmbedableLinkTypes() {
       id: 'embed_bandcamp_music',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([\w\-]+)/i,
-      makeNode: function(aNode, reResult) {
-        var bandcampType = this;
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 60);
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, band, pageType, pageName] = reResult;
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'bandcamp embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: reResult[0],
+          method: 'GET',
+          url: url,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return bandcampType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var baseSize = 480;
-            var videoUrl, videoH;
-            var metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            [].forEach.call(matches, function(m, i, arr) {
-              if(m[1] == 'og:video') { videoUrl = m[2]; }
-              if(m[1] == 'video_height') { videoH = baseSize + parseInt(m[2], 10); }
+            let baseSize = 480;
+            let videoUrl, videoH;
+            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            matches.forEach(m => {
+              if (m[1] == 'og:video') { videoUrl = m[2]; }
+              if (m[1] == 'video_height') { videoH = baseSize + parseInt(m[2], 10); }
             });
             videoUrl = videoUrl.replace('/artwork=small', '');
-            if(reResult[2] == 'album') {
+            if (pageType == 'album') {
               videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true');
               videoH += 162;
             }
-            var iframe = makeIframe(videoUrl, baseSize, videoH);
+            let iframe = makeIframe(videoUrl, baseSize, videoH);
             div.parentNode.replaceChild(wrapIntoTag(iframe, 'div', 'bandcamp'), div);
           }
         });
@@ -954,22 +984,22 @@ function getEmbedableLinkTypes() {
       id: 'embed_mixcloud_music',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-\w]+)\/?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, mix] = reResult;
 
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'mixcloud embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://www.mixcloud.com/oembed/?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -995,21 +1025,21 @@ function getEmbedableLinkTypes() {
       id: 'embed_flickr_images',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:(?:www\.)?flickr\.com\/photos\/([\w@-]+)\/(\d+)|flic.kr\/p\/(\w+))(?:\/)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'flickr embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1018,7 +1048,7 @@ function getEmbedableLinkTypes() {
             let imageStr = `<a href="${aNode.href}"><img src="${imageUrl}"></a>`;
             let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
             let titleDiv = `<div class="title"><a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = '<div class="top">' + titleDiv + '</div>' + imageStr;
+            div.innerHTML = `<div class="top">${titleDiv}</div>${imageStr}`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1032,21 +1062,21 @@ function getEmbedableLinkTypes() {
       id: 'embed_deviantart_images',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([\w-]+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let [url, userId, workId] = reResult;
         let thisType = this;
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'deviantart embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://backend.deviantart.com/oembed?format=json&url=' + encodeURIComponent(url),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1057,7 +1087,7 @@ function getEmbedableLinkTypes() {
             let titleDiv = `<div class="title"><a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>`;
 
-            if((json.type == 'rich') && (json.html !== undefined)) {
+            if ((json.type == 'rich') && (json.html !== undefined)) {
               div.innerHTML += `<div class="desc">${json.html}...</div>`;
             } else {
               let imageClassStr = (json.safety == 'adult') ? 'class="rating_e"' : '';
@@ -1078,7 +1108,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/([a-zA-Z\d]+)\.gifv/i,
       makeNode: function(aNode, reResult) {
-        var video = document.createElement("video");
+        let video = document.createElement('video');
         video.src = '//i.imgur.com/' + reResult[1] + '.mp4';
         video.setAttribute('controls', '');
         return wrapIntoTag(video, 'div', 'video');
@@ -1089,25 +1119,26 @@ function getEmbedableLinkTypes() {
       id: 'embed_imgur_indirect_links',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#\d{1,2}$|#([a-zA-Z\d]+))?(\/\w+)?$/i,
-      makeNode: function(aNode, reResult) {
-        var imgurType = this;
-        var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [, albumType, contentId, albumImageId] = reResult;
+        div = div || document.createElement('div');
+        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
         div.className = 'imgur embed loading';
-        var isAlbum = (reResult[1] !== undefined);
-        var isSpecificImage = (reResult[3] !== undefined);
-        var url = (isAlbum && isSpecificImage)
-                    ? 'http://imgur.com/' + reResult[3]
-                    : 'http://imgur.com/' + (isAlbum ? reResult[1] + '/' : '') + reResult[2];
+        let isAlbum = (albumType !== undefined);
+        let isSpecificImage = (albumImageId !== undefined);
+        let url = (isAlbum && isSpecificImage)
+                    ? 'http://imgur.com/' + albumImageId
+                    : 'http://imgur.com/' + (isAlbum ? albumType + '/' : '') + contentId;
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'http://api.imgur.com/oembed.json?url=' + url,
           onload: function(response) {
-            if(response.status != 200) {
-              console.log('Failed to load ' + reResult[0] + ' (' + url + ')');
-              div.textContent = 'Failed to load (' + response.status + ')';
+            if (response.status != 200) {
+              console.log(`Failed to load ${reResult[0]} (${url})`);
+              div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return imgurType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             var json = JSON.parse(response.responseText);
@@ -1142,74 +1173,66 @@ function getEmbedableLinkTypes() {
       id: 'embed_twitter_status',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status\/([\d]+)/i,
-      makeNode: function(aNode, reResult) {
-        var twitterType = this;
-        var [twitterUrl, userId, postId] = reResult;
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [twitterUrl, userId, postId] = reResult;
         twitterUrl = twitterUrl.replace('mobile.','');
-        var div = document.createElement("div");
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + twitterUrl;
         div.className = 'twi embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: twitterUrl,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return twitterType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            if(response.finalUrl.endsWith('account/suspended')) {
+            if (response.finalUrl.endsWith('account/suspended')) {
               div.textContent = 'Account @' + userId + ' is suspended';
               return;
             }
-            if(response.finalUrl.indexOf('protected_redirect=true') != -1) {
+            if (response.finalUrl.indexOf('protected_redirect=true') != -1) {
               div.textContent = 'Account @' + userId + ' is protected';
               return;
             }
-            var images = [];
-            var userGenImg = false;
-            var isVideo = false;
-            var videoUrl, videoW, videoH;
-            var description;
-            var title;
-            var titleDiv, dateDiv ='', descDiv;
-            var metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            [].forEach.call(matches, function(m, i, arr) {
-              if(m[1] == 'og:title') { title = m[2]; }
-              if(m[1] == 'og:description') {
+            let images = [];
+            let userGenImg = false;
+            let isVideo = false;
+            let videoUrl, videoW, videoH;
+            let title, description;
+            const metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            matches.forEach(m => {
+              if (m[1] == 'og:title') { title = m[2]; }
+              if (m[1] == 'og:description') {
                 description = htmlDecode(m[2])
                   .replace(/\n/g,'<br/>')
-                  .replace(/\B@(\w{1,15})\b/gmi, "<a href=\"//twitter.com/$1\">@$1</a>")
-                  .replace(/#(\w+)/gmi, "<a href=\"//twitter.com/hashtag/$1\">#$1</a>")
-                  .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, "<a href=\"$&\">$&</a>");
+                  .replace(/\B@(\w{1,15})\b/gmi, '<a href="//twitter.com/$1">@$1</a>')
+                  .replace(/#(\w+)/gmi, '<a href="//twitter.com/hashtag/$1">#$1</a>')
+                  .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, '<a href="$&">$&</a>');
               }
-              if(m[1] == 'og:image') { images.push(m[2]); }
-              if(m[1] == 'og:image:user_generated') { userGenImg = true; }
-              if(m[1] == 'og:video:url') { videoUrl = m[2]; isVideo = true; }
-              if(m[1] == 'og:video:height') { videoH = '' + m[2] + 'px'; }
-              if(m[1] == 'og:video:width') { videoW = '' + m[2] + 'px'; }
+              if (m[1] == 'og:image') { images.push(m[2]); }
+              if (m[1] == 'og:image:user_generated') { userGenImg = true; }
+              if (m[1] == 'og:video:url') { videoUrl = m[2]; isVideo = true; }
+              if (m[1] == 'og:video:height') { videoH = '' + m[2] + 'px'; }
+              if (m[1] == 'og:video:width') { videoW = '' + m[2] + 'px'; }
             });
-            var timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
-            var timestampMsResult = timestampMsRe.exec(response.responseText);
-            if(timestampMsResult !== null) {
-              var date = new Date(+timestampMsResult[1]);
-              dateDiv = '<div class="date">' + date.toLocaleString('ru-RU') + '</div>';
+            const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
+            let timestampMsResult = timestampMsRe.exec(response.responseText);
+            let dateDiv = '';
+            if (timestampMsResult !== null) {
+              let date = new Date(+timestampMsResult[1]);
+              dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
             }
-            titleDiv = '<div class="title">' + title + ' (<a href="//twitter.com/' + userId + '">@' + userId + '</a>)' + '</div>';
-            descDiv = '<div class="desc">' + description + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + descDiv;
-            if(userGenImg) { div.innerHTML += '' + images.map(function(x){ return '<a href="' + x + '"><img src="' + x + '"></a>'; }).join(''); }
-            if(isVideo) {
-              var playIcon = '<div class="icon icon--ei-play icon--s " title="Click to play"><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-play-icon"></use></svg></div>';
-              div.appendChild(
-                makeCts(
-                  function(){ return makeIframe(videoUrl, videoW, videoH); },
-                  '<img src="' + images[0] + '">' + playIcon
-                )
-              );
+            let titleDiv = `<div class="title">${title} (<a href="//twitter.com/${userId}">@${userId}</a>)</div>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><div class="desc">${description}</div>`;
+            if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
+            if (isVideo) {
+              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, videoW, videoH), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
             }
             div.className = div.className.replace(' loading', '');
           }
@@ -1223,9 +1246,9 @@ function getEmbedableLinkTypes() {
       id: 'embed_facebook',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/(?:posts|videos|photos)\/[\w:./]+(?:\?[\w=%&.]+)?|(?:photo|video)\.php\?[\w=%&.]+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         setTimeout(loadScript('https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3', false, undefined, true), 0);
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.innerHTML = `<span>loading ${naiveEllipsis(reResult[0], 60)}</span><div class="fb-post" data-href="${aNode.href}" data-width="640" />`;
         div.className = 'fbEmbed embed loading';
         waitAndRun(
@@ -1255,9 +1278,9 @@ function getEmbedableLinkTypes() {
       id: 'embed_google_plus',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/plus\.google\.com\/(?:u\/0\/)?(\d+|\+[\w%]+)\/posts\/(\w+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let [url, author, postId] = reResult;
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         let id = randomId();
         div.className = 'g-post';
         div.className = 'gplusEmbed embed loading';
@@ -1285,26 +1308,25 @@ function getEmbedableLinkTypes() {
       id: 'embed_tumblr',
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([\w\-\_]*))?/i,
-      makeNode: function(aNode, reResult) {
-        var tumblrType = this;
-        var div = document.createElement("div");
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 65) + '</span>';
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url] = reResult;
+        div = div || document.createElement('div');
+        div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
         div.className = 'tumblr embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: 'https://www.tumblr.com/oembed/1.0?url=' + reResult[0],
+          method: 'GET',
+          url: 'https://www.tumblr.com/oembed/1.0?url=' + url,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return tumblrType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            //var embedUrl = (/data-href="([^"]+)"/i.exec(json.html))[1];
-            //div.appendChild(makeIframe(embedUrl, '100%', 660));
-            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
+            let json = JSON.parse(response.responseText);
+            let iframe = makeIframeHtml(json.html, '100%', 24, doc => {
               waitAndRun(
                 () => (doc.querySelector('iframe[height]') !== null),
                 () => {
@@ -1317,7 +1339,7 @@ function getEmbedableLinkTypes() {
             }, () => {
               div.textContent = 'Failed to load';
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return tumblrType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
             });
             div.appendChild(iframe);
           }
@@ -1331,21 +1353,21 @@ function getEmbedableLinkTypes() {
       id: 'embed_reddit',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|np\.|m\.)?reddit\.com\/r\/([\w]+)\/comments\/(\w+)(?:\/(?:\w+(?:\/(\w+)?)?)?)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
-        let div = document.createElement("div");
+        div = div || document.createElement('div');
         div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
         div.className = 'reddit embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://www.reddit.com/oembed?url=' + encodeURIComponent(url),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1353,7 +1375,7 @@ function getEmbedableLinkTypes() {
             ss.forEach(s => s.call());
             div.innerHTML += h;
             waitAndRun(
-              () => { var iframe = div.querySelector('iframe'); return (iframe !== null && (parseInt(iframe.height) > 30)); },
+              () => { let iframe = div.querySelector('iframe'); return (iframe !== null && (parseInt(iframe.height) > 30)); },
               () => {
                 div.querySelector('iframe').style.margin = '0px';
                 div.querySelector('span').remove();
@@ -1363,7 +1385,7 @@ function getEmbedableLinkTypes() {
               () => {
                 div.textContent = 'Failed to load (time out)';
                 div.className = div.className.replace(' loading', ' failed');
-                turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+                turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               },
               100,
               30
@@ -1379,24 +1401,24 @@ function getEmbedableLinkTypes() {
       id: 'embed_wordpress',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w%\u0400-\u04FF]+)(?:\/)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
 
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'wordpress embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://public-api.wordpress.com/oembed/1.0/?format=json&for=juick.com&url=' + encodeURIComponent(url),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               console.log('Failed to load ' + url);
               console.log(response);
               div.textContent = `Failed to load (maybe this article can't be embedded)`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1415,11 +1437,11 @@ function getEmbedableLinkTypes() {
       id: 'embed_slideshare',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-\w]+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, id] = reResult;
 
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'slideshare embed loading';
 
@@ -1427,10 +1449,10 @@ function getEmbedableLinkTypes() {
           method: "GET",
           url: 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url,
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1453,22 +1475,22 @@ function getEmbedableLinkTypes() {
       id: 'embed_gist',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, , id] = reResult;
 
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'gistEmbed embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://gist.github.com/' + id + '.json',
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1500,21 +1522,21 @@ function getEmbedableLinkTypes() {
       id: 'embed_codepen',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/codepen\.io\/(\w+)\/(?:pen|full)\/(\w+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
-        let div = document.createElement('div');
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'codepen embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(url.replace('/full/', '/pen/')),
           onload: function(response) {
-            if(response.status != 200) {
+            if (response.status != 200) {
               div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult));
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             let json = JSON.parse(response.responseText);
@@ -1533,54 +1555,48 @@ function getEmbedableLinkTypes() {
       id: 'embed_pixiv',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/www\.pixiv\.net\/member_illust\.php\?((?:\w+=\w+&)*illust_id=(\d+)(?:&\w+=\w+)*)/i,
-      makeNode: function(aNode, reResult) {
-        var pixivType = this;
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + naiveEllipsis(reResult[0], 60);
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, , illustId] = reResult;
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'pixiv embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: reResult[0].replace(/mode=\w+/, 'mode=medium'),
+          method: 'GET',
+          url: url.replace(/mode=\w+/, 'mode=medium'),
           onload: function(response) {
-            if(response.status != 200) {
-              if(response.responseText.includes('work private')) {
-                div.textContent = 'Private work.';
+            if (response.status != 200) {
+              if (response.responseText.includes('work private')) {
+                div.textContent = 'Private work';
                 return;
               }
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return pixivType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var isMultipage = (reResult[0].includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
-            var metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            var imageUrl, imageTitle;
-            [].forEach.call(matches, function(m, i, arr) {
-              if(m[1] == 'og:image') { imageUrl = m[2]; }
-              if(m[1] == 'twitter:image') { imageUrl = m[2]; }
-              if(m[1] == 'twitter:title') { imageTitle = m[2]; }
+            let isMultipage = (url.includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
+            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            let imageUrl, imageTitle;
+            matches.forEach(m => {
+              if (m[1] == 'og:image') { imageUrl = m[2]; }
+              if (m[1] == 'twitter:image') { imageUrl = m[2]; }
+              if (m[1] == 'twitter:title') { imageTitle = m[2]; }
             });
-            if(response.responseText.includes('This work was deleted')) {
+            if (response.responseText.includes('This work was deleted')) {
               div.textContent = 'Deleted work.';
               return;
             }
-            var [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
-            var [, authorId, authorName] = /<a\s+href="member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
-            //imageUrl = 'http://embed.pixiv.net/decorate.php?illust_id=' + reResult[2];
+            let [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
+            let [, authorId, authorName] = /<a\s+href="member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
+            //imageUrl = 'http://embed.pixiv.net/decorate.php?illust_id=' + illustId;
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = imageUrl;
-            aNode2.href = aNode.href;
-            aNode2.appendChild(imgNode);
-
-            var dateDiv = (dateStr !== undefined) ? '<div class="date">' + dateStr + '</div>' : '';
-            var authorStr = (authorId !== undefined) ? ' by <a href="http://www.pixiv.net/member_illust.php?id=' + authorId + '">' + authorName + '</a>' : '';
-            var titleDiv = '<div class="title">' + (isMultipage ? '(multipage) ' : '') + '<a href="' + reResult[0] + '">' + imageTitle + '</a>' + authorStr + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
-            div.appendChild(aNode2);
+            let dateDiv = (dateStr !== undefined) ? `<div class="date">${dateStr}</div>` : '';
+            let authorStr = (authorId !== undefined) ? ` by <a href="http://www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
+            let titleDiv = `<div class="title">${isMultipage ? '(multipage) ' : ''}<a href="${url}">${imageTitle}</a>${authorStr}</div>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><a href="${aNode.href}"><img src="${imageUrl}"></a>`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1594,133 +1610,139 @@ function getEmbedableLinkTypes() {
       id: 'embed_gelbooru',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
-      makeNode: function(aNode, reResult) {
-        var gelbooruType = this;
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + gelbooruType.makeTitle(aNode, reResult);
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, domain, , illustId] = reResult;
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'gelbooru booru embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: 'http://' + reResult[1] + '/index.php?page=dapi&s=post&q=index&id=' + reResult[3],
+          method: 'GET',
+          url: `http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`,
+          timeout: 3000,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return gelbooruType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var previewUrl, rating, createdAt, change, hasNotes, hasComments, id, count;
-            var attributeRe = /(\w+)="([^"]+)"/gmi;
-            var matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
-            [].forEach.call(matches, function([, attr, val], i, arr) {
-              if(attr == 'count') { count = +val; }
-              if(attr == 'id') { id = val; }
-              if(attr == 'preview_url') { previewUrl = val; }
-              if(attr == 'rating') { rating = val; }
-              if(attr == 'created_at') { createdAt = new Date(val); }
-              if(attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
-              if(attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
-              if(attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
+            let count, id, previewUrl, rating, createdAt, change, hasNotes=false, hasComments=false;
+            const attributeRe = /(\w+)="([^"]+)"/gmi;
+            let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
+            matches.forEach(([, attr, val]) => {
+              if (attr == 'count') { count = +val; }
+              if (attr == 'id') { id = val; }
+              if (attr == 'preview_url') { previewUrl = val; }
+              if (attr == 'rating') { rating = val; }
+              if (attr == 'created_at') { createdAt = new Date(val); }
+              if (attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
+              if (attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
+              if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
             });
-            if(count === 0) {
-              div.textContent = reResult[3] + ' is not available';
+            if (count === 0) {
+              div.textContent = illustId + ' is not available';
               return;
             }
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = previewUrl;
-            imgNode.className = 'rating_' + rating;
-            aNode2.href = aNode.href;
-            aNode2.appendChild(imgNode);
-
-            var createdDateStr = createdAt.toLocaleDateString('ru-RU');
-            var changedDateStr = change.toLocaleDateString('ru-RU');
-            if(createdDateStr != changedDateStr) { createdDateStr += ' (' + changedDateStr + ')' }
-            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
-            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
-            div.appendChild(aNode2);
+            let createdDateStr = createdAt.toLocaleDateString('ru-RU');
+            let changedDateStr = change.toLocaleDateString('ru-RU');
+            if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})` }
+            let dateDiv = `<div class="date">${createdDateStr}</div>`;
+            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
+            let imageStr = `<a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
 
             div.className = div.className.replace(' loading', ' loaded');
+          },
+          ontimeout: function(response) {
+            div.textContent = 'Failed to load (time out)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          },
+          onerror: function(response) {
+            console.log('Unknown error when loading ' + url);
+            console.log(response);
+            div.textContent = 'Failed to load (unknown error)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           }
         });
 
         return div;
       },
-      makeTitle: function(aNode, reResult) {
-        return reResult[1] + ' (' + reResult[3] + ')';
-      },
-      linkTextUpdate: function(aNode, reResult) {
-        aNode.textContent += ' (' + reResult[3] + ')';
-      }
+      makeTitle: function(aNode, [, domain, , illustId]) { return `${domain} (${illustId})`; },
+      linkTextUpdate: function(aNode, [, , , illustId]) { aNode.textContent += ` (${illustId})`; }
     },
     {
       name: 'Danbooru',
       id: 'embed_danbooru',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(danbooru|safebooru)\.donmai\.us\/post(?:s|\/show)\/(\d+)/i,
-      makeNode: function(aNode, reResult) {
-        var danbooruType = this;
-        var id = reResult[2];
-        var url = reResult[0].replace('http:', 'https:');
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, domain, id] = reResult;
+        url = url.replace('http:', 'https:');
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + danbooruType.makeTitle(aNode, reResult);
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'danbooru booru embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
-          url: 'https://' + reResult[1] + '.donmai.us/posts/' + id + '.json',
+          method: 'GET',
+          url: `https://${domain}.donmai.us/posts/${id}.json`,
+          timeout: 3000,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return danbooruType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            if(json.preview_file_url === undefined) {
-              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+            let json = JSON.parse(response.responseText);
+            if (json.preview_file_url === undefined) {
+              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
               return;
             }
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = 'https://' + reResult[1] + '.donmai.us' + json.preview_file_url;
-            imgNode.className = 'rating_' + json.rating;
-            //imgNode.title = tagsStr;
-            aNode2.href = url;
-            aNode2.appendChild(imgNode);
-
-            var tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
+            let tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
                             .filter(s => s != '')
-                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : '<a href="https://danbooru.donmai.us/posts?tags=' + encodeURIComponent(s) + '">' + s + '</a>')
-                            .join("<br>");
-            var hasNotes = (json.last_noted_at !== null);
-            var hasComments = (json.last_commented_at !== null);
-            var createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
-            var updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
-            if(createdDateStr != updatedDateStr) { createdDateStr += ' (' + updatedDateStr + ')' }
-            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
-            var titleDiv = '<div class="title">' + '<a href="' + url + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
-            var tagsDiv = '<div class="booru-tags">' + tagsStr + '</div>'
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + tagsDiv;
-            div.appendChild(aNode2);
+                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://danbooru.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
+                            .join('<br>');
+            let hasNotes = (json.last_noted_at !== null);
+            let hasComments = (json.last_commented_at !== null);
+            let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
+            let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
+            if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})` }
+            var dateDiv = `<div class="date">${createdDateStr}</div>`;
+            var titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
+            var tagsDiv = `<div class="booru-tags">${tagsStr}</div>`;
+            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="https://${domain}.donmai.us${json.preview_file_url}"></a>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${tagsDiv}${imageStr}`;
 
             div.className = div.className.replace(' loading', ' loaded');
+          },
+          ontimeout: function(response) {
+            div.textContent = 'Failed to load (time out)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          },
+          onerror: function(response) {
+            console.log('Unknown error when loading ' + url);
+            console.log(response);
+            div.textContent = 'Failed to load (unknown error)';
+            div.className = div.className.replace(' loading', ' failed');
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           }
         });
 
         return div;
       },
-      makeTitle: function(aNode, reResult) {
-        return reResult[1] + ' (' + reResult[2] + ')';
-      },
-      linkTextUpdate: function(aNode, reResult) {
+      makeTitle: function(aNode, [, domain, id]) { return `${domain} (${id})`; },
+      linkTextUpdate: function(aNode, [, , id]) {
         aNode.href = aNode.href.replace('http:', 'https:');
-        aNode.textContent += ' (' + reResult[2] + ')';
+        aNode.textContent += ` (${id})`;
       }
     },
     {
@@ -1728,191 +1750,159 @@ function getEmbedableLinkTypes() {
       id: 'embed_konachan',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/konachan\.(com|net)\/post\/show\/(\d+)/i,
-      makeNode: function(aNode, reResult) {
-        var konachanType = this;
-        var id = reResult[2];
-        var url = reResult[0].replace('.com/', '.net/');
-        var unsafeUrl = reResult[0].replace('.net/', '.com/');
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, domain, id] = reResult;
+        url = url.replace('.com/', '.net/');
+        let unsafeUrl = url.replace('.net/', '.com/');
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + konachanType.makeTitle(aNode, reResult);
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'konachan booru embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://konachan.net/post.json?tags=id:' + id,
           timeout: 3000,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
             var json = (JSON.parse(response.responseText))[0];
-            if(json === undefined || json.preview_url === undefined) {
-              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+            if (json === undefined || json.preview_url === undefined) {
+              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>'`;
               return;
             }
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = json.preview_url;
-            imgNode.className = 'rating_' + json.rating;
-            aNode2.href = url;
-            aNode2.appendChild(imgNode);
-
-            var createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
-            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
-            var titleDiv = '<div class="title"><a href="' + url + '">' + id + '</a>' + (json.rating == 's' ? '' : ' (<a href="' + unsafeUrl +'">' + json.rating + '</a>)') + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
-            div.appendChild(aNode2);
+            let createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
+            let dateDiv = `'<div class="date">${createdDateStr}</div>'`;
+            let ratingStr = (json.rating == 's') ? '' : ` (<a href="${unsafeUrl}">${json.rating}</a>)`;
+            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${ratingStr}</div>`;
+            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
 
             div.className = div.className.replace(' loading', ' loaded');
           },
           ontimeout: function(response) {
             div.textContent = 'Failed to load (time out)';
             div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           },
           onerror: function(response) {
             console.log('Unknown error when loading ' + url);
             console.log(response);
             div.textContent = 'Failed to load (unknown error)';
             div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, function(){return konachanType.makeNode(aNode, reResult);});
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           }
         });
 
         return div;
       },
-      makeTitle: function(aNode, reResult) {
-        return 'konachan (' + reResult[2] + ')';
-      },
-      linkTextUpdate: function(aNode, reResult) {
-        aNode.textContent += ' (' + reResult[2] + ')';
-      }
+      makeTitle: function(aNode, [, , id]) { return `konachan (${id})`; },
+      linkTextUpdate: function(aNode, [, , id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'yande.re',
       id: 'embed_yandere',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/yande.re\/post\/show\/(\d+)/i,
-      makeNode: function(aNode, reResult) {
-        var yandereType = this;
-        var [url, id] = reResult;
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, id] = reResult;
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + yandereType.makeTitle(aNode, reResult);
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'yandere booru embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'https://yande.re/post.json?tags=id:' + id,
           timeout: 3000,
           onload: function(response) {
-            if(response.status != 200) {
-              div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var json = (JSON.parse(response.responseText))[0];
-            if(json === undefined || json.preview_url === undefined) {
-              div.innerHTML = '<span>Can\'t show <a href="' + url + '">' + id + '</a></span>';
+            let json = (JSON.parse(response.responseText))[0];
+            if (json === undefined || json.preview_url === undefined) {
+              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
               return;
             }
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = json.preview_url;
-            imgNode.className = 'rating_' + json.rating;
-            aNode2.href = url;
-            aNode2.appendChild(imgNode);
-
-            var hasNotes = (json.last_noted_at !== null && json.last_noted_at !== 0);
-            var hasComments = (json.last_commented_at !== null && json.last_commented_at !== 0);
-            var createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
-            var updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
-            if(createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ' (' + updatedDateStr + ')' }
-            var dateDiv = '<div class="date">' + createdDateStr + '</div>';
-            var titleDiv = '<div class="title"><a href="' + url + '">' + id + '</a>' + (hasNotes ? ' (notes)' : '') + (hasComments ? ' (comments)' : '') + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>';
-            div.appendChild(aNode2);
+            let hasNotes = (json.last_noted_at !== null && json.last_noted_at !== 0);
+            let hasComments = (json.last_commented_at !== null && json.last_commented_at !== 0);
+            let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
+            let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
+            if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})` }
+            let dateDiv = `<div class="date">${createdDateStr}</div>`;
+            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
+            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
+            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
 
             div.className = div.className.replace(' loading', ' loaded');
           },
           ontimeout: function(response) {
             div.textContent = 'Failed to load (time out)';
             div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           },
           onerror: function(response) {
             console.log('Unknown error when loading ' + url);
             console.log(response);
             div.textContent = 'Failed to load (unknown error)';
             div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, function(){return yandereType.makeNode(aNode, reResult);});
+            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
           }
         });
 
         return div;
       },
-      makeTitle: function(aNode, reResult) {
-        return 'yande.re (' + reResult[1] + ')';
-      },
-      linkTextUpdate: function(aNode, reResult) {
-        aNode.textContent += ' (' + reResult[1] + ')';
-      }
+      makeTitle: function(aNode, [, id]) { return `yande.re (${id})`; },
+      linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'anime-pictures.net',
       id: 'embed_anime_pictures_net',
       ctsDefault: false,
       re: /^(?:https?:)?\/\/anime-pictures.net\/pictures\/view_post\/(\d+)/i,
-      makeNode: function(aNode, reResult) {
-        var anipicType = this;
-        var [url, id] = reResult;
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, id] = reResult;
 
-        var div = document.createElement("div");
-        div.textContent = 'loading ' + anipicType.makeTitle(aNode, reResult);
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'yandere embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: url,
           onload: function(response) {
-            if(response.status != 200) {
-              if(response.status == 503) {
-                div.textContent = 'Click to show ' + anipicType.makeTitle(aNode, reResult);
+            if (response.status != 200) {
+              if (response.status == 503) {
+                div.textContent = 'Click to show ' + thisType.makeTitle(aNode, reResult);
               } else {
-                div.textContent = 'Failed to load (' + response.status + ' - ' + response.statusText + ')';
+                div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
               }
               div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, function(){return anipicType.makeNode(aNode, reResult);});
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            if(response.responseText.includes('must be logged in')) {
-              div.innerHTML = '<span>You must be logged in to view <a href="' + url + '">' + anipicType.makeTitle(aNode, reResult) + '</a></span>';
+            if (response.responseText.includes('must be logged in')) {
+              div.innerHTML = `<span>You must be logged in to view <a href="${url}">${thisType.makeTitle(aNode, reResult)}</a></span>`;
               return;
             }
 
-            var metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*>/gmi;
-            var matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            var imageUrl;
-            [].forEach.call(matches, function(m, i, arr) {
-              if((m[1] || m[3]) == 'og:image') { imageUrl = m[2]; }
-            });
+            const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*>/gmi;
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+            let imageUrl = matches.find(m => (m[1] || m[3]) == 'og:image')[2];
 
-            var aNode2 = document.createElement("a");
-            var imgNode = document.createElement("img");
-            imgNode.src = imageUrl;
-            aNode2.href = aNode.href;
-            aNode2.appendChild(imgNode);
-
-            var titleDiv = '<div class="title">' + '<a href="' + reResult[0] + '">' + id + '</a>' + '</div>';
-            div.innerHTML = '<div class="top">' + titleDiv + '</div>';
-            div.appendChild(aNode2);
+            div.innerHTML = `<div class="top"><div class="title"><a href="${url}">${id}</a></div></div><a href="${aNode.href}"><img src="${imageUrl}"></a>`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1920,12 +1910,8 @@ function getEmbedableLinkTypes() {
 
         return div;
       },
-      makeTitle: function(aNode, reResult) {
-        return 'anime-pictures.net (' + reResult[1] + ')';
-      },
-      linkTextUpdate: function(aNode, reResult) {
-        aNode.textContent += ' (' + reResult[1] + ')';
-      }
+      makeTitle: function(aNode, [, id]) { return `anime-pictures.net (${id})`; },
+      linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'Яндекс.Фотки',
@@ -1933,12 +1919,12 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/img-fotki\.yandex\.ru\/get\/\d+\/[\w\.]+\/[\w]+$/i,
       makeNode: function(aNode, reResult) {
-        var aNode2 = document.createElement("a");
-        var imgNode = document.createElement("img");
+        let aNode2 = document.createElement('a');
+        let imgNode = document.createElement('img');
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return aNode2;
+        return wrapIntoTag(aNode2, 'div');
       }
     },
     {
@@ -1951,22 +1937,27 @@ function getEmbedableLinkTypes() {
         let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
         return domainsWhitelist.some(w => matchWildcard(domain, w));
       },
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
         let domain = aNode.hostname;
-        let div = document.createElement("div");
+        div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
         div.className = 'other embed loading ' + domain.replace(/\./g, '_');
 
-        let unembed = (reason) => { if(reason !== undefined){console.log(`${reason} - ${url}`);}; div.innerHTML = ''; div.className = 'notEmbed'; aNode.classList.add('notEmbed'); }
+        let unembed = (reason) => {
+          if (reason !== undefined) { console.log(`${reason} - ${url}`); };
+          div.innerHTML = '';
+          div.className = 'notEmbed';
+          aNode.classList.add('notEmbed');
+        };
 
         GM_xmlhttpRequest({
-          method: "HEAD",
+          method: 'HEAD',
           url: url,
           timeout: 1000,
           onload: function(response1) {
-            if(response1.status != 200) {
+            if (response1.status != 200) {
               unembed(`Failed to load (${response1.status} - ${response1.statusText})`);
               return;
             }
@@ -1974,28 +1965,28 @@ function getEmbedableLinkTypes() {
             let headerMatches = getAllMatchesAndCaptureGroups(headRe, response1.responseHeaders);
             let [, , contentType] = headerMatches.find(m => (m[1].toLowerCase() == 'content-type'));
 
-            if(contentType !== undefined && contentType.match(/^text\/html\b/i)) {
+            if (contentType !== undefined && contentType.match(/^text\/html\b/i)) {
 
               GM_xmlhttpRequest({
-                method: "GET",
+                method: 'GET',
                 url: url,
                 timeout: 1000,
                 onload: function(response) {
-                  if(response.status != 200) {
+                  if (response.status != 200) {
                     unembed(`Failed to load (${response.status} - ${response.statusText})`);
                     return;
                   }
 
                   const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*\/?>/gmi;
                   const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
-                  let [, basicTitle] = titleRe.exec(response.responseText);
+                  let [, basicTitle] = titleRe.exec(response.responseText) || [];
                   let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
                   let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
                   let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle;
                   let image = meta['twitter:image'] || meta['og:image'];
                   let description = meta['twitter:description'] || meta['og:description'] || meta['description'];
 
-                  if(title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
+                  if (title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
                     let titleDiv = `<div class="title"><a href="${url}">${title}</a></div>`;
                     let imageStr = (image !== undefined) ? `<a href="${url}"><img src="${image}" /></a>` : '';
                     description = htmlDecode(description).replace(/\n+/g,'<br/>');
@@ -2054,31 +2045,32 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
   let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/i,''));
   let sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
-  if(sameEmbed === null) {
+  if (sameEmbed === null) {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
-      if(GM_getValue(linkType.id, true)) {
+      if (GM_getValue(linkType.id, true)) {
         let reResult = linkType.re.exec(aNode.href);
-        if(reResult !== null) {
-          if((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
+        if (reResult !== null) {
+          if ((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
           let newNode;
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
-          if(isCts) {
+          if (isCts) {
             let linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55);
-            newNode = makeCts(() => linkType.makeNode(aNode, reResult), 'Click to show: ' + linkTitle);
+            newNode = makeCts(() => linkType.makeNode(aNode, reResult, newNode), 'Click to show: ' + linkTitle);
           } else {
             newNode = linkType.makeNode(aNode, reResult);
           }
-          if(!newNode) { return false; }
+          if (!newNode) { return false; }
           aNode.classList.add('embedLink');
-          if(GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
+          if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
             linkType.linkTextUpdate(aNode, reResult);
           }
           newNode.setAttribute('data-linkid', linkId);
-          if(afterNode !== undefined) {
+          if (afterNode !== undefined) {
             insertAfter(newNode, afterNode);
           } else {
             container.appendChild(newNode);
           }
+          //setHighlightOnHover(aNode, newNode);
           return true;
         }
       }
@@ -2090,7 +2082,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
 function embedLinks(aNodes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
   let embedableLinkTypes = getEmbedableLinkTypes();
-  [].forEach.call(aNodes, function(aNode, i, arr) {
+  Array.from(aNodes).forEach(aNode => {
     let isEmbedded = embedLink(aNode, embedableLinkTypes, container, alwaysCts, afterNode);
     anyEmbed = anyEmbed || isEmbedded;
   });
@@ -2106,13 +2098,8 @@ function splitUsersAndTagsLists(str) {
 
 function articleInfo(article) {
   let userId = article.querySelector('div.msg-avatar > a > img').alt;
-  let tagsDiv = article.querySelector('.msg-tags');
-  let tags = [];
-  if(tagsDiv !== null) {
-    [].forEach.call(tagsDiv.childNodes, function(item, i, arr) {
-      tags.push(item.textContent.toLowerCase());
-    });
-  }
+  let tagNodes = article.querySelectorAll('.msg-tags > *');
+  let tags = Array.from(tagNodes).map(d => d.textContent.toLowerCase());
   return { userId: userId, tags: tags };
 }
 
@@ -2128,7 +2115,7 @@ function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTag
   let embedContainer = document.createElement('div');
   embedContainer.className = 'embedContainer';
   let anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
-  if(anyEmbed) {
+  if (anyEmbed) {
     let beforeNode = x.querySelector(beforeNodeSelector);
     x.insertBefore(embedContainer, beforeNode);
   }
@@ -2138,7 +2125,7 @@ function embedLinksToArticles() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = 'nav.l';
   let allLinksSelector = 'p:not(.ir) a, pre a';
-  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
+  Array.from(document.querySelectorAll('#content > article')).forEach(article => {
     embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
@@ -2147,7 +2134,7 @@ function embedLinksToPost() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = '.msg-txt + *';
   let allLinksSelector = '.msg-txt a';
-  [].forEach.call(document.querySelectorAll('#content .msg-cont'), function(msg, i, arr) {
+  Array.from(document.querySelectorAll('#content .msg-cont')).forEach(msg => {
     embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
   });
 }
@@ -2155,28 +2142,25 @@ function embedLinksToPost() {
 function filterArticles() {
   let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
   let keepHeader = GM_getValue('filtered_posts_keep_header', true);
-  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
-    var isFilteredPost = isFilteredX(article, filteredUsers, filteredTags);
-    if(isFilteredPost) {
-      if(keepHeader) {
-        article.classList.add('filtered');
-        while (article.children.length > 1) {
-          article.removeChild(article.lastChild);
-        }
-      } else {
-        article.remove();
-      }
-    }
-  });
+  Array.from(document.querySelectorAll('#content > article'))
+       .filter(article => isFilteredX(article, filteredUsers, filteredTags))
+       .forEach(article => {
+         if (keepHeader) {
+           article.classList.add('filtered');
+           while (article.children.length > 1) { article.removeChild(article.lastChild); }
+         } else {
+           article.remove();
+         }
+       });
 }
 
 function filterPostComments() {
-  if(!GM_getValue('filter_comments_too', false)) { return; }
+  if (!GM_getValue('filter_comments_too', false)) { return; }
   let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
   let keepHeader = GM_getValue('filtered_posts_keep_header', true);
-  [].forEach.call(document.querySelectorAll('#content #replies .msg-cont'), function(reply, i, arr) {
+  Array.from(document.querySelectorAll('#content #replies .msg-cont')).forEach(reply => {
     let isFilteredComment = isFilteredX(reply, filteredUsers, filteredTags);
-    if(isFilteredComment) {
+    if (isFilteredComment) {
       reply.classList.add('filteredComment');
       reply.querySelector('.msg-txt').remove();
       reply.querySelector('.msg-comment').remove();
@@ -2191,6 +2175,11 @@ function filterPostComments() {
       }
     }
   });
+}
+
+function setHighlightOnHover(hoverTarget, highlightable) {
+  hoverTarget.addEventListener('mouseenter', e => highlightable.classList.toggle('hoverHighlight', true), false);
+  hoverTarget.addEventListener('mouseleave', e => highlightable.classList.toggle('hoverHighlight', false), false);
 }
 
 function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0, threshold=0) {
@@ -2213,10 +2202,12 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
     resetMovementArtifacts(node);
     node.classList.toggle('hoverHighlight', true);
     let onscreen = checkFullyVisible(node, threshold);
-    if(!onscreen) {
+    if (!onscreen) {
       let parentNodeRect = node.parentNode.getBoundingClientRect();
       let avoidNodeRect = avoidNode.getBoundingClientRect();
       let [w, h] = [node.offsetWidth, node.offsetHeight];
+      let s = getComputedStyle(node);
+      let [marginT, marginR, marginB, marginL] = [s.marginTop, s.marginRight, s.marginBottom, s.marginLeft];
       let vtop = parentNodeRect.top;
       let atop = avoidNodeRect.top - avoidMargin;
       let ah = avoidNodeRect.height + 2*avoidMargin;
@@ -2224,10 +2215,10 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
       let isAbove = (vtop < atop);
       let moveAmount = isAbove ? (0-vtop-h+atop) : (0-vtop+atop+ah);
       let availableSpace = isAbove ? (atop - avoidMargin) : (wh - atop - ah + avoidMargin);
-      if((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
+      if ((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
         node.classList.toggle('moved', true);
         node.style.marginTop = `${moveAmount}px`;
-        node.parentNode.querySelector('.placeholder').setAttribute("style", `width: ${w}px; height: ${h}px;`);
+        node.parentNode.querySelector('.placeholder').setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
       }
     }
   }
@@ -2236,10 +2227,10 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
 
   function moveNodeBack(node) {
     const eventType = 'transitionend';
-    if(node.classList.contains('moved')) {
+    if (node.classList.contains('moved')) {
       let parentNodeRect = node.parentNode.getBoundingClientRect();
       let nodeRect = node.getBoundingClientRect();
-      if(Math.abs(parentNodeRect.top - nodeRect.top) > 1) {
+      if (Math.abs(parentNodeRect.top - nodeRect.top) > 1) {
         node.addEventListener(eventType, afterBackTransition, false);
       } else {
         resetMovementArtifacts(node);
@@ -2255,7 +2246,7 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
   movable.parentNode.classList.toggle('movableContainer', true);
   movable.classList.toggle('movable', true);
   let parent = movable.parentNode;
-  if(!parent.querySelector('.placeholder')) {
+  if (!parent.querySelector('.placeholder')) {
     var pldr = document.createElement('div');
     pldr.className = 'placeholder';
     parent.appendChild(pldr);
@@ -2263,13 +2254,13 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
 }
 
 function bringCommentsIntoViewOnHover() {
-  if(!GM_getValue('enable_move_comment_into_view', true)) { return; }
+  if (!GM_getValue('enable_move_comment_into_view', true)) { return; }
   let replies = Array.from(document.querySelectorAll('#replies li'));
   let nodes = {};
   replies.forEach(r => { nodes[r.id] = r.querySelector('div.msg-cont'); });
   replies.forEach(r => {
     let replyToLink = Array.from(r.querySelectorAll('.msg-links a')).find(a => /\d+/.test(a.hash));
-    if(replyToLink) {
+    if (replyToLink) {
       let rtid = replyToLink.hash.replace(/^#/, '');
       setMoveIntoViewOnHover(replyToLink, nodes[r.id], nodes[rtid], 5, 30);
     }
@@ -2277,21 +2268,18 @@ function bringCommentsIntoViewOnHover() {
 }
 
 function checkReply(allPostsSelector, replySelector) {
-  [].forEach.call(document.querySelectorAll(allPostsSelector), function(post, i, arr) {
-    let replyNode = post.querySelector(replySelector);
-    if(replyNode === null) {
-      post.classList.add('readonly');
-    }
-  });
+  Array.from(document.querySelectorAll(allPostsSelector))
+       .filter(p => p.querySelector(replySelector) === null)
+       .forEach(p => p.classList.add('readonly'));
 }
 
 function checkReplyArticles() {
-  if(!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  if (!GM_getValue('enable_blocklisters_styling', false)) { return; }
   checkReply('#content > article', 'nav.l > a.a-comment');
 }
 
 function checkReplyPost() {
-  if(!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  if (!GM_getValue('enable_blocklisters_styling', false)) { return; }
   checkReply('#content div.msg-cont', 'div.msg-comment');
 }
 
@@ -2376,26 +2364,26 @@ function getUserscriptSettings() {
 }
 
 function makeSettingsCheckbox(caption, id, defaultState) {
-  var label = document.createElement("label");
-  var cb = document.createElement("input");
+  let label = document.createElement('label');
+  let cb = document.createElement('input');
   cb.type = 'checkbox';
   cb.checked = GM_getValue(id, defaultState);
-  cb.onclick = function(e) { GM_setValue(id, cb.checked); };
+  cb.onclick = (e => GM_setValue(id, cb.checked));
   label.appendChild(cb);
   label.appendChild(document.createTextNode(caption));
   return label;
 }
 
 function makeSettingsTextbox(caption, id, defaultString, placeholder) {
-  var label = document.createElement("label");
-  var wrapper = document.createElement("div");
+  let label = document.createElement('label');
+  let wrapper = document.createElement('div');
   wrapper.className = 'ta-wrapper';
-  var textarea = document.createElement("textarea");
+  let textarea = document.createElement('textarea');
   textarea.className = id;
   textarea.placeholder = placeholder;
   textarea.title = placeholder;
   textarea.value = GM_getValue(id, defaultString);
-  textarea.oninput = function(e) { GM_setValue(id, textarea.value); };
+  textarea.oninput = (e => GM_setValue(id, textarea.value));
   wrapper.appendChild(textarea);
   label.appendChild(document.createTextNode('' + caption + ': '));
   label.appendChild(wrapper);
@@ -2404,9 +2392,7 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
 
 function showUserscriptSettings() {
   let contentBlock = document.querySelector('#content > article');
-  while (contentBlock.firstChild) {
-    contentBlock.removeChild(contentBlock.firstChild);
-  }
+  removeAllFrom(contentBlock);
 
   let h1 = document.createElement('h1');
   h1.textContent = 'Tweaks';
@@ -2419,7 +2405,7 @@ function showUserscriptSettings() {
 
     let list1 = document.createElement('ul');
     let allSettings = getUserscriptSettings();
-    [].forEach.call(allSettings, function(item, i, arr) {
+    allSettings.forEach(item => {
       let liNode = document.createElement('li');
       let p = document.createElement('p');
       p.appendChild(makeSettingsCheckbox(item.name, item.id, item.enabledByDefault));
@@ -2438,8 +2424,8 @@ function showUserscriptSettings() {
     let table2 = document.createElement('table');
     table2.style.width = '100%';
     let embedableLinkTypes = getEmbedableLinkTypes();
-    [].forEach.call(embedableLinkTypes, function(linkType, i, arr) {
-      let row = document.createElement("tr");
+    embedableLinkTypes.forEach(linkType => {
+      let row = document.createElement('tr');
       row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, true), 'td'));
       row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
       table2.appendChild(row);
@@ -2449,12 +2435,14 @@ function showUserscriptSettings() {
     let domainsWhitelist = makeSettingsTextbox('Domains whitelist ("*" wildcard is supported)', 'domains_whitelist', getDefaultDomainWhitelist().join("\n"), 'One domain per line. "*" wildcard is supported');
     embeddingFieldset.appendChild(wrapIntoTag(domainsWhitelist, 'p'));
 
+    let moveIntoViewOnSamePageCheckbox = makeSettingsCheckbox('Ссылки на ту же страницу не встраивать, а показывать при наведении', 'enable_move_into_view_on_same_page', true);
     let updateLinkTextCheckbox = makeSettingsCheckbox('Обновлять текст ссылок, если возможно (например, "juick.com" на #123456/7)', 'enable_link_text_update', true);
     let ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
     ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
     embeddingFieldset.appendChild(document.createElement('hr'));
     embeddingFieldset.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
     embeddingFieldset.appendChild(wrapIntoTag(updateLinkTextCheckbox, 'p'));
+    embeddingFieldset.appendChild(wrapIntoTag(moveIntoViewOnSamePageCheckbox, 'p'));
   }
 
   let filterinFieldset = document.createElement('fieldset');
@@ -2475,12 +2463,10 @@ function showUserscriptSettings() {
   let resetButton = document.createElement('button');
   { // Reset button
     resetButton.textContent='Reset userscript settings to default';
-    resetButton.onclick = function(){
-      if(!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
+    resetButton.onclick = function(e){
+      if (!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
       let keys = GM_listValues();
-      for (var i=0, key=null; key=keys[i]; i++) {
-        GM_deleteValue(key);
-      }
+      for (var i=0, key=null; key=keys[i]; i++) { GM_deleteValue(key); }
       showUserscriptSettings();
       alert('Done!');
     };
@@ -2519,103 +2505,98 @@ function addTweaksSettingsButton() {
   let aNode = document.createElement('a');
   aNode.textContent = 'Tweaks';
   aNode.href = '#tweaks';
-  aNode.onclick = function(e){ e.preventDefault(); showUserscriptSettings(); };
+  aNode.onclick = (e => { e.preventDefault(); showUserscriptSettings(); });
   liNode.appendChild(aNode);
   tabsList.appendChild(liNode);
 }
 
 function updateUserRecommendationStats(userId, pagesPerCall) {
-  var contentBlock = document.querySelector('section#content');
-  while (contentBlock.firstChild) {
-    contentBlock.removeChild(contentBlock.firstChild);
-  }
-  var article = document.createElement('article');
-  var userCounters = {};
-  var totalRecs = 0;
+  let contentBlock = document.querySelector('section#content');
+  removeAllFrom(contentBlock);
+
+  let article = document.createElement('article');
+  let userCounters = {};
+  let totalRecs = 0;
 
   function recUpdate(depth, oldestMid, oldestDate) {
-    if(depth <= 0) { return; }
+    if (depth <= 0) { return; }
 
-    var url = 'http://juick.com/' + userId + '/?show=recomm' + ((oldestMid !== undefined) ? '&before=' + oldestMid : '');
+    let beforeStr = (oldestMid !== undefined) ? '&before=' + oldestMid : '';
+    let url = `http://juick.com/${userId}/?show=recomm${beforeStr}`;
     GM_xmlhttpRequest({
-      method: "GET",
+      method: 'GET',
       url: url,
       onload: function(response) {
-        if(response.status != 200) {
+        if (response.status != 200) {
           console.log(`${user.id}: failed with ${response.status}, ${response.statusText}`);
           return;
         }
 
-        var articleRe = /<article[\s\S]+?<\/article>/gmi;
-        var articles = response.responseText.match(articleRe);
-        if(articles === null) {
+        const articleRe = /<article[\s\S]+?<\/article>/gmi;
+        let articles = response.responseText.match(articleRe);
+        if (articles === null) {
           console.log('no more articles in response');
           return;
         }
 
         totalRecs = totalRecs + articles.length;
-        var hasMore = (articles.length > 15);
-        var oldestArticle = articles[articles.length - 1];
+        let hasMore = (articles.length > 15);
+        let oldestArticle = articles[articles.length - 1];
 
-        var dateRe = /datetime\=\"([^\"]+) ([^\"]+)\"/i;
-        var [, oldestDatePart, oldestTimePart] = dateRe.exec(oldestArticle);
+        const midRe = /data-mid="(\d+)"/i;
+        const dateRe = /datetime\=\"([^\"]+) ([^\"]+)\"/i;
+        let [, oldestMid] = midRe.exec(oldestArticle);
+        let [, oldestDatePart, oldestTimePart] = dateRe.exec(oldestArticle);
         oldestDate = new Date(`${oldestDatePart}T${oldestTimePart}`);
 
-        var midRe = /data-mid="(\d+)"/i;
-        var [, oldestMid] = midRe.exec(oldestArticle);
-
-        var userRe = /@<a href="\/([-\w]+)\/">/i;
-        var userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
-        var authors = articles.map(function(article){
-          var postAuthorId = (userRe.exec(article))[1];
-          var postAuthorAvatar = (userAvatarRe.exec(article))[0];
+        const userRe = /@<a href="\/([-\w]+)\/">/i;
+        const userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
+        let authors = articles.map(article => {
+          let postAuthorId = (userRe.exec(article))[1];
+          let postAuthorAvatar = (userAvatarRe.exec(article))[0];
           return {id: postAuthorId, avatar: postAuthorAvatar};
         });
-        for(var i in authors) {
-          var id = authors[i].id;
-          var avatar = authors[i].avatar;
-          if(id in userCounters) {
+        for (let i in authors) {
+          let id = authors[i].id;
+          let avatar = authors[i].avatar;
+          if (id in userCounters) {
             userCounters[id].recs = userCounters[id].recs + 1;
           } else {
             userCounters[id] = {id: id, avatar: avatar, recs: 1};
           }
         }
 
-        var sortedUsers = Object.values(userCounters).sort((a, b) => b.recs - a.recs);
+        let sortedUsers = Object.values(userCounters).sort((a, b) => b.recs - a.recs);
 
-        while (article.firstChild) {
-          article.removeChild(article.firstChild);
-        }
+        removeAllFrom(article);
 
-        if(hasMore && (depth == 1)) {
-          var moreButton = document.createElement('button');
+        if (hasMore && (depth == 1)) {
+          let moreButton = document.createElement('button');
           moreButton.style = 'float: right;';
           moreButton.textContent = 'Check older recommendations';
-          moreButton.onclick = function(){
-            recUpdate(pagesPerCall, oldestMid, oldestDate);
-          };
+          moreButton.onclick = (e => recUpdate(pagesPerCall, oldestMid, oldestDate));
           article.appendChild(moreButton);
         }
 
-        var datePNode = document.createElement('p');
+        let datePNode = document.createElement('p');
         datePNode.textContent = `${totalRecs} recommendations since ${oldestDate.toLocaleDateString('ru-RU')}`;
         article.appendChild(datePNode);
 
-        var avgPNode = document.createElement('p');
-        var now = new Date();
-        var days = ((now - oldestDate) / 1000 / 60 / 60 / 24);
-        var avg = totalRecs / days;
+        let avgPNode = document.createElement('p');
+        let now = new Date();
+        let days = ((now - oldestDate) / 1000 / 60 / 60 / 24);
+        let avg = totalRecs / days;
         avgPNode.textContent = '' + avg.toFixed(3) + ' recommendations per day';
         article.appendChild(avgPNode);
 
-        var userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
-        var ulNode = document.createElement('ul');
+        let userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
+        let ulNode = document.createElement('ul');
         ulNode.className = 'users';
         ulNode.innerHTML = userStrings.join('');
         article.appendChild(ulNode);
 
-        if(hasMore) {
-          setTimeout(function(){ recUpdate(depth - 1, oldestMid, oldestDate); }, 100);
+        if (hasMore) {
+          setTimeout(() => recUpdate(depth - 1, oldestMid, oldestDate), 100);
         } else {
           console.log('no more recommendations');
         }
@@ -2630,35 +2611,28 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 }
 
 function addIRecommendLink() {
-  if(!GM_getValue('enable_irecommend', true)) { return; }
-  var userId = document.querySelector("div#ctitle a").textContent;
-  var asideColumn = document.querySelector("aside#column");
-  var ustatsList = asideColumn.querySelector("#ustats > ul");
-  var li3 = ustatsList.querySelector("li:nth-child(3)");
-  var liNode = document.createElement("li");
-  var aNode = document.createElement("a");
+  if (!GM_getValue('enable_irecommend', true)) { return; }
+  let userId = document.querySelector('div#ctitle a').textContent;
+  let asideColumn = document.querySelector('aside#column');
+  let ustatsList = asideColumn.querySelector('#ustats > ul');
+  let li3 = ustatsList.querySelector('li:nth-child(3)');
+  let liNode = document.createElement('li');
+  let aNode = document.createElement('a');
   aNode.textContent = 'Я рекомендую';
   aNode.href = '#irecommend';
-  aNode.onclick = function(e){ e.preventDefault(); updateUserRecommendationStats(userId, 3); };
+  aNode.onclick = (e => { e.preventDefault(); updateUserRecommendationStats(userId, 3); });
   liNode.appendChild(aNode);
   ustatsList.insertBefore(liNode, li3);
 
 }
 
 function addStyle() {
-  var bg = getComputedStyle(document.documentElement).backgroundColor;
-  var backColor = (bg == 'transparent') ? [255,255,255] : parseRgbColor(bg);
-  var textColor = parseRgbColor(getComputedStyle(document.body).color);
-  var colorVars = '' +
-      '--br: ' + backColor[0] +
-      '; --bg: ' +backColor[1] +
-      '; --bb: ' +backColor[2] +
-      '; --tr: ' +textColor[0] +
-      '; --tg: ' +textColor[1] +
-      '; --tb: ' +textColor[2] + ";";
+  let [br, bg, bb] = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor, [255,255,255]);
+  let [tr, tg, tb] = parseRgbColor(getComputedStyle(document.body).color, [34,34,34]);
+  let colorVars = `--br: ${br}; --bg: ${bg}; --bb: ${bb}; --tr: ${tr}; --tg: ${tg}; --tb: ${tb};`;
 
-  if(GM_getValue('enable_tags_min_width', true)) {
-    GM_addStyle(".tagsContainer a { min-width: 25px; display: inline-block; text-align: center; } ");
+  if (GM_getValue('enable_tags_min_width', true)) {
+    GM_addStyle('.tagsContainer a { min-width: 25px; display: inline-block; text-align: center; }');
   }
   GM_addStyle(
     ":root { " + colorVars + " --bg10: rgba(var(--br),var(--bg),var(--bb),1.0); --color10: rgba(var(--tr),var(--tg),var(--tb),1.0); --color07: rgba(var(--tr),var(--tg),var(--tb),0.7); --color03: rgba(var(--tr),var(--tg),var(--tb),0.3); --color02: rgba(var(--tr),var(--tg),var(--tb),0.2); } " +
