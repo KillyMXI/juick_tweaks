@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.0
+// @version     2.10.1
 // @date        2016.09.02 - 2017.01.08
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -696,19 +696,21 @@ function bqReplace(match, offset, string) {
   return '<q>' + match.replace(/^(?:>|&gt;)\s?/gmi, '') + '</q>';
 }
 
-function messageReplyReplace(match, mid, rid, offset, string) {
-  let msgPart = (mid) ? '//juick.com/' + mid : '';
-  let replyPart = (rid) ? '#' + rid : '';
-  return `<a href="${msgPart}${replyPart}">${match}</a>`;
+function messageReplyReplace(messageId) {
+  return function(match, mid, rid, offset, string) {
+    let msgPart = '//juick.com/' + (mid || messageId);
+    let replyPart = (rid && rid != '0') ? '#' + rid : '';
+    return `<a href="${msgPart}${replyPart}">${match}</a>`;
+  }
 }
 
-function juickPostParse(txt) {
+function juickPostParse(txt, messageId) {
   const urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
   const bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
   return replaceTree(htmlEscape(txt).replace(bqRe, bqReplace), [
     {re: urlRe, with: urlReplace},
     {re: /\n/g, with: '<br/>'},
-    {re: /\B(?:#(\d+))?(?:\/(\d+))?\b/gmi, with: messageReplyReplace},
+    {re: /\B(?:#(\d+))?(?:\/(\d+))?\b/gmi, with: messageReplyReplace(messageId)},
     {re: /\B@([\w-]+)\b/gmi, with: '<a href="//juick.com/$1">@$1</a>'}
   ]);
 }
@@ -791,14 +793,14 @@ function getEmbedableLinkTypes() {
             let replyDiv = `<div class="embedReply msg-links">${msgLink}${replyStr}</div>`;
             let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
             let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
-            let description = juickPostParse(msg.body);
+            let description = juickPostParse(msg.body, msgId);
             let descDiv = '<div class="desc">' + description + '</div>';
             let topDiv = `<div class="top">${avatarStr}<div class="top-right"><div class="top-right-1st">${titleDiv}${dateDiv}</div><div class="top-right-2nd">${tagsStr}</div></div></div>`;
             div.innerHTML = `${topDiv}${descDiv}${photoStr}<div class="bottom">${replyDiv}<div class="right">${likesDiv}${commentsDiv}</div></div>`;
 
             let allLinks = div.querySelectorAll('.desc a, .embedReply a.whiteRabbit');
             let embedContainer = div.parentNode;
-            embedLinks(Array.prototype.slice.call(allLinks).reverse(), embedContainer, true, div);
+            embedLinks(Array.from(allLinks).reverse(), embedContainer, true, div);
 
             div.className = div.className.replace(' loading', '');
           }
