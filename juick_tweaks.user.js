@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.1
-// @date        2016.09.02 - 2017.01.08
+// @version     2.10.2
+// @date        2016.09.02 - 2017.01.09
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -913,7 +913,7 @@ function getEmbedableLinkTypes() {
       name: 'Dailymotion videos',
       id: 'embed_youtube_videos',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[\w-%]*)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
       makeNode: function(aNode, reResult) {
         return wrapIntoTag(makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], 640, 360), 'div', 'dailymotion');
       }
@@ -932,7 +932,7 @@ function getEmbedableLinkTypes() {
       name: 'Bandcamp music',
       id: 'embed_bandcamp_music',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([\w\-]+)/i,
+      re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, band, pageType, pageName] = reResult;
@@ -975,7 +975,7 @@ function getEmbedableLinkTypes() {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([\w\-\_]*))(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([-%\w]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
         return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
@@ -985,7 +985,7 @@ function getEmbedableLinkTypes() {
       name: 'Mixcloud music',
       id: 'embed_mixcloud_music',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-\w]+)\/?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-%\w]+)\/?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, mix] = reResult;
@@ -1017,7 +1017,7 @@ function getEmbedableLinkTypes() {
       name: 'Instagram',
       id: 'embed_instagram',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([\w\-\_]*)(?:\/)?(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         return wrapIntoTag(makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722), 'div', 'instagram');
       }
@@ -1063,7 +1063,7 @@ function getEmbedableLinkTypes() {
       name: 'DeviantArt images',
       id: 'embed_deviantart_images',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([\w-]+)/i,
+      re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
         let [url, userId, workId] = reResult;
         let thisType = this;
@@ -1309,7 +1309,7 @@ function getEmbedableLinkTypes() {
       name: 'Tumblr',
       id: 'embed_tumblr',
       ctsDefault: true,
-      re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([\w\-\_]*))?/i,
+      re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([-%\w]*))?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
@@ -1438,7 +1438,7 @@ function getEmbedableLinkTypes() {
       name: 'SlideShare',
       id: 'embed_slideshare',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-\w]+)/i,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, id] = reResult;
