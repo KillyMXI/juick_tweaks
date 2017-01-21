@@ -49,6 +49,11 @@
 // @connect     republic.ru
 // @connect     bash.im
 // @connect     ixbt.com
+// @connect     techxplore.com
+// @connect     medicalxpress.com
+// @connect     phys.org
+// @connect     techcrunch.com
+// @connect     bbc.com
 // @connect     *
 // ==/UserScript==
 
@@ -131,6 +136,10 @@ Number.prototype.pad = function(size=2) {
   let s = String(this);
   while (s.length < size) { s = '0' + s; }
   return s;
+}
+
+function longest(arr) {
+  return arr.reduce((a,b) => (!b || a.length > b.length) ? a : b);
 }
 
 function intersect(a, b) {
@@ -1935,7 +1944,7 @@ function getEmbedableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
       match: function(aNode, reResult) {
-        let domain = aNode.hostname;
+        let domain = aNode.hostname.replace(/^www\./, '');
         let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
         return domainsWhitelist.some(w => matchWildcard(domain, w));
       },
@@ -1979,14 +1988,14 @@ function getEmbedableLinkTypes() {
                     return;
                   }
 
-                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*\/?>/gmi;
+                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
                   const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
                   let [, basicTitle] = titleRe.exec(response.responseText) || [];
                   let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
                   let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
-                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle;
-                  let image = meta['twitter:image'] || meta['og:image'];
-                  let description = meta['twitter:description'] || meta['og:description'] || meta['description'];
+                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle || meta['sailthru.title'];
+                  let image = meta['twitter:image'] || meta['twitter:image:src'] || meta['og:image'] || meta['sailthru.image.full'];
+                  let description = longest([meta['og:description'], meta['twitter:description'], meta['description'], meta['sailthru.description']]);
 
                   if (title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
                     let titleDiv = `<div class="title"><a href="${url}">${title}</a></div>`;
@@ -2039,7 +2048,12 @@ function getDefaultDomainWhitelist() {
     'kp.ru',
     'republic.ru',
     'bash.im',
-    'ixbt.com'
+    'ixbt.com',
+    'techxplore.com',
+    'medicalxpress.com',
+    'phys.org',
+    'techcrunch.com',
+    'bbc.com'
   ];
 }
 
