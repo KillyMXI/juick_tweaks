@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.2
-// @date        2016.09.02 - 2017.01.09
+// @version     2.10.5
+// @date        2016.09.02 - 2017.01.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
