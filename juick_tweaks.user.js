@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.5
-// @date        2016.09.02 - 2017.01.21
+// @version     2.10.8
+// @date        2016.09.02 - 2017.01.26
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -54,6 +54,8 @@
 // @connect     phys.org
 // @connect     techcrunch.com
 // @connect     bbc.com
+// @connect     nplus1.ru
+// @connect     elementy.ru
 // @connect     *
 // ==/UserScript==
 
@@ -100,6 +102,7 @@ if(isUserColumn) {                      // если колонка пользо�
   colorizeTagsInUserColumn();
   addSettingsLink();
   biggerAvatar();
+  addMentionsLink();
   addIRecommendLink();
 }
 
@@ -2053,7 +2056,9 @@ function getDefaultDomainWhitelist() {
     'medicalxpress.com',
     'phys.org',
     'techcrunch.com',
-    'bbc.com'
+    'bbc.com',
+    'nplus1.ru',
+    'elementy.ru'
   ];
 }
 
@@ -2367,6 +2372,11 @@ function getUserscriptSettings() {
       enabledByDefault: true
     },
     {
+      name: 'Упоминания (ссылка на поиск)',
+      id: 'enable_mentions_search',
+      enabledByDefault: true
+    },
+    {
       name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
       id: 'enable_blocklisters_styling',
       enabledByDefault: false
@@ -2631,15 +2641,28 @@ function addIRecommendLink() {
   let userId = document.querySelector('div#ctitle a').textContent;
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
-  let li3 = ustatsList.querySelector('li:nth-child(3)');
+  let li2 = ustatsList.querySelector('li:nth-child(2)');
   let liNode = document.createElement('li');
   let aNode = document.createElement('a');
   aNode.textContent = 'Я рекомендую';
   aNode.href = '#irecommend';
   aNode.onclick = (e => { e.preventDefault(); updateUserRecommendationStats(userId, 3); });
   liNode.appendChild(aNode);
-  ustatsList.insertBefore(liNode, li3);
+  insertAfter(liNode, li2);
+}
 
+function addMentionsLink() {
+  if (!GM_getValue('enable_mentions_search', true)) { return; }
+  let userId = document.querySelector('div#ctitle a').textContent;
+  let asideColumn = document.querySelector('aside#column');
+  let ustatsList = asideColumn.querySelector('#ustats > ul');
+  let li2 = ustatsList.querySelector('li:nth-child(2)');
+  let liNode = document.createElement('li');
+  let aNode = document.createElement('a');
+  aNode.textContent = 'Упоминания';
+  aNode.href = '//juick.com/?search=%40' + userId;
+  liNode.appendChild(aNode);
+  insertAfter(liNode, li2);
 }
 
 function addStyle() {
