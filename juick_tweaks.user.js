@@ -139,7 +139,7 @@ Number.prototype.pad = function(size=2) {
 }
 
 function longest(arr) {
-  return arr.reduce((a,b) => (!b || a.length > b.length) ? a : b);
+  return arr.reduce((a,b) => (!a) ? b : (!b || a.length > b.length) ? a : b);
 }
 
 function intersect(a, b) {
@@ -2739,7 +2739,7 @@ function addStyle() {
     .movable.moved { position: absolute; z-index: 10; }
     .movable.hoverHighlight { outline: 1px solid ${color10} !important; }
     .movableContainer { position: relative; }
-    .movableContainer .placeholder { display: none; }
+    .movableContainer > .placeholder { display: none; }
     .movableContainer .moved+.placeholder { display: block; }
     `);
 }
