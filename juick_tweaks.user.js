@@ -738,7 +738,7 @@ function getEmbedableLinkTypes() {
       name: 'Juick',
       id: 'embed_juick',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/juick\.com\/(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
+      re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
