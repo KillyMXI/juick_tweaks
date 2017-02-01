@@ -2682,27 +2682,27 @@ function addStyle() {
     .embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; }
     .embedContainer img,
-	.embedContainer video { max-width: 100%; max-height: 80vh; }
+    .embedContainer video { max-width: 100%; max-height: 80vh; }
     .embedContainer audio { width: 100%; }
     .embedContainer iframe { overflow:hidden; resize: vertical; }
     .embedContainer > .embed { width: 100%; border: 1px solid ${color02}; padding: 0.5em; display: flex; flex-direction: column; }
     .embedContainer > .embed.loading,
-	.embedContainer > .embed.failed { text-align: center; color: ${color07}; padding: 0; }
+    .embedContainer > .embed.failed { text-align: center; color: ${color07}; padding: 0; }
     .embedContainer > .embed.failed { cursor: pointer; }
     .embedContainer .embed .cts { margin: 0; }
     .embed .top,
-	.embed .bottom { display: flex; flex-shrink: 0; justify-content: space-between; }
+    .embed .bottom { display: flex; flex-shrink: 0; justify-content: space-between; }
     .embed .top { margin-bottom: 0.5em; }
     .embed .date,
-	.embed .date > a,
-	.embed .likes > a,
-	.embed .replies > a,
-	.embed .title { color: ${color07}; }
+    .embed .date > a,
+    .embed .likes > a,
+    .embed .replies > a,
+    .embed .title { color: ${color07}; }
     .embed .date { font-size: small; text-align: right; }
     .embed .likes,
-	.embed .replies { font-size: small; white-space:nowrap; margin-left: 12px; }
+    .embed .replies { font-size: small; white-space:nowrap; margin-left: 12px; }
     .embed .likes .icon,
-	.embed .replies .icon { width: 20px; height: 20px; }
+    .embed .replies .icon { width: 20px; height: 20px; }
     .embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; }
     .twi.embed > .cts > .placeholder { display: inline-block; }
     .embedContainer > .embed.twi .cts > .placeholder { border: 0; }
@@ -2710,7 +2710,7 @@ function addStyle() {
     .juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; }
     .juickEmbed > .bottom > .right { margin-top: 5px; display: flex; flex: 0; }
     .gistEmbed .gist-file .gist-data .blob-wrapper,
-	.gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; }
+    .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; }
     .gistEmbed.embed.loaded { border-width: 0px; padding: 0; }
     .wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; }
     .tumblr { max-height: 86vh; overflow-y: auto; min-width: 90%; }
@@ -2718,7 +2718,7 @@ function addStyle() {
     .reddit { max-height: 75vh; overflow-y: auto; min-width: 90%; }
     .reddit iframe { resize: none; }
     .reddit.loading > blockquote,
-	.reddit.loading > div { display: none; }
+    .reddit.loading > div { display: none; }
     .fbEmbed { min-width: 90%; }
     .fbEmbed:not(.fallback) iframe { resize: none; }
     .fbEmbed.loading > div { visibility: hidden; height: 0px; }
@@ -2726,16 +2726,16 @@ function addStyle() {
     .imgur iframe { border-width: 0px; }
     .imgur.loading iframe { visibility: hidden; height: 0px; }
     .embedContainer > .gelbooru.embed,
-	.embedContainer > .danbooru.embed,
-	.embedContainer > .konachan.embed,
-	.embedContainer > .yandere.embed { width: 49%; position: relative; }
+    .embedContainer > .danbooru.embed,
+    .embedContainer > .konachan.embed,
+    .embedContainer > .yandere.embed { width: 49%; position: relative; }
     .danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: ${color07}; }
     .danbooru.embed.loaded { min-height: 110px; }
     .danbooru.embed:hover .booru-tags { display: block; }
     .embed .rating_e,
-	.embed img.nsfw { opacity: 0.1; }
+    .embed img.nsfw { opacity: 0.1; }
     .embed .rating_e:hover,
-	.embed img.nsfw:hover { opacity: 1.0; }
+    .embed img.nsfw:hover { opacity: 1.0; }
     .embed.notEmbed { display: none; }
     .embedLink:not(.notEmbed):after { content: ' ↓' }
     .tweaksSettings * { box-sizing: border-box; }
@@ -2757,7 +2757,7 @@ function addStyle() {
     .filtered .msg-avatar { margin-bottom: 0px; }
     .filteredComment.headless .msg-links { margin: 0px; }
     article.readonly > p,
-	div.readonly > .msg-txt { opacity: 0.55; }
+    div.readonly > .msg-txt { opacity: 0.55; }
     .movable { transition: all 0.2s ease-out 0.2s; transition-property: margin, margin-top; }
     .movable.moved { position: absolute; z-index: 10; }
     .movable.hoverHighlight { outline: 1px solid ${color10} !important; }
