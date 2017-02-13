@@ -46,6 +46,7 @@
 // @connect     rublacklist.net
 // @connect     mk.ru
 // @connect     kp.ru
+// @connect     gazeta.ru
 // @connect     republic.ru
 // @connect     bash.im
 // @connect     ixbt.com
@@ -56,6 +57,7 @@
 // @connect     bbc.com
 // @connect     nplus1.ru
 // @connect     elementy.ru
+// @connect     news.tut.by
 // @connect     *
 // ==/UserScript==
 
@@ -2049,6 +2051,7 @@ function getDefaultDomainWhitelist() {
     'rublacklist.net',
     'mk.ru',
     'kp.ru',
+    'gazeta.ru',
     'republic.ru',
     'bash.im',
     'ixbt.com',
@@ -2058,7 +2061,8 @@ function getDefaultDomainWhitelist() {
     'techcrunch.com',
     'bbc.com',
     'nplus1.ru',
-    'elementy.ru'
+    'elementy.ru',
+    'news.tut.by'
   ];
 }
 
