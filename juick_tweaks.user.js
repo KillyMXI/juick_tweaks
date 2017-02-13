@@ -729,6 +729,10 @@ function juickPostParse(txt, messageId) {
   ]);
 }
 
+function juickPhotoLink(postId, ext) {
+  return `//i.juick.com/p/${postId}.${ext}`;
+}
+
 function juickId([, userId, postId, replyId]) {
   let isReply = ((replyId !== undefined) && (replyId != '0'));
   return '#' + postId + (isReply ? '/' + replyId : '');
@@ -798,7 +802,7 @@ function getEmbedableLinkTypes() {
             let userLink = `<a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a>`;
             let avatarStr = `<div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>`;
             let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="http://juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
-            let photoStr = (withPhoto) ? `<div><a href="${msg.photo.medium}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${msg.photo.small}"/></a></div>` : '';
+            let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${msg.photo.small}"/></a></div>` : '';
             let titleDiv = `<div class="title">${userLink}</div>`;
             let dateDiv = `<div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>`;
             let replyStr = (isReply)
