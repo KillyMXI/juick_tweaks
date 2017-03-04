@@ -993,7 +993,7 @@ function getEmbedableLinkTypes() {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?([-%\w]*))(?:\/)?/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?(?!tracks$)([-%\w]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         var embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
         return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
