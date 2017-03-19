@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.12
-// @date        2016.09.02 - 2017.03.04
+// @version     2.10.13
+// @date        2016.09.02 - 2017.03.20
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -2247,7 +2247,7 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
       if ((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
         node.classList.toggle('moved', true);
         node.style.marginTop = `${moveAmount}px`;
-        node.parentNode.querySelector('.placeholder').setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
+        node.parentNode.querySelector('.movable + .placeholder').setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
       }
     }
   }
@@ -2274,11 +2274,10 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
   hoverTarget.addEventListener('mouseleave', e => {moveNodeBack(movable);}, false);
   movable.parentNode.classList.toggle('movableContainer', true);
   movable.classList.toggle('movable', true);
-  let parent = movable.parentNode;
-  if (!parent.querySelector('.placeholder')) {
+  if (!movable.parentNode.querySelector('.movable + .placeholder')) {
     var pldr = document.createElement('div');
     pldr.className = 'placeholder';
-    parent.appendChild(pldr);
+    insertAfter(pldr, movable);
   }
 }
 
