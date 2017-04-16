@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.13
-// @date        2016.09.02 - 2017.03.20
+// @version     2.10.14
+// @date        2016.09.02 - 2017.04.17
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -58,6 +58,7 @@
 // @connect     nplus1.ru
 // @connect     elementy.ru
 // @connect     news.tut.by
+// @connect     imdb.com
 // @connect     *
 // ==/UserScript==
 
@@ -1997,7 +1998,7 @@ function getEmbedableLinkTypes() {
                     return;
                   }
 
-                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
+                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*[\"']([^\"']+)[\"']\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
                   const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
                   let [, basicTitle] = titleRe.exec(response.responseText) || [];
                   let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
@@ -2066,7 +2067,8 @@ function getDefaultDomainWhitelist() {
     'bbc.com',
     'nplus1.ru',
     'elementy.ru',
-    'news.tut.by'
+    'news.tut.by',
+    'imdb.com'
   ];
 }
 
