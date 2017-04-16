@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.14
+// @version     2.10.15
 // @date        2016.09.02 - 2017.04.17
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -1991,7 +1991,7 @@ function getEmbedableLinkTypes() {
               GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
-                timeout: 1000,
+                timeout: 1500,
                 onload: function(response) {
                   if (response.status != 200) {
                     unembed(`Failed to load (${response.status} - ${response.statusText})`);
