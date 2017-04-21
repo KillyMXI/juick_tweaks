@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.16
+// @version     2.10.17
 // @date        2016.09.02 - 2017.04.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -260,7 +260,7 @@ function replaceTree(txt, rules) {
 }
 
 function setProto(url, proto) {
-  return url.replace(/(https?:)?(?=\/\/)/i, proto);
+  return url.replace(/^(https?:)?(?=\/\/)/i, proto);
 }
 
 
