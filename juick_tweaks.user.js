@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.17
+// @version     2.11.0
 // @date        2016.09.02 - 2017.04.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -259,8 +259,15 @@ function replaceTree(txt, rules) {
   return txt;
 }
 
+function getProto() {
+  return (location.protocol == 'http:') ? 'http:' : 'https:';
+}
+
 function setProto(url, proto) {
-  return url.replace(/^(https?:)?(?=\/\/)/i, proto);
+  return url.replace(
+    /^(https?:)?(?=\/\/)/i,
+    (proto === undefined) ? getProto() : proto
+  );
 }
 
 
@@ -297,7 +304,7 @@ function addTagEditingLinkUnderPost() {
   let linode = document.createElement('li');
   let anode = document.createElement('a');
   let mid = document.getElementById('content').getAttribute('data-mid');
-  anode.href = 'http://juick.com/post?body=%23' + mid + '+%2ATag';
+  anode.href = '//juick.com/post?body=%23' + mid + '+%2ATag';
   anode.innerHTML = '<div style="background-position: -16px 0"></div>Теги';
   linode.appendChild(anode);
   mtoolbar.appendChild(linode);
@@ -319,7 +326,7 @@ function addCommentRemovalLinks() {
           let postId = commentLink.pathname.replace('/','');
           let commentId = commentLink.hash.replace('#','');
           let anode = document.createElement('a');
-          anode.href = `http://juick.com/post?body=D+%23${postId}%2F${commentId}`;
+          anode.href = `//juick.com/post?body=D+%23${postId}%2F${commentId}`;
           anode.innerHTML = 'Удалить';
           anode.style.cssFloat = 'right';
           linksBlock.appendChild(anode);
@@ -382,7 +389,7 @@ function addSettingsLink() {
     let ctitle = asideColumn.querySelector('#ctitle');
     let anode = document.createElement('a');
     anode.innerHTML = svgIconHtml('gear');
-    anode.href = 'http://juick.com/settings';
+    anode.href = '//juick.com/settings';
     ctitle.appendChild(anode);
     ctitle.style.display = 'flex';
     ctitle.style.justifyContent = 'space-between';
@@ -401,7 +408,7 @@ function loadTagsAsync(userId) {
     setTimeout(function(){
       GM_xmlhttpRequest({
         method: 'GET',
-        url: 'http://juick.com/' + userId + '/tags',
+        url: setProto('//juick.com/' + userId + '/tags'),
         onload: function(response) {
           const re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
           let [result, tagsStr] = re.exec(response.responseText);
@@ -433,9 +440,10 @@ function addEasyTagsUnderPostEditorSharp() {
         t.href = '';
         t.onclick = (e => { e.preventDefault(); tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); });
       })
-    },
-    reject => console.log(reject)
-  )
+    }
+  ).catch(
+    err => console.log(err)
+  );
 }
 
 function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
@@ -490,7 +498,7 @@ function processPageAsync(url, retrievalFunction, timeout=110) {
   return new Promise(function(resolve, reject) {
     GM_xmlhttpRequest({
       method: 'GET',
-      url: url,
+      url: setProto(url),
       onload: function(response) {
         let result = null;
         if (response.status != 200) {
@@ -511,8 +519,8 @@ function loadUserDatesAsync(unprocessedUsers, processedUsers=[]) {
     } else {
       let user = unprocessedUsers.splice(0,1)[0];
       //let postsUrl = "http://api.juick.com/messages?uname=" + user.id;
-      let postsUrl = 'http://juick.com/' + user.id + '/';
-      let recsUrl = 'http://juick.com/' + user.id + '/?show=recomm';
+      let postsUrl = '//juick.com/' + user.id + '/';
+      let recsUrl = '//juick.com/' + user.id + '/?show=recomm';
 
       processPageAsync(postsUrl, getLastArticleDate).then(lastPostDate => {
         processPageAsync(recsUrl, getLastArticleDate).then(lastRecDate => {
@@ -753,7 +761,6 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
-        let proto = (location.protocol == 'https:') ? 'https:' : 'http:';
 
         let isReply = ((replyId !== undefined) && (replyId !== '0'));
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
@@ -779,7 +786,7 @@ function getEmbedableLinkTypes() {
 
         GM_xmlhttpRequest({
           method: 'GET',
-          url: proto + '//api.juick.com/thread?mid=' + msgId,
+          url: setProto('//api.juick.com/thread?mid=' + msgId),
           onload: function(response) {
             if (response.status != 200) {
               div.textContent = `Failed to load ${idStr} (${response.status} - ${response.statusText})`;
@@ -806,7 +813,7 @@ function getEmbedableLinkTypes() {
             let msgLink = `<a href="${linkStr}">${idStr}</a>`;
             let userLink = `<a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a>`;
             let avatarStr = `<div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>`;
-            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="http://juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
+            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="//juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
             let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${setProto(msg.photo.small, '')}"/></a></div>` : '';
             let titleDiv = `<div class="title">${userLink}</div>`;
             let dateDiv = `<div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>`;
@@ -2525,7 +2532,7 @@ function showUserscriptSettings() {
   }
 
   let support = document.createElement('p');
-  support.innerHTML = 'Feedback and feature requests <a href="http://juick.com/killy/?tag=userscript">here</a>.';
+  support.innerHTML = 'Feedback and feature requests <a href="//juick.com/killy/?tag=userscript">here</a>.';
 
   contentBlock.appendChild(h1);
   contentBlock.appendChild(uiFieldset);
@@ -2561,10 +2568,10 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
     if (depth <= 0) { return; }
 
     let beforeStr = (oldestMid !== undefined) ? '&before=' + oldestMid : '';
-    let url = `http://juick.com/${userId}/?show=recomm${beforeStr}`;
+    let url = `//juick.com/${userId}/?show=recomm${beforeStr}`;
     GM_xmlhttpRequest({
       method: 'GET',
-      url: url,
+      url: setProto(url),
       onload: function(response) {
         if (response.status != 200) {
           console.log(`${user.id}: failed with ${response.status}, ${response.statusText}`);
