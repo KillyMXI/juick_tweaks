@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.10.15
-// @date        2016.09.02 - 2017.04.17
+// @version     2.10.16
+// @date        2016.09.02 - 2017.04.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -257,6 +257,10 @@ function replaceTree(txt, rules) {
     }
   }
   return txt;
+}
+
+function setProto(url, proto) {
+  return url.replace(/(https?:)?(?=\/\/)/i, proto);
 }
 
 
@@ -749,6 +753,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
+        let proto = (location.protocol == 'https:') ? 'https:' : 'http:';
 
         let isReply = ((replyId !== undefined) && (replyId !== '0'));
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
@@ -774,9 +779,8 @@ function getEmbedableLinkTypes() {
 
         GM_xmlhttpRequest({
           method: 'GET',
-          url: 'https://api.juick.com/thread?mid=' + msgId,
+          url: proto + '//api.juick.com/thread?mid=' + msgId,
           onload: function(response) {
-
             if (response.status != 200) {
               div.textContent = `Failed to load ${idStr} (${response.status} - ${response.statusText})`;
               div.className = div.className.replace(' loading', ' failed');
@@ -803,7 +807,7 @@ function getEmbedableLinkTypes() {
             let userLink = `<a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a>`;
             let avatarStr = `<div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>`;
             let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="http://juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
-            let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${msg.photo.small}"/></a></div>` : '';
+            let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${setProto(msg.photo.small, '')}"/></a></div>` : '';
             let titleDiv = `<div class="title">${userLink}</div>`;
             let dateDiv = `<div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>`;
             let replyStr = (isReply)
