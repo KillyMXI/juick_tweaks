@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.11.1
-// @date        2016.09.02 - 2017.04.21
+// @version     2.12.0
+// @date        2016.09.02 - 2017.05.05
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -82,51 +82,51 @@ var isUsersTable = (document.querySelector('table.users') === null) ? false : tr
 addStyle();                             // минимальный набор стилей, необходимый для работы скрипта
 
 if(isPost) {                            // на странице поста
-  filterPostComments();
-  checkReplyPost();
-  updateTagsOnAPostPage();
-  addTagEditingLinkUnderPost();
-  addCommentRemovalLinks();
-  bringCommentsIntoViewOnHover();
-  embedLinksToPost();
+  tryRun(filterPostComments);
+  tryRun(checkReplyPost);
+  tryRun(updateTagsOnAPostPage);
+  tryRun(addTagEditingLinkUnderPost);
+  tryRun(addCommentRemovalLinks);
+  tryRun(bringCommentsIntoViewOnHover);
+  tryRun(embedLinksToPost);
 }
 
 if(isFeed) {                            // в ленте или любом списке постов
   if(isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
-    filterArticles();
+    tryRun(filterArticles);
   }
-  checkReplyArticles();
-  updateTagsInFeed();
-  embedLinksToArticles();
+  tryRun(checkReplyArticles);
+  tryRun(updateTagsInFeed);
+  tryRun(embedLinksToArticles);
 }
 
 if(isUserColumn) {                      // если колонка пользователя присутствует слева
-  addYearLinks();
-  colorizeTagsInUserColumn();
-  addSettingsLink();
-  biggerAvatar();
-  addMentionsLink();
-  addIRecommendLink();
+  tryRun(addYearLinks);
+  tryRun(colorizeTagsInUserColumn);
+  tryRun(addSettingsLink);
+  tryRun(biggerAvatar);
+  tryRun(addMentionsLink);
+  tryRun(addIRecommendLink);
 }
 
 if(isPostEditorSharp) {                 // на форме создания поста (/#post)
-  addEasyTagsUnderPostEditorSharp();
+  tryRun(addEasyTagsUnderPostEditorSharp);
 }
 
 if(isTagsPage) {                        // на странице тегов пользователя
-  sortTagsPage();
+  tryRun(sortTagsPage);
 }
 
 if(isSingleTagPage) {                   // на странице тега (/tag/...)
-  addTagPageToolbar();
+  tryRun(addTagPageToolbar);
 }
 
 if(isUsersTable) {                      // на странице подписок или подписчиков
-  addUsersSortingButton();
+  tryRun(addUsersSortingButton);
 }
 
 if(isSettingsPage) {                    // на странице настроек
-  addTweaksSettingsButton();
+  tryRun(addTweaksSettingsButton);
 }
 
 
@@ -270,6 +270,13 @@ function setProto(url, proto) {
   );
 }
 
+function tryRun(f) {
+  try { f() }
+  catch (e) { 
+    console.warn(`Failed to run ${f.name}()`);
+    console.warn(e);
+  }
+}
 
 // function definitions =====================================================================================
 
@@ -282,17 +289,17 @@ function updateTagsOnAPostPage() {
   let tagsDiv = document.querySelector('div.msg-tags');
   if (tagsDiv === null) { return; }
   let userId = document.querySelector('div.msg-avatar > a > img').alt;
-  Array.from(tagsDiv.childNodes).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
+  Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
 }
 
 function updateTagsInFeed() {
-  if (!GM_getValue('enable_user_tag_links', true)) { return; }
+  if (!GM_getValue('enable_user_tag_links_in_feed', true)) { return; }
   [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     if (!article.hasAttribute('data-mid')) { return; }
     let userId = article.querySelector('div.msg-avatar > a > img').alt;
-    let tagsDiv = article.getElementsByClassName('msg-tags')[0];
+    let tagsDiv = article.querySelector('div.msg-tags');
     if (tagsDiv === null) { return; }
-    Array.from(tagsDiv.childNodes).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
+    Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
   });
 }
 
@@ -2327,8 +2334,13 @@ function checkReplyPost() {
 function getUserscriptSettings() {
   return [
     {
-      name: 'Пользовательские теги (/user/?tag=) в постах вместо общих (/tag/)',
+      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в постах',
       id: 'enable_user_tag_links',
+      enabledByDefault: true
+    },
+    {
+      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в общей ленте',
+      id: 'enable_user_tag_links_in_feed',
       enabledByDefault: true
     },
     {
