@@ -4,8 +4,8 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.12.0
-// @date        2016.09.02 - 2017.05.05
+// @version     2.12.1
+// @date        2016.09.02 - 2017.05.07
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -1243,6 +1243,7 @@ function getEmbedableLinkTypes() {
             let isVideo = false;
             let videoUrl, videoW, videoH;
             let title, description;
+            const maxWidth = 620;
             const metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
             let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
             matches.forEach(m => {
@@ -1257,8 +1258,8 @@ function getEmbedableLinkTypes() {
               if (m[1] == 'og:image') { images.push(m[2]); }
               if (m[1] == 'og:image:user_generated') { userGenImg = true; }
               if (m[1] == 'og:video:url') { videoUrl = m[2]; isVideo = true; }
-              if (m[1] == 'og:video:height') { videoH = '' + m[2] + 'px'; }
-              if (m[1] == 'og:video:width') { videoW = '' + m[2] + 'px'; }
+              if (m[1] == 'og:video:height') { videoH = +m[2]; }
+              if (m[1] == 'og:video:width') { videoW = +m[2]; }
             });
             const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
             let timestampMsResult = timestampMsRe.exec(response.responseText);
@@ -1271,7 +1272,11 @@ function getEmbedableLinkTypes() {
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><div class="desc">${description}</div>`;
             if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
             if (isVideo) {
-              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, videoW, videoH), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
+              if(videoW > maxWidth) {
+                videoH = videoH / videoW * maxWidth;
+                videoW = maxWidth;
+              }
+              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, videoW + 'px', videoH + 'px'), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
             }
             div.className = div.className.replace(' loading', '');
           }
