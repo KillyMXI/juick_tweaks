@@ -4,7 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @author      Killy
-// @version     2.12.1
+// @version     2.12.2
 // @date        2016.09.02 - 2017.05.07
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -923,9 +923,9 @@ function getEmbedableLinkTypes() {
           let pp = {}; arr.forEach(z => pp[z[0]] = z[1]);
           let embedArgs = { rel: '0' };
           if (pp.t != undefined) {
-            const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s)$/i;
-            let [, t, h, m, s] = tre.exec(pp.t);
-            embedArgs['start'] = (+t) || ((+(h || 0))*60*60 + (+(m || 0))*60 + (+(s || 0)));
+            const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s|(?:(\d+)h)?(\d+)m|(\d+)h)$/i;
+            let [, t, h, m, s, h1, m1, h2] = tre.exec(pp.t);
+            embedArgs['start'] = (+t) || ((+(h || h1 || h2 || 0))*60*60 + (+(m || m1 || 0))*60 + (+(s || 0)));
           }
           if (pp.list !== undefined) {
             embedArgs['list'] = pp.list;
