@@ -272,7 +272,7 @@ function setProto(url, proto) {
 
 function tryRun(f) {
   try { f() }
-  catch (e) { 
+  catch (e) {
     console.warn(`Failed to run ${f.name}()`);
     console.warn(e);
   }
@@ -305,7 +305,7 @@ function updateTagsInFeed() {
 
 function addTagEditingLinkUnderPost() {
   if (!GM_getValue('enable_tags_editing_link', true)) { return; }
-  let mtoolbar = document.getElementById('mtoolbar').childNodes[0];
+  let mtoolbar = document.getElementById('mtoolbar').children[0];
   let canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
   if (!canEdit) { return; }
   let linode = document.createElement('li');
@@ -442,7 +442,7 @@ function addEasyTagsUnderPostEditorSharp() {
       let tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
       messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
       sortAndColorizeTagsInContainer(tagsContainer, 60, true);
-      Array.from(tagsContainer.childNodes).forEach(t => {
+      Array.from(tagsContainer.children).forEach(t => {
         let newTag = t.textContent;
         t.href = '';
         t.onclick = (e => { e.preventDefault(); tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); });
@@ -2050,7 +2050,7 @@ function getEmbedableLinkTypes() {
 
             } else {
               unembed('not text/html');
-              console.log(response.responseHeaders);
+              console.log(response1.responseHeaders);
             }
           },
           ontimeout: function(response1) {
