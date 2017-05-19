@@ -2119,6 +2119,9 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           }
           if (!newNode) { return false; }
           aNode.classList.add('embedLink');
+          if(GM_getValue('enable_arrows', true)) {
+            aNode.classList.add('arrow');
+          }
           if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
             linkType.linkTextUpdate(aNode, reResult);
           }
@@ -2425,6 +2428,11 @@ function getUserscriptSettings() {
     {
       name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
       id: 'enable_move_comment_into_view',
+      enabledByDefault: true
+    },
+    {
+      name: 'Стрелочки ("↓")',
+      id: 'enable_arrows',
       enabledByDefault: true
     },
     {
@@ -2783,7 +2791,7 @@ function addStyle() {
     .embed .rating_e:hover,
     .embed img.nsfw:hover { opacity: 1.0; }
     .embed.notEmbed { display: none; }
-    .embedLink:not(.notEmbed):after { content: ' ↓' }
+    .embedLink.arrow:not(.notEmbed):after { content: ' ↓' }
     .tweaksSettings * { box-sizing: border-box; }
     .tweaksSettings table { border-collapse: collapse; }
     .tweaksSettings tr { border-bottom: 1px solid transparent; }
