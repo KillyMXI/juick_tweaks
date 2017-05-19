@@ -3,6 +3,7 @@
 // @namespace   ForJuickCom
 // @description Feature testing
 // @match       *://juick.com/*
+// @match       *://beta.juick.com/*
 // @author      Killy
 // @version     2.12.2
 // @date        2016.09.02 - 2017.05.07
@@ -64,6 +65,9 @@
 
 
 // pages and elements =====================================================================================
+
+var isBeta = (window.location.hostname == 'beta.juick.com');
+if (!GM_getValue('enable_beta', true)) { return; }
 
 var content = document.getElementById('content');
 var isPost = (content !== null) && content.hasAttribute('data-mid');
@@ -2421,6 +2425,11 @@ function getUserscriptSettings() {
     {
       name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
       id: 'enable_move_comment_into_view',
+      enabledByDefault: true
+    },
+    {
+      name: 'Скрипт активен на beta.juick.com',
+      id: 'enable_beta',
       enabledByDefault: true
     }
   ];
