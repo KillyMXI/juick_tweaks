@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.12.2
-// @date        2016.09.02 - 2017.05.07
+// @version     2.13.0
+// @date        2016.09.02 - 2017.05.19
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -2173,12 +2173,19 @@ function isFilteredX(x, filteredUsers, filteredTags) {
 function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags) {
   let isCtsPost = isFilteredX(x, ctsUsers, ctsTags);
   let allLinks = x.querySelectorAll(allLinksSelector);
-  let embedContainer = document.createElement('div');
-  embedContainer.className = 'embedContainer';
-  let anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
-  if (anyEmbed) {
-    let beforeNode = x.querySelector(beforeNodeSelector);
-    x.insertBefore(embedContainer, beforeNode);
+  
+  let existingContainer = x.querySelector('div.embedContainer');
+  if(existingContainer !== null) {
+    embedLinks(allLinks, embedContainer, isCtsPost);
+  } else {
+    let embedContainer = document.createElement('div');
+    embedContainer.className = 'embedContainer';
+
+    let anyEmbed = embedLinks(allLinks, embedContainer, isCtsPost);
+    if (anyEmbed) {
+      let beforeNode = x.querySelector(beforeNodeSelector);
+      x.insertBefore(embedContainer, beforeNode);
+    }
   }
 }
 
@@ -2351,7 +2358,7 @@ function getUserscriptSettings() {
       enabledByDefault: true
     },
     {
-      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в общей ленте',
+      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в ленте',
       id: 'enable_user_tag_links_in_feed',
       enabledByDefault: true
     },
