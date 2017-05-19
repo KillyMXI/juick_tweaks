@@ -937,7 +937,7 @@ function getEmbedableLinkTypes() {
           v = v || pp.v;
           iframeUrl = '//www.youtube-nocookie.com/embed/' + v + '?' + Object.keys(embedArgs).map(k => `${k}=${embedArgs[k]}`).join('&');
         }
-        return wrapIntoTag(makeIframe(iframeUrl, 640, 360), 'div', 'youtube');
+        return wrapIntoTag(makeIframe(iframeUrl, 640, 360), 'div', 'youtube videoWrapper16x9');
       }
     },
     {
@@ -2792,6 +2792,8 @@ function addStyle() {
     .embed img.nsfw:hover { opacity: 1.0; }
     .embed.notEmbed { display: none; }
     .embedLink.arrow:not(.notEmbed):after { content: ' ↓' }
+    .videoWrapper16x9 { position: relative; padding-bottom: 56.25%; /* 16:9 */ padding-top: 25px; height: 0; }
+    .videoWrapper16x9 iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     .tweaksSettings * { box-sizing: border-box; }
     .tweaksSettings table { border-collapse: collapse; }
     .tweaksSettings tr { border-bottom: 1px solid transparent; }
