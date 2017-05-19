@@ -5,7 +5,7 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.13.0
+// @version     2.13.1
 // @date        2016.09.02 - 2017.05.19
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -67,7 +67,7 @@
 // pages and elements =====================================================================================
 
 var isBeta = (window.location.hostname == 'beta.juick.com');
-if (!GM_getValue('enable_beta', true)) { return; }
+if (isBeta && !GM_getValue('enable_beta', true)) { return; }
 
 var content = document.getElementById('content');
 var isPost = (content !== null) && content.hasAttribute('data-mid');
