@@ -5,7 +5,7 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.13.16
+// @version     2.13.17
 // @date        2016.09.02 - 2017.05.26
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -233,7 +233,7 @@ function waitAndRun(test, doneCallback, timeoutCallback, tick=100, count) {
 }
 
 function randomId() {
-  return Math.random().toString(36).substr(2,11) + Date.now().toString(36).substr(-3,3);
+  return Math.random().toString(36).substr(2);
 }
 
 function matchWildcard(str, wildcard) {
@@ -284,6 +284,20 @@ function tryRun(f) {
   }
 }
 
+function getMyUserId() {
+  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
+  return (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
+}
+
+function getColumnUserId() {
+  let columnUserIdLink = document.querySelector('div#ctitle a');
+  return (columnUserIdLink === null) ? null : columnUserIdLink.textContent.trim();
+}
+
+function getPostUserId(element) {
+  return element.querySelector('div.msg-avatar > a > img').alt;
+}
+
 // function definitions =====================================================================================
 
 function svgIconHtml(name) {
@@ -294,7 +308,7 @@ function updateTagsOnAPostPage() {
   if (!GM_getValue('enable_user_tag_links', true)) { return; }
   let tagsDiv = document.querySelector('div.msg-tags');
   if (tagsDiv === null) { return; }
-  let userId = document.querySelector('div.msg-avatar > a > img').alt;
+  let userId = getPostUserId(document);
   Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
 }
 
@@ -302,7 +316,7 @@ function updateTagsInFeed() {
   if (!GM_getValue('enable_user_tag_links_in_feed', false)) { return; }
   [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     if (!article.hasAttribute('data-mid')) { return; }
-    let userId = article.querySelector('div.msg-avatar > a > img').alt;
+    let userId = getPostUserId(article);
     let tagsDiv = article.querySelector('div.msg-tags');
     if (tagsDiv === null) { return; }
     Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
@@ -335,8 +349,7 @@ function addTagEditingLinkUnderPost() {
 
 function addCommentRemovalLinks() {
   if (!GM_getValue('enable_comment_removal_links', true)) { return; }
-  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
-  let myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
+  let myUserId = getMyUserId();
   let commentsBlock = document.querySelector('ul#replies');
   if ((commentsBlock !== null) && (myUserId !== null)) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
@@ -375,9 +388,9 @@ function addTagPageToolbar() {
 
 function addYearLinks() {
   if (!GM_getValue('enable_year_links', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent.trim();
+  let userId = getColumnUserId();
   let asideColumn = document.querySelector('aside#column');
-  let hr1 = asideColumn.querySelector('p.tags + hr');
+  let hr1 = asideColumn.querySelector('form ~ hr');
   let hr2 = document.createElement('hr');
   let linksContainer = document.createElement('p');
   let years = [
@@ -405,10 +418,7 @@ function addYearLinks() {
 
 function addSettingsLink() {
   if (!GM_getValue('enable_settings_link', true)) { return; }
-  let columnUserId = document.querySelector('div#ctitle a').textContent.trim();
-  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
-  let myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
-  if (columnUserId == myUserId) {
+  if (getColumnUserId() == getMyUserId()) {
     let asideColumn = document.querySelector('aside#column');
     let ctitle = asideColumn.querySelector('#ctitle');
     let anode = document.createElement('a');
@@ -800,7 +810,8 @@ function getEmbedableLinkTypes() {
         if (GM_getValue('enable_move_into_view_on_same_page', true)) {
           let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
           if (thisPageMsgMatch && thisPageMsgMatch[1] == msgId) {
-            let linkedItem = Array.from(document.querySelectorAll('li.msg')).find(x => x.id == replyId || (mrid == 0 && x.id == 'msg-' + msgId));
+            let linkedItem = Array.from(document.querySelectorAll('li.msg'))
+                                  .find(x => x.id == replyId || (mrid == 0 && x.id == 'msg-' + msgId));
             if (linkedItem) {
               let thisMsg = aNode.closest('li.msg > div.msg-cont');
               let linkedMsg = linkedItem.querySelector('div.msg-cont');
@@ -2212,10 +2223,9 @@ function splitUsersAndTagsLists(str) {
 }
 
 function articleInfo(article) {
-  let userId = article.querySelector('div.msg-avatar > a > img').alt;
   let tagNodes = article.querySelectorAll('.msg-tags > *');
   let tags = Array.from(tagNodes).map(d => d.textContent.toLowerCase());
-  return { userId: userId, tags: tags };
+  return { userId: getPostUserId(article), tags: tags };
 }
 
 function isFilteredX(x, filteredUsers, filteredTags) {
@@ -2391,9 +2401,9 @@ function bringCommentsIntoViewOnHover() {
 }
 
 function checkReply(allPostsSelector, replySelector) {
-  let userId = document.querySelector('nav#actions > ul > li:nth-child(2) > a').textContent.replace('@', '');
+  let userId = getMyUserId();
   Array.from(document.querySelectorAll(allPostsSelector))
-       .filter(p => (p.querySelector(replySelector) === null) && (p.querySelector('div.msg-avatar > a > img').alt != userId))
+       .filter(p => (p.querySelector(replySelector) === null) && (getPostUserId(p) != userId))
        .forEach(p => p.classList.add('readonly'));
 }
 
@@ -2771,7 +2781,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
 function addIRecommendLink() {
   if (!GM_getValue('enable_irecommend', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent.trim();
+  let userId = getColumnUserId();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
@@ -2786,7 +2796,7 @@ function addIRecommendLink() {
 
 function addMentionsLink() {
   if (!GM_getValue('enable_mentions_search', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent.trim();
+  let userId = getColumnUserId();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
