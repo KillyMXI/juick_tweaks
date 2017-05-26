@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.13.15
-// @date        2016.09.02 - 2017.05.23
+// @version     2.13.16
+// @date        2016.09.02 - 2017.05.26
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -427,17 +427,17 @@ function biggerAvatar() {
   avatarImg.src = avatarImg.src.replace('/as/', '/a/');
 }
 
-function loadTagsAsync(userId) {
+function loadTagsAsync() {
   return new Promise(function(resolve, reject) {
     setTimeout(function(){
       GM_xmlhttpRequest({
         method: 'GET',
-        url: setProto('//juick.com/' + userId + '/tags'),
+        url: setProto('//juick.com/post'),
         onload: function(response) {
           if (response.status != 200) {
             reject(`failed to load tags: ${response.status}, ${response.statusText}`);
           } else {
-            const re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
+            const re = /<p style="text-align: justify">([\s\S]+)<\/p>[\s]*<\/section>/i;
             let [result, tagsStr] = re.exec(response.responseText);
             if(result !== null) {
               let tagsContainer = document.createElement('p');
@@ -456,17 +456,16 @@ function loadTagsAsync(userId) {
 
 function addEasyTagsUnderPostEditorSharp() {
   if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
-  let userId = document.querySelector('nav#actions > ul > li:nth-child(2) > a').textContent.replace('@', '');
-  loadTagsAsync(userId).then(
+  loadTagsAsync().then(
     tagsContainer => {
-      let messageform = document.getElementById('newmessage');
-      let tagsfield = messageform.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
-      messageform.getElementsByTagName('div')[0].appendChild(tagsContainer);
+      let messageForm = document.getElementById('newmessage');
+      let tagsField = messageForm.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
+      messageForm.getElementsByTagName('div')[0].appendChild(tagsContainer);
       sortAndColorizeTagsInContainer(tagsContainer, 60, true);
       Array.from(tagsContainer.children).forEach(t => {
         let newTag = t.textContent;
         t.href = '';
-        t.onclick = (e => { e.preventDefault(); tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); });
+        t.onclick = (e => { e.preventDefault(); tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim(); });
       });
     }
   ).catch( err => console.warn(err) );
@@ -501,8 +500,14 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
 
 function sortTagsPage() {
   if (!GM_getValue('enable_tags_page_coloring', true)) { return; }
-  let tagsContainer = document.querySelector('section#content > p');
-  sortAndColorizeTagsInContainer(tagsContainer, null, true);
+  loadTagsAsync().then(
+    tagsContainer => {
+      let contentSection = document.querySelector('section#content');
+      removeAllFrom(contentSection);
+      contentSection.appendChild(tagsContainer);
+      sortAndColorizeTagsInContainer(tagsContainer, null, true);
+    }
+  ).catch(err => console.warn(err));
 }
 
 function colorizeTagsInUserColumn() {
