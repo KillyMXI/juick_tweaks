@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.13.1
-// @date        2016.09.02 - 2017.05.19
+// @version     2.13.15
+// @date        2016.09.02 - 2017.05.23
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -66,19 +66,19 @@
 
 // pages and elements =====================================================================================
 
-var isBeta = (window.location.hostname == 'beta.juick.com');
-if (isBeta && !GM_getValue('enable_beta', true)) { return; }
+const isBeta = (window.location.hostname == 'beta.juick.com');
+if (isBeta && !GM_getValue('enable_beta', true)) { throw 'NOT an error! Preventing the script from running on beta.'; }
 
-var content = document.getElementById('content');
-var isPost = (content !== null) && content.hasAttribute('data-mid');
-var isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
-var isCommonFeed = (/^(?:https?:)?\/\/juick\.com\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
-var isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
-var isTagsPage = window.location.pathname.endsWith('/tags');
-var isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
-var isSettingsPage = window.location.pathname.endsWith('/settings');
-var isUserColumn = (document.querySelector('aside#column > div#ctitle:not(.tag)') === null) ? false : true;
-var isUsersTable = (document.querySelector('table.users') === null) ? false : true;
+const content = document.getElementById('content');
+const isPost = (content !== null) && content.hasAttribute('data-mid');
+const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
+const isCommonFeed = (/^(?:https?:)?\/\/juick\.com\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
+const isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
+const isTagsPage = window.location.pathname.endsWith('/tags');
+const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
+const isSettingsPage = window.location.pathname.endsWith('/settings');
+const isUserColumn = (document.querySelector('aside#column > div#ctitle:not(.tag)') === null) ? false : true;
+const isUsersTable = (document.querySelector('#content > div.users') === null) ? false : true;
 
 
 // userscript features =====================================================================================
@@ -101,6 +101,7 @@ if(isFeed) {                            // в ленте или любом сп�
   }
   tryRun(checkReplyArticles);
   tryRun(updateTagsInFeed);
+  tryRun(markNsfwPostsInFeed);
   tryRun(embedLinksToArticles);
 }
 
@@ -133,6 +134,8 @@ if(isSettingsPage) {                    // на странице настрое�
   tryRun(addTweaksSettingsButton);
 }
 
+tryRun(addToggleBetaLink);
+
 
 // helpers ==================================================================================================
 
@@ -140,13 +143,13 @@ Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
 
 String.prototype.count = function(s1) {
   return (this.length - this.replace(new RegExp(s1, 'g'), '').length) / s1.length;
-}
+};
 
 Number.prototype.pad = function(size=2) {
   let s = String(this);
   while (s.length < size) { s = '0' + s; }
   return s;
-}
+};
 
 function longest(arr) {
   return arr.reduce((a,b) => (!a) ? b : (!b || a.length > b.length) ? a : b);
@@ -158,7 +161,7 @@ function intersect(a, b) {
 }
 
 function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+  referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
 function moveAll(fromNode, toNode) {
@@ -275,8 +278,7 @@ function setProto(url, proto) {
 }
 
 function tryRun(f) {
-  try { f() }
-  catch (e) {
+  try { f(); } catch (e) {
     console.warn(`Failed to run ${f.name}()`);
     console.warn(e);
   }
@@ -297,7 +299,7 @@ function updateTagsOnAPostPage() {
 }
 
 function updateTagsInFeed() {
-  if (!GM_getValue('enable_user_tag_links_in_feed', true)) { return; }
+  if (!GM_getValue('enable_user_tag_links_in_feed', false)) { return; }
   [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     if (!article.hasAttribute('data-mid')) { return; }
     let userId = article.querySelector('div.msg-avatar > a > img').alt;
@@ -307,9 +309,19 @@ function updateTagsInFeed() {
   });
 }
 
+function markNsfwPostsInFeed() {
+  if (!GM_getValue('enable_mark_nsfw_posts_in_feed', true)) { return; }
+  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
+    if (!article.hasAttribute('data-mid')) { return; }
+    let tagsDiv = article.querySelector('div.msg-tags');
+    let isNsfw = (tagsDiv !== null) && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
+    if(isNsfw) { article.classList.add('nsfw'); }
+  });
+}
+
 function addTagEditingLinkUnderPost() {
   if (!GM_getValue('enable_tags_editing_link', true)) { return; }
-  let mtoolbar = document.getElementById('mtoolbar').children[0];
+  let mtoolbar = document.querySelector('#content li.toolbar ul');
   let canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
   if (!canEdit) { return; }
   let linode = document.createElement('li');
@@ -351,18 +363,19 @@ function addTagPageToolbar() {
   if (!GM_getValue('enable_tag_page_toolbar', true)) { return; }
   let asideColumn = document.querySelector('aside#column');
   let tag = document.location.pathname.split('/').pop(-1);
-  let html = '<div id="ctitle" class="tag"><a href="/tag/%TAG%">*%TAGSTR%</a></div>' +
-      '<ul id="ctoolbar">' +
-      '<li><a href="/post?body=S+%2a%TAG%" title="Подписаться"><div style="background-position: -16px 0"></div></a></li>' +
-      '<li><a href="/post?body=BL+%2a%TAG%" title="Заблокировать"><div style="background-position: -80px 0"></div></a></li>' +
-      '</ul>';
-  html = html.replace(/%TAG%/g, tag).replace(/%TAGSTR%/g, decodeURIComponent(tag));
+  let html = `
+    <div id="ctitle" class="tag"><a href="/tag/${tag}">*${decodeURIComponent(tag)}</a></div>
+    <ul class="toolbar">
+      <li><a href="/post?body=S+%2a${tag}" title="Подписаться"><div style="background-position: -16px 0"></div></a></li>
+      <li><a href="/post?body=BL+%2a${tag}" title="Заблокировать"><div style="background-position: -80px 0"></div></a></li>
+    </ul>
+    `;
   asideColumn.innerHTML = html + asideColumn.innerHTML;
 }
 
 function addYearLinks() {
   if (!GM_getValue('enable_year_links', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent;
+  let userId = document.querySelector('div#ctitle a').textContent.trim();
   let asideColumn = document.querySelector('aside#column');
   let hr1 = asideColumn.querySelector('p.tags + hr');
   let hr2 = document.createElement('hr');
@@ -392,7 +405,7 @@ function addYearLinks() {
 
 function addSettingsLink() {
   if (!GM_getValue('enable_settings_link', true)) { return; }
-  let columnUserId = document.querySelector('div#ctitle a').textContent;
+  let columnUserId = document.querySelector('div#ctitle a').textContent.trim();
   let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
   let myUserId = (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
   if (columnUserId == myUserId) {
@@ -421,15 +434,19 @@ function loadTagsAsync(userId) {
         method: 'GET',
         url: setProto('//juick.com/' + userId + '/tags'),
         onload: function(response) {
-          const re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
-          let [result, tagsStr] = re.exec(response.responseText);
-          if(result !== null) {
-            let tagsContainer = document.createElement('p');
-            tagsContainer.classList.add('tagsContainer');
-            tagsContainer.innerHTML = tagsStr;
-            resolve(tagsContainer);
+          if (response.status != 200) {
+            reject(`failed to load tags: ${response.status}, ${response.statusText}`);
           } else {
-            reject('no tags found');
+            const re = /<section id\=\"content\">[\s]*<p>([\s\S]+)<\/p>[\s]*<\/section>/i;
+            let [result, tagsStr] = re.exec(response.responseText);
+            if(result !== null) {
+              let tagsContainer = document.createElement('p');
+              tagsContainer.classList.add('tagsContainer');
+              tagsContainer.innerHTML = tagsStr;
+              resolve(tagsContainer);
+            } else {
+              reject('no tags found');
+            }
           }
         }
       });
@@ -450,16 +467,14 @@ function addEasyTagsUnderPostEditorSharp() {
         let newTag = t.textContent;
         t.href = '';
         t.onclick = (e => { e.preventDefault(); tagsfield.value = (tagsfield.value.trim() + ' ' + newTag).trim(); });
-      })
+      });
     }
-  ).catch(
-    err => console.log(err)
-  );
+  ).catch( err => console.warn(err) );
 }
 
 function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   let tags = Array.from(tagsContainer.querySelectorAll('a[title]'));
-  if (tags.length === 0) { return; }
+  if (tags.length === 0) { console.log('No tags with counters.'); return; }
   let [r, g, b] = parseRgbColor(getComputedStyle(tags[0]).color);
   let p0 = 0.7; // 70% of color range is used for color coding
   let maxC = 0.1;
@@ -472,7 +487,7 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
   if (isSorting) {
-    sortedTags.sort((a, b) => a.text.localeCompare(b.text));
+    sortedTags.sort((t1, t2) => t1.text.localeCompare(t2.text));
   }
   removeAllFrom(tagsContainer);
   sortedTags.forEach(t => {
@@ -554,9 +569,8 @@ function sortUsers() {
   let contentBlock = document.getElementById('content');
   let button = document.getElementById('usersSortingButton');
   button.parentNode.removeChild(button);
-  let usersTable = document.querySelector('table.users');
-  let unprocessedUsers = Array.from(usersTable.querySelectorAll('td')).map(td => {
-    let anode = td.firstChild;
+  let usersTable = document.querySelector('div.users');
+  let unprocessedUsers = Array.from(usersTable.querySelectorAll('span > a')).map(anode => {
     let userId = anode.pathname.replace(/\//g, '');
     return {a: anode, id: userId, date: (new Date(1970, 1, 1))};
   });
@@ -564,10 +578,10 @@ function sortUsers() {
     processedUsers => {
       processedUsers.sort((b, a) => (a.date > b.date) - (a.date < b.date));
       usersTable.parentNode.removeChild(usersTable);
-      let ul = document.createElement('ul');
-      ul.className = 'users';
+      let ul = document.createElement('div');
+      ul.className = 'users sorted';
       processedUsers.forEach(user => {
-        let li = document.createElement('li');
+        let li = document.createElement('span');
         li.appendChild(user.a);
         ul.appendChild(li);
       });
@@ -579,7 +593,7 @@ function sortUsers() {
 function addUsersSortingButton() {
   if (!GM_getValue('enable_users_sorting', true)) { return; }
   let contentBlock = document.getElementById('content');
-  let usersTable = document.querySelector('table.users');
+  let usersTable = document.querySelector('div.users');
   let button = document.createElement('button');
   button.id = 'usersSortingButton';
   button.textContent='Sort by date';
@@ -634,7 +648,7 @@ function makeIframeWithHtmlAndId(myHTML) {
                  })(${JSON.stringify(myHTML)});`;
   window.eval(script);
   return id;
-};
+}
 
 function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
   let iframeId = makeIframeWithHtmlAndId(html);
@@ -691,8 +705,7 @@ function loadScript(url, async=false, callback, once=false) {
   head.appendChild(script);
 }
 
-function addScript(scriptString, once=false)
-{
+function addScript(scriptString, once=false) {
   if (once && [].some.call(document.scripts, s => s.text == scriptString)) { return; }
 
   let head = document.getElementsByTagName('head')[0];
@@ -705,10 +718,10 @@ function addScript(scriptString, once=false)
 function splitScriptsFromHtml(html) {
   const scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
   let scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(m => {
-      let [, url, s] = m;
-      return (url !== undefined)
-        ? { call: function(){ loadScript(url, true); } }
-        : { call: function(){ setTimeout(window.eval(s), 0); } };
+    let [, url, s] = m;
+    return (url !== undefined)
+      ? { call: function(){ loadScript(url, true); } }
+      : { call: function(){ setTimeout(window.eval(s), 0); } };
   });
   let strippedHtml = html.replace(scriptRe, '');
   return [strippedHtml, scripts];
@@ -739,7 +752,7 @@ function messageReplyReplace(messageId) {
     let msgPart = '//juick.com/' + (mid || messageId);
     let replyPart = (rid && rid != '0') ? '#' + rid : '';
     return `<a href="${msgPart}${replyPart}">${match}</a>`;
-  }
+  };
 }
 
 function juickPostParse(txt, messageId) {
@@ -767,6 +780,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Juick',
       id: 'embed_juick',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
       makeNode: function(aNode, reResult, div) {
@@ -862,6 +876,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
+      onByDefault: false,
       ctsDefault: false,
       re: /\.(jpeg|jpg|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -876,6 +891,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gif images',
       id: 'embed_gif_images',
+      onByDefault: false,
       ctsDefault: true,
       re: /\.gif(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -890,6 +906,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Webm and mp4 video',
       id: 'embed_webm_and_mp4_videos',
+      onByDefault: false,
       ctsDefault: false,
       re: /\.(webm|mp4)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -902,6 +919,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Mp3 and ogg audio',
       id: 'embed_sound_files',
+      onByDefault: false,
       ctsDefault: false,
       re: /\.(mp3|ogg)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -914,6 +932,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
+      onByDefault: false,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
@@ -943,6 +962,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Vimeo videos',
       id: 'embed_vimeo_videos',
+      onByDefault: false,
       ctsDefault: false,
       //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
@@ -953,6 +973,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Dailymotion videos',
       id: 'embed_youtube_videos',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
       makeNode: function(aNode, reResult) {
@@ -962,16 +983,18 @@ function getEmbedableLinkTypes() {
     {
       name: 'Coub clips',
       id: 'embed_coub_clips',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/(?:view|embed)\/([a-zA-Z\d]+)/i,
       makeNode: function(aNode, reResult) {
-        var embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
+        let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         return wrapIntoTag(makeIframe(embedUrl, 640, 360), 'div', 'coub');
       }
     },
     {
       name: 'Bandcamp music',
       id: 'embed_bandcamp_music',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1015,16 +1038,18 @@ function getEmbedableLinkTypes() {
     {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?(?!tracks$)([-%\w]*))(?:\/)?/i,
       makeNode: function(aNode, reResult) {
-        var embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
+        let embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
         return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
       }
     },
     {
       name: 'Mixcloud music',
       id: 'embed_mixcloud_music',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-%\w]+)\/?/i,
       makeNode: function(aNode, reResult, div) {
@@ -1057,6 +1082,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Instagram',
       id: 'embed_instagram',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
@@ -1066,6 +1092,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Flickr images',
       id: 'embed_flickr_images',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:(?:www\.)?flickr\.com\/photos\/([\w@-]+)\/(\d+)|flic.kr\/p\/(\w+))(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
@@ -1103,6 +1130,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'DeviantArt images',
       id: 'embed_deviantart_images',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1148,6 +1176,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Imgur gifv videos',
       id: 'embed_imgur_gifv_videos',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/([a-zA-Z\d]+)\.gifv/i,
       makeNode: function(aNode, reResult) {
@@ -1160,6 +1189,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Imgur indirect links',
       id: 'embed_imgur_indirect_links',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#\d{1,2}$|#([a-zA-Z\d]+))?(\/\w+)?$/i,
       makeNode: function(aNode, reResult, div) {
@@ -1184,8 +1214,8 @@ function getEmbedableLinkTypes() {
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var json = JSON.parse(response.responseText);
-            var iframe = makeIframeHtml(json.html, '100%', 24, doc => {
+            let json = JSON.parse(response.responseText);
+            let iframe = makeIframeHtml(json.html, '100%', 24, doc => {
               waitAndRun(
                 () => (doc.querySelector('iframe') !== null),
                 () => {
@@ -1205,6 +1235,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gfycat indirect links',
       id: 'embed_gfycat_indirect_links',
+      onByDefault: true,
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:\w+\.)?gfycat\.com\/([a-zA-Z\d]+)$/i,
       makeNode: function(aNode, reResult) {
@@ -1214,6 +1245,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Twitter',
       id: 'embed_twitter_status',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status\/([\d]+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1292,6 +1324,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Facebook',
       id: 'embed_facebook',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/(?:posts|videos|photos)\/[\w:./]+(?:\?[\w=%&.]+)?|(?:photo|video)\.php\?[\w=%&.]+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1324,6 +1357,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Google+',
       id: 'embed_google_plus',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/plus\.google\.com\/(?:u\/0\/)?(\d+|\+[\w%]+)\/posts\/(\w+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1354,6 +1388,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Tumblr',
       id: 'embed_tumblr',
+      onByDefault: true,
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([-%\w]*))?/i,
       makeNode: function(aNode, reResult, div) {
@@ -1399,6 +1434,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Reddit',
       id: 'embed_reddit',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|np\.|m\.)?reddit\.com\/r\/([\w]+)\/comments\/(\w+)(?:\/(?:\w+(?:\/(\w+)?)?)?)?/i,
       makeNode: function(aNode, reResult, div) {
@@ -1447,6 +1483,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'WordPress',
       id: 'embed_wordpress',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w%\u0400-\u04FF]+)(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
@@ -1483,6 +1520,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'SlideShare',
       id: 'embed_slideshare',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1521,6 +1559,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gist',
       id: 'embed_gist',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
       makeNode: function(aNode, reResult, div) {
@@ -1558,6 +1597,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'JSFiddle',
       id: 'embed_jsfiddle',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
       makeNode: function(aNode, reResult) {
@@ -1568,6 +1608,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Codepen',
       id: 'embed_codepen',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/codepen\.io\/(\w+)\/(?:pen|full)\/(\w+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1601,6 +1642,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Pixiv',
       id: 'embed_pixiv',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/www\.pixiv\.net\/member_illust\.php\?((?:\w+=\w+&)*illust_id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1656,6 +1698,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Gelbooru',
       id: 'embed_gelbooru',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1696,7 +1739,7 @@ function getEmbedableLinkTypes() {
 
             let createdDateStr = createdAt.toLocaleDateString('ru-RU');
             let changedDateStr = change.toLocaleDateString('ru-RU');
-            if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})` }
+            if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
             let dateDiv = `<div class="date">${createdDateStr}</div>`;
             let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
             let imageStr = `<a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>`;
@@ -1726,6 +1769,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Danbooru',
       id: 'embed_danbooru',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(danbooru|safebooru)\.donmai\.us\/post(?:s|\/show)\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1756,16 +1800,16 @@ function getEmbedableLinkTypes() {
 
             let tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
                             .filter(s => s != '')
-                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://danbooru.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
+                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://${domain}.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
                             .join('<br>');
             let hasNotes = (json.last_noted_at !== null);
             let hasComments = (json.last_commented_at !== null);
             let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
             let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
-            if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})` }
-            var dateDiv = `<div class="date">${createdDateStr}</div>`;
-            var titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
-            var tagsDiv = `<div class="booru-tags">${tagsStr}</div>`;
+            if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})`; }
+            let dateDiv = `<div class="date">${createdDateStr}</div>`;
+            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
+            let tagsDiv = `<div class="booru-tags">${tagsStr}</div>`;
             let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="https://${domain}.donmai.us${json.preview_file_url}"></a>`;
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${tagsDiv}${imageStr}`;
 
@@ -1796,6 +1840,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Konachan',
       id: 'embed_konachan',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/konachan\.(com|net)\/post\/show\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1819,7 +1864,7 @@ function getEmbedableLinkTypes() {
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            var json = (JSON.parse(response.responseText))[0];
+            let json = (JSON.parse(response.responseText))[0];
             if (json === undefined || json.preview_url === undefined) {
               div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>'`;
               return;
@@ -1856,6 +1901,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'yande.re',
       id: 'embed_yandere',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/yande.re\/post\/show\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1887,7 +1933,7 @@ function getEmbedableLinkTypes() {
             let hasComments = (json.last_commented_at !== null && json.last_commented_at !== 0);
             let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
             let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
-            if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})` }
+            if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})`; }
             let dateDiv = `<div class="date">${createdDateStr}</div>`;
             let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
             let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
@@ -1917,6 +1963,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'anime-pictures.net',
       id: 'embed_anime_pictures_net',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/anime-pictures.net\/pictures\/view_post\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
@@ -1964,6 +2011,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Яндекс.Фотки',
       id: 'embed_yandex_fotki',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/img-fotki\.yandex\.ru\/get\/\d+\/[\w\.]+\/[\w]+$/i,
       makeNode: function(aNode, reResult) {
@@ -1978,6 +2026,7 @@ function getEmbedableLinkTypes() {
     {
       name: 'Use meta for other links (whitelist)',
       id: 'embed_whitelisted_domains',
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
       match: function(aNode, reResult) {
@@ -1994,7 +2043,7 @@ function getEmbedableLinkTypes() {
         div.className = 'other embed loading ' + domain.replace(/\./g, '_');
 
         let unembed = (reason) => {
-          if (reason !== undefined) { console.log(`${reason} - ${url}`); };
+          if (reason !== undefined) { console.log(`${reason} - ${url}`); }
           div.innerHTML = '';
           div.className = 'notEmbed';
           aNode.classList.add('notEmbed');
@@ -2105,7 +2154,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   let sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
   if (sameEmbed === null) {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
-      if (GM_getValue(linkType.id, true)) {
+      if (GM_getValue(linkType.id, linkType.onByDefault)) {
         let reResult = linkType.re.exec(aNode.href);
         if (reResult !== null) {
           if ((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
@@ -2173,10 +2222,10 @@ function isFilteredX(x, filteredUsers, filteredTags) {
 function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags) {
   let isCtsPost = isFilteredX(x, ctsUsers, ctsTags);
   let allLinks = x.querySelectorAll(allLinksSelector);
-  
+
   let existingContainer = x.querySelector('div.embedContainer');
   if(existingContainer !== null) {
-    embedLinks(allLinks, embedContainer, isCtsPost);
+    embedLinks(allLinks, existingContainer, isCtsPost);
   } else {
     let embedContainer = document.createElement('div');
     embedContainer.className = 'embedContainer';
@@ -2232,10 +2281,10 @@ function filterPostComments() {
       reply.classList.add('filteredComment');
       reply.querySelector('.msg-txt').remove();
       reply.querySelector('.msg-comment').remove();
-      var linksDiv = reply.querySelector('.msg-links');
+      let linksDiv = reply.querySelector('.msg-links');
       linksDiv.querySelector('.a-thread-comment').remove();
       linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
-      var media = reply.querySelector('.msg-comment');
+      let media = reply.querySelector('.msg-comment');
       if (media !== null) { media.remove(); }
       if(!keepHeader) {
         reply.classList.add('headless');
@@ -2286,7 +2335,9 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
       if ((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
         node.classList.toggle('moved', true);
         node.style.marginTop = `${moveAmount}px`;
-        node.parentNode.querySelector('.movable + .placeholder').setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
+        node.parentNode
+            .querySelector('.movable + .placeholder')
+            .setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
       }
     }
   }
@@ -2309,12 +2360,12 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
     }
   }
 
-  hoverTarget.addEventListener('mouseenter', e => {moveNodeIntoView(movable, avoidTarget, avoidMargin, threshold);}, false);
-  hoverTarget.addEventListener('mouseleave', e => {moveNodeBack(movable);}, false);
+  hoverTarget.addEventListener('mouseenter', e => { moveNodeIntoView(movable, avoidTarget, avoidMargin, threshold); }, false);
+  hoverTarget.addEventListener('mouseleave', e => { moveNodeBack(movable); }, false);
   movable.parentNode.classList.toggle('movableContainer', true);
   movable.classList.toggle('movable', true);
   if (!movable.parentNode.querySelector('.movable + .placeholder')) {
-    var pldr = document.createElement('div');
+    let pldr = document.createElement('div');
     pldr.className = 'placeholder';
     insertAfter(pldr, movable);
   }
@@ -2335,8 +2386,9 @@ function bringCommentsIntoViewOnHover() {
 }
 
 function checkReply(allPostsSelector, replySelector) {
+  let userId = document.querySelector('nav#actions > ul > li:nth-child(2) > a').textContent.replace('@', '');
   Array.from(document.querySelectorAll(allPostsSelector))
-       .filter(p => p.querySelector(replySelector) === null)
+       .filter(p => (p.querySelector(replySelector) === null) && (p.querySelector('div.msg-avatar > a > img').alt != userId))
        .forEach(p => p.classList.add('readonly'));
 }
 
@@ -2360,7 +2412,7 @@ function getUserscriptSettings() {
     {
       name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в ленте',
       id: 'enable_user_tag_links_in_feed',
-      enabledByDefault: true
+      enabledByDefault: false
     },
     {
       name: 'Теги на форме редактирования нового поста (/#post)',
@@ -2446,6 +2498,21 @@ function getUserscriptSettings() {
       name: 'Скрипт активен на beta.juick.com',
       id: 'enable_beta',
       enabledByDefault: true
+    },
+    {
+      name: 'Переключатель между juick.com и beta.juick.com',
+      id: 'enable_toggle_beta',
+      enabledByDefault: false
+    },
+    {
+      name: 'emergency fixes',
+      id: 'enable_emergency_fixes',
+      enabledByDefault: true
+    },
+    {
+      name: 'Take care of NSFW tagged posts in feed',
+      id: 'enable_mark_nsfw_posts_in_feed',
+      enabledByDefault: true
     }
   ];
 }
@@ -2513,7 +2580,7 @@ function showUserscriptSettings() {
     let embedableLinkTypes = getEmbedableLinkTypes();
     embedableLinkTypes.forEach(linkType => {
       let row = document.createElement('tr');
-      row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, true), 'td'));
+      row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, linkType.onByDefault), 'td'));
       row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
       table2.appendChild(row);
     });
@@ -2615,7 +2682,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
       url: setProto(url),
       onload: function(response) {
         if (response.status != 200) {
-          console.log(`${user.id}: failed with ${response.status}, ${response.statusText}`);
+          console.log(`${userId}: failed with ${response.status}, ${response.statusText}`);
           return;
         }
 
@@ -2678,7 +2745,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
         let userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
         let ulNode = document.createElement('ul');
-        ulNode.className = 'users';
+        ulNode.className = 'recUsers';
         ulNode.innerHTML = userStrings.join('');
         article.appendChild(ulNode);
 
@@ -2699,7 +2766,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
 function addIRecommendLink() {
   if (!GM_getValue('enable_irecommend', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent;
+  let userId = document.querySelector('div#ctitle a').textContent.trim();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
@@ -2714,7 +2781,7 @@ function addIRecommendLink() {
 
 function addMentionsLink() {
   if (!GM_getValue('enable_mentions_search', true)) { return; }
-  let userId = document.querySelector('div#ctitle a').textContent;
+  let userId = document.querySelector('div#ctitle a').textContent.trim();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
@@ -2724,6 +2791,21 @@ function addMentionsLink() {
   aNode.href = '//juick.com/?search=%40' + userId;
   liNode.appendChild(aNode);
   insertAfter(liNode, li2);
+}
+
+function addToggleBetaLink() {
+  if (!GM_getValue('enable_toggle_beta', false)) { return; }
+  let aNode = document.createElement('a');
+  aNode.id = 'toggleBetaLink';
+  aNode.href = '#toggleBeta';
+  aNode.textContent = isBeta ? 'beta - go to prod' : 'prod - go to beta';
+  aNode.onclick = (e => {
+    e.preventDefault();
+    window.location.hostname = isBeta ? 'juick.com' : 'beta.juick.com';
+  });
+
+  let body = document.getElementById('body');
+  body.appendChild(aNode);
 }
 
 function addStyle() {
@@ -2767,6 +2849,7 @@ function addStyle() {
     .embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; }
     .twi.embed > .cts > .placeholder { display: inline-block; }
     .embedContainer > .embed.twi .cts > .placeholder { border: 0; }
+    .embedContainer > .youtube { min-width: 90%; }
     .juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; }
     .juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; }
     .juickEmbed > .bottom > .right { margin-top: 5px; display: flex; flex: 0; }
@@ -2793,8 +2876,10 @@ function addStyle() {
     .danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: ${color07}; }
     .danbooru.embed.loaded { min-height: 110px; }
     .danbooru.embed:hover .booru-tags { display: block; }
+    article.nsfw .embedContainer > *,
     .embed .rating_e,
     .embed img.nsfw { opacity: 0.1; }
+    article.nsfw .embedContainer > *:hover,
     .embed .rating_e:hover,
     .embed img.nsfw:hover { opacity: 1.0; }
     .embed.notEmbed { display: none; }
@@ -2827,5 +2912,15 @@ function addStyle() {
     .movableContainer { position: relative; }
     .movableContainer > .placeholder { display: none; }
     .movableContainer .moved+.placeholder { display: block; }
+    .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
+    .users.sorted > span { width: 300px; }
+    #toggleBetaLink { display: block; position: fixed; top: 5px; right: 5px; }
     `);
+  if (GM_getValue('enable_emergency_fixes', true)) {
+    GM_addStyle(`
+      .embedContainer { height: unset; text-align: unset; }
+      .embedContainer embed,.embedContainer iframe,.embedContainer object { position: unset; top: unset; left: unset; width: unset; height: unset; }
+      .embedContainer iframe { resize: both; }
+      `);
+  }
 }
