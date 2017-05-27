@@ -1,0 +1,44 @@
+{
+    "env": {
+        "browser": true,
+        "commonjs": false,
+        "es6": true,
+        "node": false,
+        "greasemonkey": true
+    },
+    "parserOptions": {
+        "ecmaFeatures": {
+            "jsx": true
+        },
+        "sourceType": "script"
+    },
+    "extends": "eslint:recommended",
+    "rules": {
+        "no-const-assign": "warn",
+        "no-this-before-super": "warn",
+        "no-unreachable": "warn",
+        "no-undef": "warn",
+        "constructor-super": "warn",
+        "valid-typeof": "warn",
+        "no-eq-null": "warn",
+        "no-shadow-restricted-names": "warn",
+        "semi": "warn",
+        "keyword-spacing": "warn",
+        "block-spacing": "warn",
+        "arrow-spacing": "warn",
+        "semi-spacing": "warn",
+        "brace-style": ["warn", "1tbs", { "allowSingleLine": true }],
+        "indent": ["warn", 2],
+        "no-tabs": "warn",
+        "linebreak-style": ["warn", "unix"],
+        "eol-last": "warn",
+        "comma-style": "warn",
+        "curly": "warn",
+        "no-var": "warn",
+        "no-shadow": "off",
+        "no-cond-assign": "off",
+        "no-sparse-arrays": "off",
+        "no-console": "off",
+        "no-unused-vars": "off"
+    }
+}
