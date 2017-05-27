@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.13.17
-// @date        2016.09.02 - 2017.05.26
+// @version     2.13.19
+// @date        2016.09.02 - 2017.05.29
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -83,9 +83,9 @@ const isUsersTable = (document.querySelector('#content > div.users') === null) ?
 
 // userscript features =====================================================================================
 
-addStyle();                             // минимальный набор стилей, необходимый для работы скрипта
+addStyle();                              // минимальный набор стилей, необходимый для работы скрипта
 
-if(isPost) {                            // на странице поста
+if (isPost) {                            // на странице поста
   tryRun(filterPostComments);
   tryRun(checkReplyPost);
   tryRun(updateTagsOnAPostPage);
@@ -95,8 +95,8 @@ if(isPost) {                            // на странице поста
   tryRun(embedLinksToPost);
 }
 
-if(isFeed) {                            // в ленте или любом списке постов
-  if(isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
+if (isFeed) {                            // в ленте или любом списке постов
+  if (isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
     tryRun(filterArticles);
   }
   tryRun(checkReplyArticles);
@@ -105,7 +105,7 @@ if(isFeed) {                            // в ленте или любом сп�
   tryRun(embedLinksToArticles);
 }
 
-if(isUserColumn) {                      // если колонка пользователя присутствует слева
+if (isUserColumn) {                      // если колонка пользователя присутствует слева
   tryRun(addYearLinks);
   tryRun(colorizeTagsInUserColumn);
   tryRun(addSettingsLink);
@@ -114,23 +114,23 @@ if(isUserColumn) {                      // если колонка пользо�
   tryRun(addIRecommendLink);
 }
 
-if(isPostEditorSharp) {                 // на форме создания поста (/#post)
+if (isPostEditorSharp) {                 // на форме создания поста (/#post)
   tryRun(addEasyTagsUnderPostEditorSharp);
 }
 
-if(isTagsPage) {                        // на странице тегов пользователя
+if (isTagsPage) {                        // на странице тегов пользователя
   tryRun(sortTagsPage);
 }
 
-if(isSingleTagPage) {                   // на странице тега (/tag/...)
+if (isSingleTagPage) {                   // на странице тега (/tag/...)
   tryRun(addTagPageToolbar);
 }
 
-if(isUsersTable) {                      // на странице подписок или подписчиков
+if (isUsersTable) {                      // на странице подписок или подписчиков
   tryRun(addUsersSortingButton);
 }
 
-if(isSettingsPage) {                    // на странице настроек
+if (isSettingsPage) {                    // на странице настроек
   tryRun(addTweaksSettingsButton);
 }
 
@@ -239,7 +239,7 @@ function randomId() {
 function matchWildcard(str, wildcard) {
   let ww = wildcard.split('*');
   let startFrom = 0;
-  for(var i = 0; i < ww.length; i++) {
+  for (let i = 0; i < ww.length; i++) {
     let w = ww[i];
     if (w == '') { continue; }
     let wloc = str.indexOf(w, startFrom);
@@ -284,6 +284,42 @@ function tryRun(f) {
   }
 }
 
+function xhrGetAsync (url, timeout=3000, predicates) {
+  return new Promise(function(resolve, reject) {
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: url,
+      timeout: timeout,
+      onload: function(response) {
+        if (predicates === undefined) {
+          resolve(response);
+        } else {
+          let match = predicates.find(({msg, p}) => p(response));
+          if (match === undefined) {
+            resolve(response);
+          } else {
+            let {msg, p} = match;
+            reject({reason: msg(response), response: response});
+          }
+        }
+      },
+      ontimeout: function(response) { reject({reason: 'timeout', response: response}); },
+      onerror: function(response) { reject({reason: 'unknown error', response: response}); }
+    });
+  });
+}
+
+function xhrFirstResponse(urls, timeout, predicates) {
+  return urls.reduce ( (p, url) => p.catch(e => xhrGetAsync(url, timeout, predicates)), Promise.reject({reason: 'init'}) );
+}
+
+
+// function definitions =====================================================================================
+
+function svgIconHtml(name) {
+  return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
+}
+
 function getMyUserId() {
   let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
   return (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
@@ -296,12 +332,6 @@ function getColumnUserId() {
 
 function getPostUserId(element) {
   return element.querySelector('div.msg-avatar > a > img').alt;
-}
-
-// function definitions =====================================================================================
-
-function svgIconHtml(name) {
-  return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
 }
 
 function updateTagsOnAPostPage() {
@@ -329,7 +359,7 @@ function markNsfwPostsInFeed() {
     if (!article.hasAttribute('data-mid')) { return; }
     let tagsDiv = article.querySelector('div.msg-tags');
     let isNsfw = (tagsDiv !== null) && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
-    if(isNsfw) { article.classList.add('nsfw'); }
+    if (isNsfw) { article.classList.add('nsfw'); }
   });
 }
 
@@ -449,7 +479,7 @@ function loadTagsAsync() {
           } else {
             const re = /<p style="text-align: justify">([\s\S]+)<\/p>[\s]*<\/section>/i;
             let [result, tagsStr] = re.exec(response.responseText);
-            if(result !== null) {
+            if (result !== null) {
               let tagsContainer = document.createElement('p');
               tagsContainer.classList.add('tagsContainer');
               tagsContainer.innerHTML = tagsStr;
@@ -620,7 +650,7 @@ function turnIntoCts(node, makeNodeCallback) {
   node.onclick = function(e){
     e.preventDefault();
     let newNode = makeNodeCallback();
-    if(newNode !== node) {
+    if (newNode !== node) {
       removeAllFrom(node);
       moveAll(newNode, node);
       node.className = newNode.className;
@@ -851,23 +881,30 @@ function getEmbedableLinkTypes() {
             let withReplies = (msg.replies !== undefined && msg.replies > 0);
             let isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
 
-            let msgLink = `<a href="${linkStr}">${idStr}</a>`;
-            let userLink = `<a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a>`;
-            let avatarStr = `<div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>`;
             let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="//juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
             let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${setProto(msg.photo.small)}"/></a></div>` : '';
-            let titleDiv = `<div class="title">${userLink}</div>`;
-            let dateDiv = `<div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>`;
             let replyStr = (isReply)
                              ? ` in reply to <a class="whiteRabbit" href="//juick.com/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
                              : '';
-            let replyDiv = `<div class="embedReply msg-links">${msgLink}${replyStr}</div>`;
             let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
             let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
-            let description = juickPostParse(msg.body, msgId);
-            let descDiv = '<div class="desc">' + description + '</div>';
-            let topDiv = `<div class="top">${avatarStr}<div class="top-right"><div class="top-right-1st">${titleDiv}${dateDiv}</div><div class="top-right-2nd">${tagsStr}</div></div></div>`;
-            div.innerHTML = `${topDiv}${descDiv}${photoStr}<div class="bottom">${replyDiv}<div class="right">${likesDiv}${commentsDiv}</div></div>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>
+                <div class="top-right">
+                  <div class="top-right-1st">
+                    <div class="title"><a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a></div>
+                    <div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>
+                  </div>
+                  <div class="top-right-2nd">${tagsStr}</div>
+                </div>
+              </div>
+              <div class="desc">${juickPostParse(msg.body, msgId)}</div>${photoStr}
+              <div class="bottom">
+                <div class="embedReply msg-links"><a href="${linkStr}">${idStr}</a>${replyStr}</div>
+                <div class="right">${likesDiv}${commentsDiv}</div>
+              </div>
+              `;
 
             let allLinks = div.querySelectorAll('.desc a, .embedReply a.whiteRabbit');
             let embedContainer = div.parentNode;
@@ -1324,7 +1361,7 @@ function getEmbedableLinkTypes() {
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><div class="desc">${description}</div>`;
             if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
             if (isVideo) {
-              if(videoW > maxWidth) {
+              if (videoW > maxWidth) {
                 videoH = videoH / videoW * maxWidth;
                 videoW = maxWidth;
               }
@@ -1724,57 +1761,52 @@ function getEmbedableLinkTypes() {
         div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'gelbooru booru embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: `http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`,
-          timeout: 3000,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let count, id, previewUrl, rating, createdAt, change, hasNotes=false, hasComments=false;
-            const attributeRe = /(\w+)="([^"]+)"/gmi;
-            let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
-            matches.forEach(([, attr, val]) => {
-              if (attr == 'count') { count = +val; }
-              if (attr == 'id') { id = val; }
-              if (attr == 'preview_url') { previewUrl = val; }
-              if (attr == 'rating') { rating = val; }
-              if (attr == 'created_at') { createdAt = new Date(val); }
-              if (attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
-              if (attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
-              if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
-            });
-            if (count === 0) {
-              div.textContent = illustId + ' is not available';
-              return;
-            }
+        let predicates = [
+          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+        ];
+        xhrGetAsync(`http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`, 3000, predicates).then(response => {
 
-            let createdDateStr = createdAt.toLocaleDateString('ru-RU');
-            let changedDateStr = change.toLocaleDateString('ru-RU');
-            if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
-            let dateDiv = `<div class="date">${createdDateStr}</div>`;
-            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
-            let imageStr = `<a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
-
-            div.className = div.className.replace(' loading', ' loaded');
-          },
-          ontimeout: function(response) {
-            div.textContent = 'Failed to load (time out)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-          },
-          onerror: function(response) {
-            console.log('Unknown error when loading ' + url);
-            console.log(response);
-            div.textContent = 'Failed to load (unknown error)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          let count, id, previewUrl, rating, createdAt, change, hasNotes=false, hasComments=false;
+          const attributeRe = /(\w+)="([^"]+)"/gmi;
+          let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
+          matches.forEach(([, attr, val]) => {
+            if (attr == 'count') { count = +val; }
+            if (attr == 'id') { id = val; }
+            if (attr == 'preview_url') { previewUrl = val; }
+            if (attr == 'rating') { rating = val; }
+            if (attr == 'created_at') { createdAt = new Date(val); }
+            if (attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
+            if (attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
+            if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
+          });
+          if (count === 0) {
+            div.textContent = illustId + ' is not available';
+            return;
           }
+
+          let createdDateStr = createdAt.toLocaleDateString('ru-RU');
+          let changedDateStr = change.toLocaleDateString('ru-RU');
+          if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
+          let ratingStr = (rating == 's') ? '' : ` (${rating})`;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${url}">${id}</a>${ratingStr}${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>
+              <div class="date">${createdDateStr}</div>
+            </div>
+            <a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>
+            `;
+
+          div.className = div.className.replace(' loading', ' loaded');
+
+        }).catch(({reason, response}) => {
+
+          let msg = `Failed to load (${reason})`;
+          console.log(msg);
+          console.log(response);
+          div.textContent = msg;
+          div.className = div.className.replace(' loading', ' failed');
+          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+
         });
 
         return div;
@@ -1797,52 +1829,51 @@ function getEmbedableLinkTypes() {
         div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'danbooru booru embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: `https://${domain}.donmai.us/posts/${id}.json`,
-          timeout: 3000,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            if (json.preview_file_url === undefined) {
-              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
-              return;
-            }
+        let urls = (domain == 'safebooru')
+          ? [`https://${domain}.donmai.us/posts/${id}.json`]
+          : [`https://${domain}.donmai.us/posts/${id}.json`, `https://safebooru.donmai.us/posts/${id}.json`];
+        let predicates = [
+          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+        ];
+        xhrFirstResponse(urls, 3000, predicates).then(response => {
 
-            let tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
-                            .filter(s => s != '')
-                            .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://${domain}.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
-                            .join('<br>');
-            let hasNotes = (json.last_noted_at !== null);
-            let hasComments = (json.last_commented_at !== null);
-            let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
-            let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
-            if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})`; }
-            let dateDiv = `<div class="date">${createdDateStr}</div>`;
-            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
-            let tagsDiv = `<div class="booru-tags">${tagsStr}</div>`;
-            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="https://${domain}.donmai.us${json.preview_file_url}"></a>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${tagsDiv}${imageStr}`;
-
-            div.className = div.className.replace(' loading', ' loaded');
-          },
-          ontimeout: function(response) {
-            div.textContent = 'Failed to load (time out)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-          },
-          onerror: function(response) {
-            console.log('Unknown error when loading ' + url);
-            console.log(response);
-            div.textContent = 'Failed to load (unknown error)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          let [finalUrl, finalDomain, ] = thisType.re.exec(response.finalUrl);
+          let json = JSON.parse(response.responseText);
+          if (json.preview_file_url === undefined) {
+            div.innerHTML = `<span>Can't show <a href="${finalUrl}">${id}</a> (<a href="${url}">${json.rating}</a>)</span>`;
+            return;
           }
+
+          let tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
+                          .filter(s => s != '')
+                          .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://${finalDomain}.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
+                          .join('<br>');
+          let notesStr = (json.last_noted_at !== null) ? ' (notes)' : '';
+          let commentsStr = (json.last_commented_at !== null) ? ' (comments)' : '';
+          let ratingStr = (json.rating == 's') ? '' : ` (<a href="${url}">${json.rating}</a>)`;
+          let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
+          let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
+          if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})`; }
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${finalUrl}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
+              <div class="date">${createdDateStr}</div>
+            </div>
+            <div class="booru-tags">${tagsStr}</div>
+            <a href="${finalUrl}"><img class="rating_${json.rating}" src="https://${finalDomain}.donmai.us${json.preview_file_url}"></a>
+            `;
+
+          div.className = div.className.replace(' loading', ' loaded');
+
+        }).catch(({reason, response}) => {
+
+          let msg = `Failed to load (${reason})`;
+          console.log(msg);
+          console.log(response);
+          div.textContent = msg;
+          div.className = div.className.replace(' loading', ' failed');
+          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+
         });
 
         return div;
@@ -1869,44 +1900,38 @@ function getEmbedableLinkTypes() {
         div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'konachan booru embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://konachan.net/post.json?tags=id:' + id,
-          timeout: 3000,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = (JSON.parse(response.responseText))[0];
-            if (json === undefined || json.preview_url === undefined) {
-              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>'`;
-              return;
-            }
+        let predicates = [
+          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+        ];
+        xhrGetAsync('https://konachan.net/post.json?tags=id:' + id, 3000, predicates).then(response => {
 
-            let createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
-            let dateDiv = `'<div class="date">${createdDateStr}</div>'`;
-            let ratingStr = (json.rating == 's') ? '' : ` (<a href="${unsafeUrl}">${json.rating}</a>)`;
-            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${ratingStr}</div>`;
-            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
-
-            div.className = div.className.replace(' loading', ' loaded');
-          },
-          ontimeout: function(response) {
-            div.textContent = 'Failed to load (time out)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-          },
-          onerror: function(response) {
-            console.log('Unknown error when loading ' + url);
-            console.log(response);
-            div.textContent = 'Failed to load (unknown error)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          let json = (JSON.parse(response.responseText))[0];
+          if (json === undefined || json.preview_url === undefined) {
+            div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (<a href="${unsafeUrl}">${json.rating}</a>)</span>'`;
+            return;
           }
+
+          let createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
+          let ratingStr = (json.rating == 's') ? '' : ` (<a href="${unsafeUrl}">${json.rating}</a>)`;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${url}">${id}</a>${ratingStr}</div>
+              <div class="date">${createdDateStr}</div>
+            </div>
+            <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>
+            `;
+
+          div.className = div.className.replace(' loading', ' loaded');
+
+        }).catch(({reason, response}) => {
+
+          let msg = `Failed to load (${reason})`;
+          console.log(msg);
+          console.log(response);
+          div.textContent = msg;
+          div.className = div.className.replace(' loading', ' failed');
+          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+
         });
 
         return div;
@@ -1928,47 +1953,41 @@ function getEmbedableLinkTypes() {
         div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
         div.className = 'yandere booru embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://yande.re/post.json?tags=id:' + id,
-          timeout: 3000,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = (JSON.parse(response.responseText))[0];
-            if (json === undefined || json.preview_url === undefined) {
-              div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
-              return;
-            }
+        let predicates = [
+          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+        ];
+        xhrGetAsync('https://yande.re/post.json?tags=id:' + id, 3000, predicates).then(response => {
 
-            let hasNotes = (json.last_noted_at !== null && json.last_noted_at !== 0);
-            let hasComments = (json.last_commented_at !== null && json.last_commented_at !== 0);
-            let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
-            let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
-            if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})`; }
-            let dateDiv = `<div class="date">${createdDateStr}</div>`;
-            let titleDiv = `<div class="title"><a href="${url}">${id}</a>${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>`;
-            let imageStr = `<a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>${imageStr}`;
-
-            div.className = div.className.replace(' loading', ' loaded');
-          },
-          ontimeout: function(response) {
-            div.textContent = 'Failed to load (time out)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-          },
-          onerror: function(response) {
-            console.log('Unknown error when loading ' + url);
-            console.log(response);
-            div.textContent = 'Failed to load (unknown error)';
-            div.className = div.className.replace(' loading', ' failed');
-            turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+          let json = (JSON.parse(response.responseText))[0];
+          if (json === undefined || json.preview_url === undefined) {
+            div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (${json.rating})</span>`;
+            return;
           }
+
+          let ratingStr = (json.rating == 's') ? '' : ` (${json.rating})`;
+          let notesStr = (json.last_noted_at !== null && json.last_noted_at !== 0) ? ' (notes)' : '';
+          let commentsStr = (json.last_commented_at !== null && json.last_commented_at !== 0) ? ' (comments)' : '';
+          let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
+          let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
+          if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})`; }
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${url}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
+              <div class="date">${createdDateStr}</div>
+            </div>
+            <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
+
+          div.className = div.className.replace(' loading', ' loaded');
+
+        }).catch(({reason, response}) => {
+
+          let msg = `Failed to load (${reason})`;
+          console.log(msg);
+          console.log(response);
+          div.textContent = msg;
+          div.className = div.className.replace(' loading', ' failed');
+          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+
         });
 
         return div;
@@ -2184,7 +2203,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           }
           if (!newNode) { return false; }
           aNode.classList.add('embedLink');
-          if(GM_getValue('enable_arrows', true)) {
+          if (GM_getValue('enable_arrows', true)) {
             aNode.classList.add('arrow');
           }
           if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
@@ -2239,7 +2258,7 @@ function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTag
   let allLinks = x.querySelectorAll(allLinksSelector);
 
   let existingContainer = x.querySelector('div.embedContainer');
-  if(existingContainer !== null) {
+  if (existingContainer !== null) {
     embedLinks(allLinks, existingContainer, isCtsPost);
   } else {
     let embedContainer = document.createElement('div');
@@ -2301,7 +2320,7 @@ function filterPostComments() {
       linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
       let media = reply.querySelector('.msg-comment');
       if (media !== null) { media.remove(); }
-      if(!keepHeader) {
+      if (!keepHeader) {
         reply.classList.add('headless');
         reply.querySelector('.msg-header').remove();
       }
@@ -2634,8 +2653,7 @@ function showUserscriptSettings() {
     resetButton.textContent='Reset userscript settings to default';
     resetButton.onclick = function(e){
       if (!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
-      let keys = GM_listValues();
-      for (var i=0, key=null; key=keys[i]; i++) { GM_deleteValue(key); }
+      GM_listValues().slice().forEach(key => GM_deleteValue(key));
       showUserscriptSettings();
       alert('Done!');
     };
@@ -2891,10 +2909,13 @@ function addStyle() {
     .danbooru.embed .booru-tags { display: none; position:absolute; bottom: 0.5em; right: 0.5em; font-size: small; text-align: right; color: ${color07}; }
     .danbooru.embed.loaded { min-height: 110px; }
     .danbooru.embed:hover .booru-tags { display: block; }
-    article.nsfw .embedContainer > *,
+    article.nsfw .embedContainer img,
+    article.nsfw .embedContainer iframe,
     .embed .rating_e,
     .embed img.nsfw { opacity: 0.1; }
-    article.nsfw .embedContainer > *:hover,
+    article.nsfw .embedContainer img:hover,
+    article.nsfw .embedContainer iframe:hover,
+    article.nsfw .embedContainer .msg-avatar img,
     .embed .rating_e:hover,
     .embed img.nsfw:hover { opacity: 1.0; }
     .embed.notEmbed { display: none; }
