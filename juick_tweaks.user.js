@@ -918,7 +918,7 @@ function getEmbeddableLinkTypes() {
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div');
+        return wrapIntoTag(aNode2, 'div', 'picture');
       }
     },
     {
@@ -933,7 +933,7 @@ function getEmbeddableLinkTypes() {
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div');
+        return wrapIntoTag(aNode2, 'div', 'picture');
       }
     },
     {
@@ -2839,8 +2839,10 @@ function addStyle() {
   GM_addStyle(`
     .embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; }
+    .embedContainer .picture img { display: block; }
     .embedContainer img,
     .embedContainer video { max-width: 100%; max-height: 80vh; }
+    .embedContainer .audio { min-width: 90%; }
     .embedContainer audio { width: 100%; }
     .embedContainer iframe { overflow:hidden; resize: vertical; }
     .embedContainer > .embed { width: 100%; border: 1px solid ${color02}; padding: 0.5em; display: flex; flex-direction: column; }
