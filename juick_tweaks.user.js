@@ -711,26 +711,6 @@ function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
   return iframe;
 }
 
-// this doesn't work in FF + GreaseMonkey.
-function makeIframeHtml2(html, w, h, onloadCallback, onerrorCallback) {
-  let iframe = document.createElement('iframe');
-  iframe.className = 'newIframe';
-  iframe.width = w;
-  iframe.height = h;
-  iframe.frameBorder = 0;
-  iframe.onload = function() {
-    let doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    if (typeof onloadCallback == 'function') { onloadCallback(doc); }
-  };
-  if (typeof onerrorCallback == 'function') {
-    iframe.onerror = onerrorCallback;
-  }
-  return iframe;
-}
-
 function loadScript(url, async=false, callback, once=false) {
   if (once && [].some.call(document.scripts, s => s.src == url)) {
     if (typeof callback == 'function') { callback(); }
