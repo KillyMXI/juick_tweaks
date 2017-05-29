@@ -517,11 +517,12 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   let [r, g, b] = parseRgbColor(getComputedStyle(tags[0]).color);
   let p0 = 0.7; // 70% of color range is used for color coding
   let maxC = 0.1;
-  let sortedTags = tags.map(a => {
+  const tagInfo = a => {
     let c = Math.log(parseInt(a.title, 10));
     maxC = (c > maxC) ? c : maxC;
     return { c: c, a: a, text: a.textContent.toLowerCase() };
-  });
+  };
+  let sortedTags = tags.map(tagInfo).sort((t1, t2) => t2.c - t1.c);
   if ((numberLimit) && (sortedTags.length > numberLimit)) {
     sortedTags = sortedTags.slice(0, numberLimit);
   }
