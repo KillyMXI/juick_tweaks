@@ -965,6 +965,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let video = document.createElement('video');
         video.src = aNode.href;
+        video.title = aNode.href;
         video.setAttribute('controls', '');
         return wrapIntoTag(video, 'div', 'video');
       }
@@ -978,6 +979,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let audio = document.createElement('audio');
         audio.src = aNode.href;
+        audio.title = aNode.href;
         audio.setAttribute('controls', '');
         return wrapIntoTag(audio, 'div', 'audio');
       }
@@ -1235,6 +1237,7 @@ function getEmbedableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let video = document.createElement('video');
         video.src = '//i.imgur.com/' + reResult[1] + '.mp4';
+        video.title = aNode.href + '\n' + video.src;
         video.setAttribute('controls', '');
         return wrapIntoTag(video, 'div', 'video');
       }
