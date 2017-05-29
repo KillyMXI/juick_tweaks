@@ -820,7 +820,7 @@ function juickId([, userId, postId, replyId]) {
   return '#' + postId + (isReply ? '/' + replyId : '');
 }
 
-function getEmbedableLinkTypes() {
+function getEmbeddableLinkTypes() {
   return [
     {
       name: 'Juick',
@@ -2229,9 +2229,9 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
 
 function embedLinks(aNodes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
-  let embedableLinkTypes = getEmbedableLinkTypes();
+  let embeddableLinkTypes = getEmbeddableLinkTypes();
   Array.from(aNodes).forEach(aNode => {
-    let isEmbedded = embedLink(aNode, embedableLinkTypes, container, alwaysCts, afterNode);
+    let isEmbedded = embedLink(aNode, embeddableLinkTypes, container, alwaysCts, afterNode);
     anyEmbed = anyEmbed || isEmbedded;
   });
   return anyEmbed;
@@ -2614,8 +2614,7 @@ function showUserscriptSettings() {
 
     let table2 = document.createElement('table');
     table2.style.width = '100%';
-    let embedableLinkTypes = getEmbedableLinkTypes();
-    embedableLinkTypes.forEach(linkType => {
+    getEmbeddableLinkTypes().forEach(linkType => {
       let row = document.createElement('tr');
       row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, linkType.onByDefault), 'td'));
       row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
