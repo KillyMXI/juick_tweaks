@@ -957,11 +957,11 @@ function getEmbedableLinkTypes() {
       }
     },
     {
-      name: 'Webm and mp4 video',
+      name: 'Video (webm, mp4, ogv)',
       id: 'embed_webm_and_mp4_videos',
       onByDefault: false,
       ctsDefault: false,
-      re: /\.(webm|mp4)(?:\?[\w&;\?=]*)?$/i,
+      re: /\.(webm|mp4|m4v|ogv)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         let video = document.createElement('video');
         video.src = aNode.href;
@@ -970,11 +970,11 @@ function getEmbedableLinkTypes() {
       }
     },
     {
-      name: 'Mp3 and ogg audio',
+      name: 'Audio (mp3, ogg, weba, opus, m4a, oga, wav)',
       id: 'embed_sound_files',
       onByDefault: false,
       ctsDefault: false,
-      re: /\.(mp3|ogg)(?:\?[\w&;\?=]*)?$/i,
+      re: /\.(mp3|ogg|weba|opus|m4a|oga|wav)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
         let audio = document.createElement('audio');
         audio.src = aNode.href;
