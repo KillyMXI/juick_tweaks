@@ -2198,11 +2198,15 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           } else {
             container.appendChild(newNode);
           }
-          //setHighlightOnHover(aNode, newNode);
+          setHighlightOnHover(aNode, newNode);
+          //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
           return true;
         }
       }
     });
+  } else {
+    setHighlightOnHover(aNode, sameEmbed);
+    //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
   }
   return anyEmbed;
 }
@@ -2312,6 +2316,7 @@ function filterPostComments() {
 }
 
 function setHighlightOnHover(hoverTarget, highlightable) {
+  highlightable.classList.toggle('highlightable', true);
   hoverTarget.addEventListener('mouseenter', e => highlightable.classList.toggle('hoverHighlight', true), false);
   hoverTarget.addEventListener('mouseleave', e => highlightable.classList.toggle('hoverHighlight', false), false);
 }
@@ -2928,7 +2933,8 @@ function addStyle() {
     div.readonly > .msg-txt { opacity: 0.55; }
     .movable { transition: all 0.2s ease-out 0.2s; transition-property: margin, margin-top; }
     .movable.moved { position: absolute; z-index: 10; }
-    .movable.hoverHighlight { outline: 1px solid ${color10} !important; }
+    .movable.hoverHighlight,
+    .highlightable.hoverHighlight { outline: 1px solid ${color10} !important; }
     .movableContainer { position: relative; }
     .movableContainer > .placeholder { display: none; }
     .movableContainer .moved+.placeholder { display: block; }
