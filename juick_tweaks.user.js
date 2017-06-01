@@ -2206,6 +2206,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
       }
     });
   } else {
+    if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
     setHighlightOnHover(aNode, sameEmbed);
     //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
   }
