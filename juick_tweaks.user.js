@@ -939,7 +939,7 @@ function getEmbeddableLinkTypes() {
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div', 'picture');
+        return wrapIntoTag(aNode2, 'div', 'picture compact');
       }
     },
     {
@@ -954,7 +954,7 @@ function getEmbeddableLinkTypes() {
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div', 'picture');
+        return wrapIntoTag(aNode2, 'div', 'picture compact');
       }
     },
     {
@@ -968,7 +968,7 @@ function getEmbeddableLinkTypes() {
         video.src = aNode.href;
         video.title = aNode.href;
         video.setAttribute('controls', '');
-        return wrapIntoTag(video, 'div', 'video');
+        return wrapIntoTag(video, 'div', 'video compact');
       }
     },
     {
@@ -1252,7 +1252,7 @@ function getEmbeddableLinkTypes() {
         video.src = '//i.imgur.com/' + reResult[1] + '.mp4';
         video.title = aNode.href + '\n' + video.src;
         video.setAttribute('controls', '');
-        return wrapIntoTag(video, 'div', 'video');
+        return wrapIntoTag(video, 'div', 'video compact');
       }
     },
     {
@@ -2071,7 +2071,7 @@ function getEmbeddableLinkTypes() {
         imgNode.src = aNode.href;
         aNode2.href = aNode.href;
         aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div');
+        return wrapIntoTag(aNode2, 'div', 'picture compact');
       }
     },
     {
@@ -2890,14 +2890,15 @@ function addStyle() {
     GM_addStyle('.tagsContainer a { min-width: 25px; display: inline-block; text-align: center; }');
   }
   GM_addStyle(`
-    .embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; }
+    .embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; }
+    .embedContainer > .compact { flex-grow: 0; }
     .embedContainer .picture img { display: block; }
     .embedContainer img,
     .embedContainer video { max-width: 100%; max-height: 80vh; }
     .embedContainer .audio { min-width: 90%; }
     .embedContainer audio { width: 100%; }
-    .embedContainer iframe { overflow:hidden; resize: vertical; }
+    .embedContainer iframe { overflow:hidden; resize: vertical; display: block; }
     .embedContainer > .embed { width: 100%; border: 1px solid ${color02}; padding: 0.5em; display: flex; flex-direction: column; }
     .embedContainer > .embed.loading,
     .embedContainer > .embed.failed { text-align: center; color: ${color07}; padding: 0; }
