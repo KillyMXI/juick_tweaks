@@ -683,13 +683,25 @@ function makeCts(makeNodeCallback, title) {
 
 function makeIframe(src, w, h, scrolling='no') {
   let iframe = document.createElement('iframe');
-  iframe.width = w;
-  iframe.height = h;
+  iframe.style.width = w;
+  iframe.style.height = h;
   iframe.frameBorder = 0;
   iframe.scrolling = scrolling;
   iframe.setAttribute('allowFullScreen', '');
   iframe.src = src;
   return iframe;
+}
+
+function makeResizableToRatio(element, ratio) {
+  element.dataset['ratio'] = ratio;
+  makeResizable(element, w => w * element.dataset['ratio']);
+}
+
+// calcHeight :: Number -> Number -- calculate element height for a given width
+function makeResizable(element, calcHeight) {
+  const resizeToRatio = el => { el.style.height = (calcHeight(el.offsetWidth)).toFixed(2) + 'px'; };
+  window.addEventListener('resize', () => resizeToRatio(element));
+  resizeToRatio(element);
 }
 
 function makeIframeWithHtmlAndId(myHTML) {
@@ -1000,7 +1012,9 @@ function getEmbeddableLinkTypes() {
           v = v || pp.v;
           iframeUrl = '//www.youtube-nocookie.com/embed/' + v + '?' + Object.keys(embedArgs).map(k => `${k}=${embedArgs[k]}`).join('&');
         }
-        return wrapIntoTag(makeIframe(iframeUrl, 640, 360), 'div', 'youtube videoWrapper16x9');
+        let iframe = makeIframe(iframeUrl, '100%', '360px');
+        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        return wrapIntoTag(iframe, 'div', 'youtube resizableV');
       }
     },
     {
@@ -1011,7 +1025,9 @@ function getEmbeddableLinkTypes() {
       //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
       makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//player.vimeo.com/video/' + reResult[1], 640, 360), 'div', 'vimeo');
+        let iframe = makeIframe('//player.vimeo.com/video/' + reResult[1], '100%', '360px');
+        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        return wrapIntoTag(iframe, 'div', 'vimeo resizableV');
       }
     },
     {
@@ -1021,7 +1037,9 @@ function getEmbeddableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
       makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], 640, 360), 'div', 'dailymotion');
+        let iframe = makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], '100%', '360px');
+        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        return wrapIntoTag(iframe, 'div', 'dailymotion resizableV');
       }
     },
     {
@@ -1032,7 +1050,9 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/(?:view|embed)\/([a-zA-Z\d]+)/i,
       makeNode: function(aNode, reResult) {
         let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
-        return wrapIntoTag(makeIframe(embedUrl, 640, 360), 'div', 'coub');
+        let iframe = makeIframe(embedUrl, '100%', '360px');
+        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        return wrapIntoTag(iframe, 'div', 'coub resizableV');
       }
     },
     {
@@ -1058,21 +1078,22 @@ function getEmbeddableLinkTypes() {
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
-            let baseSize = 480;
             let videoUrl, videoH;
             const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
             let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
             matches.forEach(m => {
               if (m[1] == 'og:video') { videoUrl = m[2]; }
-              if (m[1] == 'video_height') { videoH = baseSize + parseInt(m[2], 10); }
+              if (m[1] == 'video_height') { videoH = parseInt(m[2], 10); }
             });
+            let isAlbum = pageType == 'album';
+            if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
             videoUrl = videoUrl.replace('/artwork=small', '');
-            if (pageType == 'album') {
-              videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true');
-              videoH += 162;
-            }
-            let iframe = makeIframe(videoUrl, baseSize, videoH);
-            div.parentNode.replaceChild(wrapIntoTag(iframe, 'div', 'bandcamp'), div);
+            let iframe = makeIframe(videoUrl, '100%', '480px');
+            removeAllFrom(div);
+            div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
+            div.className = div.className.replace(' embed loading', '');
+            let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
+            setTimeout(() => makeResizable(iframe, calcHeight), 50);
           }
         });
 
@@ -1130,7 +1151,10 @@ function getEmbeddableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', 640, 722), 'div', 'instagram');
+        let iframe = makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', '100%', '722px');
+        let calcHeight = w => w + 82;
+        setTimeout(() => makeResizable(iframe, calcHeight), 50);
+        return wrapIntoTag(iframe, 'div', 'instagram resizableV');
       }
     },
     {
@@ -2897,6 +2921,7 @@ function addStyle() {
     .twi.embed > .cts > .placeholder { display: inline-block; }
     .embedContainer > .embed.twi .cts > .placeholder { border: 0; }
     .embedContainer > .youtube { min-width: 90%; }
+    .embedContainer > .bandcamp:not(.loading):not(.cts) { max-width: 480px; }
     .juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; }
     .juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; }
     .juickEmbed > .bottom > .right { margin-top: 5px; display: flex; flex: 0; }
