@@ -1538,7 +1538,7 @@ function getEmbeddableLinkTypes() {
             if (response.status != 200) {
               console.log('Failed to load ' + url);
               console.log(response);
-              div.textContent = `Failed to load (maybe this article can't be embedded)`;
+              div.textContent = 'Failed to load (maybe this article can\'t be embedded)';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
@@ -1569,7 +1569,7 @@ function getEmbeddableLinkTypes() {
         div.className = 'slideshare embed loading';
 
         GM_xmlhttpRequest({
-          method: "GET",
+          method: 'GET',
           url: 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url,
           onload: function(response) {
             if (response.status != 200) {
@@ -2050,7 +2050,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
       match: function(aNode, reResult) {
         let domain = aNode.hostname.replace(/^www\./, '');
-        let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join("\n")).split(/\r?\n/);
+        let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join('\n')).split(/\r?\n/);
         return domainsWhitelist.some(w => matchWildcard(domain, w));
       },
       makeNode: function(aNode, reResult, div) {
@@ -2609,7 +2609,7 @@ function showUserscriptSettings() {
     });
     embeddingFieldset.appendChild(table2);
 
-    let domainsWhitelist = makeSettingsTextbox('Domains whitelist ("*" wildcard is supported)', 'domains_whitelist', getDefaultDomainWhitelist().join("\n"), 'One domain per line. "*" wildcard is supported');
+    let domainsWhitelist = makeSettingsTextbox('Domains whitelist ("*" wildcard is supported)', 'domains_whitelist', getDefaultDomainWhitelist().join('\n'), 'One domain per line. "*" wildcard is supported');
     embeddingFieldset.appendChild(wrapIntoTag(domainsWhitelist, 'p'));
 
     let moveIntoViewOnSamePageCheckbox = makeSettingsCheckbox('Ссылки на ту же страницу не встраивать, а показывать при наведении', 'enable_move_into_view_on_same_page', true);
