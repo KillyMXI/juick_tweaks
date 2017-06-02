@@ -2209,28 +2209,27 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
         let reResult = linkType.re.exec(aNode.href);
         if (reResult !== null) {
           if ((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
-          let newNode;
+
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
-          if (isCts) {
-            let linkTitle = (linkType.makeTitle !== undefined) ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55);
-            newNode = makeCts(() => linkType.makeNode(aNode, reResult, newNode), 'Click to show: ' + linkTitle);
-          } else {
-            newNode = linkType.makeNode(aNode, reResult);
-          }
+          let newNode = (isCts)
+              ? makeCts(
+                  () => linkType.makeNode(aNode, reResult, newNode),
+                  'Click to show: ' + ((typeof linkType.makeTitle == 'function') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55))
+                  )
+              : linkType.makeNode(aNode, reResult);
           if (!newNode) { return false; }
-          aNode.classList.add('embedLink');
-          if (GM_getValue('enable_arrows', true)) {
-            aNode.classList.add('arrow');
-          }
-          if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) {
-            linkType.linkTextUpdate(aNode, reResult);
-          }
+
           newNode.setAttribute('data-linkid', linkId);
           if (afterNode !== undefined) {
             insertAfter(newNode, afterNode);
           } else {
             container.appendChild(newNode);
           }
+
+          aNode.classList.add('embedLink');
+          if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
+          if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) { linkType.linkTextUpdate(aNode, reResult); }
+
           setHighlightOnHover(aNode, newNode);
           //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
           return true;
