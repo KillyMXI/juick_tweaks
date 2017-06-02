@@ -659,7 +659,10 @@ function turnIntoCts(node, makeNodeCallback) {
     if (newNode !== node) {
       removeAllFrom(node);
       moveAll(newNode, node);
-      node.className = newNode.className;
+      node.className = (node.className.includes('highlightable'))
+        ? newNode.className + ' highlightable'
+        : newNode.className;
+      node.onclick = '';
     } else {
       node.onclick = '';
       node.classList.remove('cts');
