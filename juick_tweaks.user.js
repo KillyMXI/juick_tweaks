@@ -4,6 +4,7 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
+// @match       *://localhost:8080/*
 // @author      Killy
 // @version     2.13.19
 // @date        2016.09.02 - 2017.05.29
@@ -69,10 +70,13 @@
 const isBeta = (window.location.hostname == 'beta.juick.com');
 if (isBeta && !GM_getValue('enable_beta', true)) { throw 'NOT an error! Preventing the script from running on beta.'; }
 
+const isLocal = (window.location.hostname == 'localhost');
+if (isLocal && !GM_getValue('enable_local', false)) { throw 'NOT an error! Preventing the script from running on localhost.'; }
+
 const content = document.getElementById('content');
 const isPost = (content !== null) && content.hasAttribute('data-mid');
 const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
-const isCommonFeed = (/^(?:https?:)?\/\/juick\.com\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
+const isCommonFeed = (/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
 const isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
@@ -135,6 +139,7 @@ if (isSettingsPage) {                    // на странице настрое
 }
 
 tryRun(addToggleBetaLink);
+tryRun(addLocalWarning);
 
 
 // helpers ==================================================================================================
@@ -2529,6 +2534,11 @@ function getUserscriptSettings() {
       enabledByDefault: false
     },
     {
+      name: '(только для разработчиков) умвр',
+      id: 'enable_local',
+      enabledByDefault: false
+    },
+    {
       name: 'emergency fixes',
       id: 'enable_emergency_fixes',
       enabledByDefault: true
@@ -2817,6 +2827,7 @@ function addMentionsLink() {
 
 function addToggleBetaLink() {
   if (!GM_getValue('enable_toggle_beta', false)) { return; }
+  if (isLocal) { return; }
   let aNode = document.createElement('a');
   aNode.id = 'toggleBetaLink';
   aNode.href = '#toggleBeta';
@@ -2826,8 +2837,17 @@ function addToggleBetaLink() {
     window.location.hostname = isBeta ? 'juick.com' : 'beta.juick.com';
   });
 
-  let body = document.getElementById('body');
-  body.appendChild(aNode);
+  document.getElementById('body').appendChild(aNode);
+}
+
+function addLocalWarning () {
+  if (isLocal) {
+    let warn = document.createElement('div');
+    warn.id = 'localWarning';
+    warn.textContent = 'userscript is active';
+
+    document.getElementById('body').appendChild(warn);
+  }
 }
 
 function addStyle() {
@@ -2942,7 +2962,8 @@ function addStyle() {
     .movableContainer .moved+.placeholder { display: block; }
     .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
     .users.sorted > span { width: 300px; }
-    #toggleBetaLink { display: block; position: fixed; top: 5px; right: 5px; }
+    #toggleBetaLink,
+    #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
     `);
   if (GM_getValue('enable_emergency_fixes', true)) {
     GM_addStyle(`
