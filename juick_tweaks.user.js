@@ -2296,18 +2296,22 @@ function embedLinksToArticles() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = 'nav.l';
   let allLinksSelector = 'p:not(.ir) a, pre a';
-  Array.from(document.querySelectorAll('#content > article')).forEach(article => {
-    embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
-  });
+  setTimeout(function() {
+    Array.from(document.querySelectorAll('#content > article')).forEach(article => {
+      embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
+    });
+  }, 50);
 }
 
 function embedLinksToPost() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = '.msg-txt + *';
   let allLinksSelector = '.msg-txt a';
-  Array.from(document.querySelectorAll('#content .msg-cont')).forEach(msg => {
-    embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
-  });
+  setTimeout(function() {
+    Array.from(document.querySelectorAll('#content .msg-cont')).forEach(msg => {
+      embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
+    });
+  }, 50);
 }
 
 function filterArticles() {
