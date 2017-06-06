@@ -68,10 +68,10 @@
 // pages and elements =====================================================================================
 
 const isBeta = (window.location.hostname == 'beta.juick.com');
-if (isBeta && !GM_getValue('enable_beta', true)) { throw 'NOT an error! Preventing the script from running on beta.'; }
+if (isBeta && !GM_getValue('enable_beta', true)) { return; }
 
 const isLocal = (window.location.hostname == 'localhost');
-if (isLocal && !GM_getValue('enable_local', false)) { throw 'NOT an error! Preventing the script from running on localhost.'; }
+if (isLocal && !GM_getValue('enable_local', false)) { return; }
 
 const content = document.getElementById('content');
 const isPost = (content !== null) && content.hasAttribute('data-mid');
