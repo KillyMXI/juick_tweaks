@@ -165,6 +165,14 @@ function intersect(a, b) {
   return a.filter(item => (b.indexOf(item) !== -1));
 }
 
+function fitToBounds(w, h, maxW, maxH) {
+  let r = h/w;
+  let w1 = ((h > maxH) ? maxH : h) / r;
+  let w2 = ((w1 > maxW) ? maxW : w1);
+  let h2 = w2 * r;
+  return { w: w2, h: h2 };
+}
+
 function insertAfter(newNode, referenceNode) {
   referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
@@ -1348,7 +1356,6 @@ function getEmbeddableLinkTypes() {
             let isVideo = false;
             let videoUrl, videoW, videoH;
             let title, description;
-            const maxWidth = 620;
             const metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
             let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
             matches.forEach(m => {
@@ -1377,10 +1384,7 @@ function getEmbeddableLinkTypes() {
             div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><div class="desc">${description}</div>`;
             if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
             if (isVideo) {
-              if (videoW > maxWidth) {
-                videoH = videoH / videoW * maxWidth;
-                videoW = maxWidth;
-              }
+              let { w: videoW, h: videoH } = fitToBounds(videoW, videoH, 620, 720);
               div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, videoW + 'px', videoH + 'px'), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
             }
             div.className = div.className.replace(' loading', '');
@@ -2895,8 +2899,9 @@ function addStyle() {
     .embedContainer .picture img { display: block; }
     .embedContainer img,
     .embedContainer video { max-width: 100%; max-height: 80vh; }
-    .embedContainer .audio { min-width: 90%; }
     .embedContainer audio { width: 100%; }
+    .embedContainer > .audio,
+    .embedContainer > .youtube { min-width: 90%; }
     .embedContainer iframe { overflow:hidden; resize: vertical; display: block; }
     .embedContainer > .embed { width: 100%; border: 1px solid ${color02}; padding: 0.5em; display: flex; flex-direction: column; }
     .embedContainer > .embed.loading,
@@ -2919,7 +2924,6 @@ function addStyle() {
     .embed .desc { margin-bottom: 0.5em; max-height: 55vh; overflow-y: auto; }
     .twi.embed > .cts > .placeholder { display: inline-block; }
     .embedContainer > .embed.twi .cts > .placeholder { border: 0; }
-    .embedContainer > .youtube { min-width: 90%; }
     .embedContainer > .bandcamp:not(.loading):not(.cts) { max-width: 480px; }
     .juickEmbed > .top > .top-right { display: flex; flex-direction: column; flex: 1; }
     .juickEmbed > .top > .top-right > .top-right-1st { display: flex; flex-direction: row; justify-content: space-between; }
