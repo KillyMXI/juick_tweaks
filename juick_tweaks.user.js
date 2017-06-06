@@ -2565,11 +2565,6 @@ function getUserscriptSettings() {
       enabledByDefault: false
     },
     {
-      name: 'emergency fixes',
-      id: 'enable_emergency_fixes',
-      enabledByDefault: true
-    },
-    {
       name: 'Take care of NSFW tagged posts in feed',
       id: 'enable_mark_nsfw_posts_in_feed',
       enabledByDefault: true
@@ -2993,11 +2988,4 @@ function addStyle() {
     #toggleBetaLink,
     #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
     `);
-  if (GM_getValue('enable_emergency_fixes', true)) {
-    GM_addStyle(`
-      .embedContainer { height: unset; text-align: unset; }
-      .embedContainer embed,.embedContainer iframe,.embedContainer object { position: unset; top: unset; left: unset; width: unset; height: unset; }
-      .embedContainer iframe { resize: both; }
-      `);
-  }
 }
