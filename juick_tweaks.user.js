@@ -2206,7 +2206,7 @@ function getDefaultDomainWhitelist() {
 function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
   let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/i,''));
-  let sameEmbed = container.querySelector(`*[data-linkid=\'${linkId}\']`); // do not embed the same thing twice
+  let sameEmbed = container.querySelector(`*[data-linkid='${linkId}']`); // do not embed the same thing twice
   if (sameEmbed === null) {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
       if (GM_getValue(linkType.id, linkType.onByDefault)) {
