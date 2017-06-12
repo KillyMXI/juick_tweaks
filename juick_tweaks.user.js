@@ -938,7 +938,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: false,
       re: /\.(jpeg|jpg|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -953,7 +953,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Gif images',
       id: 'embed_gif_images',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: true,
       re: /\.gif(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -968,7 +968,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Video (webm, mp4, ogv)',
       id: 'embed_webm_and_mp4_videos',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: false,
       re: /\.(webm|mp4|m4v|ogv)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -982,7 +982,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Audio (mp3, ogg, weba, opus, m4a, oga, wav)',
       id: 'embed_sound_files',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: false,
       re: /\.(mp3|ogg|weba|opus|m4a|oga|wav)(?:\?[\w&;\?=]*)?$/i,
       makeNode: function(aNode, reResult) {
@@ -996,7 +996,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
@@ -1028,7 +1028,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Vimeo videos',
       id: 'embed_vimeo_videos',
-      onByDefault: false,
+      onByDefault: true,
       ctsDefault: false,
       //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
