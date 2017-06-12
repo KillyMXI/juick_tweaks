@@ -111,7 +111,6 @@ if (isFeed) {                            // в ленте или любом сп
 
 if (isUserColumn) {                      // если колонка пользователя присутствует слева
   tryRun(addYearLinks);
-  tryRun(colorizeTagsInUserColumn);
   tryRun(addSettingsLink);
   tryRun(biggerAvatar);
   tryRun(addMentionsLink);
@@ -333,25 +332,35 @@ function svgIconHtml(name) {
   return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
 }
 
-function getMyUserId() {
+function getMyUserName() {
   let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
   return (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
 }
 
-function getColumnUserId() {
-  let columnUserIdLink = document.querySelector('div#ctitle a');
+function getColumnUserName() {
+  let columnUserIdLink = document.querySelector('div#ctitle > a');
   return (columnUserIdLink === null) ? null : columnUserIdLink.textContent.trim();
 }
 
-function getPostUserId(element) {
+function getColumnUid() {
+  let avatar = document.querySelector('div#ctitle > a > img');
+  return (avatar === null) ? null : avatar.src.match(/\/as?\/(\d+)\./i)[1];
+}
+
+function getPostUserName(element) {
   return element.querySelector('div.msg-avatar > a > img').alt;
+}
+
+function getPostUid(element) {
+  let avatar = document.querySelector('div.msg-avatar > a > img');
+  return (avatar === null) ? null : avatar.src.match(/\/as?\/(\d+)\./i)[1];
 }
 
 function updateTagsOnAPostPage() {
   if (!GM_getValue('enable_user_tag_links', true)) { return; }
   let tagsDiv = document.querySelector('div.msg-tags');
   if (tagsDiv === null) { return; }
-  let userId = getPostUserId(document);
+  let userId = getPostUserName(document);
   Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
 }
 
@@ -359,7 +368,7 @@ function updateTagsInFeed() {
   if (!GM_getValue('enable_user_tag_links_in_feed', false)) { return; }
   [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
     if (!article.hasAttribute('data-mid')) { return; }
-    let userId = getPostUserId(article);
+    let userId = getPostUserName(article);
     let tagsDiv = article.querySelector('div.msg-tags');
     if (tagsDiv === null) { return; }
     Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
@@ -392,7 +401,7 @@ function addTagEditingLinkUnderPost() {
 
 function addCommentRemovalLinks() {
   if (!GM_getValue('enable_comment_removal_links', true)) { return; }
-  let myUserId = getMyUserId();
+  let myUserId = getMyUserName();
   let commentsBlock = document.querySelector('ul#replies');
   if ((commentsBlock !== null) && (myUserId !== null)) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
@@ -431,7 +440,7 @@ function addTagPageToolbar() {
 
 function addYearLinks() {
   if (!GM_getValue('enable_year_links', true)) { return; }
-  let userId = getColumnUserId();
+  let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let hr1 = asideColumn.querySelector('form ~ hr');
   let hr2 = document.createElement('hr');
@@ -461,7 +470,7 @@ function addYearLinks() {
 
 function addSettingsLink() {
   if (!GM_getValue('enable_settings_link', true)) { return; }
-  if (getColumnUserId() == getMyUserId()) {
+  if (getColumnUserName() == getMyUserName()) {
     let asideColumn = document.querySelector('aside#column');
     let ctitle = asideColumn.querySelector('#ctitle');
     let anode = document.createElement('a');
@@ -480,36 +489,42 @@ function biggerAvatar() {
   avatarImg.src = avatarImg.src.replace('/as/', '/a/');
 }
 
-function loadTagsAsync() {
-  return new Promise(function(resolve, reject) {
-    setTimeout(function(){
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: setProto('//juick.com/post'),
-        onload: function(response) {
-          if (response.status != 200) {
-            reject(`failed to load tags: ${response.status}, ${response.statusText}`);
-          } else {
-            const re = /<p style="text-align: justify">([\s\S]+)<\/p>[\s]*<\/section>/i;
-            let [result, tagsStr] = re.exec(response.responseText);
-            if (result !== null) {
-              let tagsContainer = document.createElement('p');
-              tagsContainer.classList.add('tagsContainer');
-              tagsContainer.innerHTML = tagsStr;
-              resolve(tagsContainer);
-            } else {
-              reject('no tags found');
-            }
-          }
-        }
-      });
-    }, 50);
+function loadTagsAsync(uid) {
+  let predicates = [
+    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+  ];
+  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 500, predicates).then(response => {
+    return JSON.parse(response.responseText);
+  }).catch(({reason, response}) => {
+    console.log(`Failed to load (${reason})`);
+    console.log(response);
+  });
+}
+
+function loadOwnTagsAsync() {
+  let predicates = [
+    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+  ];
+  return xhrGetAsync(setProto('//juick.com/post'), 500, predicates).then(response => {
+    const re = /<p style="text-align: justify">([\s\S]+)<\/p>[\s]*<\/section>/i;
+    let [result, tagsStr] = re.exec(response.responseText);
+    if (result !== null) {
+      let tagsContainer = document.createElement('p');
+      tagsContainer.classList.add('tagsContainer');
+      tagsContainer.innerHTML = tagsStr;
+      return tagsContainer;
+    } else {
+      throw {reason: 'no tags found', response: response};
+    }
+  }).catch(({reason, response}) => {
+    console.log(`Failed to load (${reason})`);
+    console.log(response);
   });
 }
 
 function addEasyTagsUnderPostEditorSharp() {
   if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
-  loadTagsAsync().then(
+  loadOwnTagsAsync().then(
     tagsContainer => {
       let messageForm = document.getElementById('newmessage');
       let tagsField = messageForm.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
@@ -554,22 +569,21 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
 
 function sortTagsPage() {
   if (!GM_getValue('enable_tags_page_coloring', true)) { return; }
-  loadTagsAsync().then(
-    tagsContainer => {
-      let contentSection = document.querySelector('section#content');
-      removeAllFrom(contentSection);
-      contentSection.appendChild(tagsContainer);
-      sortAndColorizeTagsInContainer(tagsContainer, null, true);
-    }
-  ).catch(err => console.warn(err));
-}
+  let uid = getColumnUid();
+  let uname = getColumnUserName();
 
-function colorizeTagsInUserColumn() {
-  if (!GM_getValue('enable_left_column_tags_coloring', true)) { return; }
-  let tagsContainer = document.querySelector('aside#column > p.tags');
-  let tagsLink = tagsContainer.lastChild;
-  sortAndColorizeTagsInContainer(tagsContainer, null, false);
-  tagsContainer.appendChild(tagsLink);
+  loadTagsAsync(uid).then(tags => {
+    if (!tags || tags.length == 0) { return; }
+    let tagsStr = tags.map(t => `<a title="${t.messages}" href="/${uname}/?tag=${t.tag}">${t.tag}</a>`);
+    let tagsContainer = document.createElement('p');
+    tagsContainer.classList.add('tagsContainer');
+    tagsContainer.innerHTML = tagsStr;
+
+    let contentSection = document.querySelector('section#content');
+    removeAllFrom(contentSection);
+    contentSection.appendChild(tagsContainer);
+    sortAndColorizeTagsInContainer(tagsContainer, null, true);
+  });
 }
 
 function getLastArticleDate(html) {
@@ -2268,7 +2282,7 @@ function splitUsersAndTagsLists(str) {
 function articleInfo(article) {
   let tagNodes = article.querySelectorAll('.msg-tags > *');
   let tags = Array.from(tagNodes).map(d => d.textContent.toLowerCase());
-  return { userId: getPostUserId(article), tags: tags };
+  return { userId: getPostUserName(article), tags: tags };
 }
 
 function isFilteredX(x, filteredUsers, filteredTags) {
@@ -2449,9 +2463,9 @@ function bringCommentsIntoViewOnHover() {
 }
 
 function checkReply(allPostsSelector, replySelector) {
-  let userId = getMyUserId();
+  let userId = getMyUserName();
   Array.from(document.querySelectorAll(allPostsSelector))
-       .filter(p => (p.querySelector(replySelector) === null) && (getPostUserId(p) != userId))
+       .filter(p => (p.querySelector(replySelector) === null) && (getPostUserName(p) != userId))
        .forEach(p => p.classList.add('readonly'));
 }
 
@@ -2485,11 +2499,6 @@ function getUserscriptSettings() {
     {
       name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
       id: 'enable_tags_page_coloring',
-      enabledByDefault: true
-    },
-    {
-      name: 'Цветовое кодирование тегов в левой колонке',
-      id: 'enable_left_column_tags_coloring',
       enabledByDefault: true
     },
     {
@@ -2832,7 +2841,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
 function addIRecommendLink() {
   if (!GM_getValue('enable_irecommend', true)) { return; }
-  let userId = getColumnUserId();
+  let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
@@ -2847,7 +2856,7 @@ function addIRecommendLink() {
 
 function addMentionsLink() {
   if (!GM_getValue('enable_mentions_search', true)) { return; }
-  let userId = getColumnUserId();
+  let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
   let li2 = ustatsList.querySelector('li:nth-child(2)');
