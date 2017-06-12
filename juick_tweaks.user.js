@@ -2576,6 +2576,11 @@ function getUserscriptSettings() {
       name: 'Take care of NSFW tagged posts in feed',
       id: 'enable_mark_nsfw_posts_in_feed',
       enabledByDefault: true
+    },
+    {
+      name: 'Сбросить стили для тега *code. Уменьшить шрифт взамен',
+      id: 'unset_code_style',
+      enabledByDefault: false
     }
   ];
 }
@@ -2996,4 +3001,9 @@ function addStyle() {
     #toggleBetaLink,
     #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
     `);
+  if (GM_getValue('unset_code_style', false)) {
+    GM_addStyle(`
+      pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 9pt; line-height: 120%; }
+      `);
+  }
 }
