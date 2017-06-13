@@ -265,17 +265,29 @@ function matchWildcard(str, wildcard) {
   return true;
 }
 
-// replaceTree :: (String, [{re: RegExp, with: String}]) -> String
-// replaceTree :: (String, [{re: RegExp, with: Function}]) -> String
+// replaceTree :: (String, [{pr: Integer, re: RegExp, with: String}]) -> String
+// replaceTree :: (String, [{pr: Integer, re: RegExp, with: Function}]) -> String
+// replaceTree :: (String, [{pr: Integer, re: RegExp, brackets: true, with: [String, String]}]) -> String
+// replaceTree :: (String, [{pr: Integer, re: RegExp, brackets: true, with: [String, String, Function]}]) -> String
 function replaceTree(txt, rules) {
-  for (let rule of rules) {
-    let match = rule.re.exec(txt);
-    if (match !== null) {
-      let parts = [txt.substring(0, match.index), txt.substring(rule.re.lastIndex)];
-      return parts.map(p => replaceTree(p, rules)).join(match[0].replace(rule.re, rule.with));
+  let idCounter = 0;
+  function nextId() { return idCounter++; }
+  function rt(txt, rules) {
+    let matches = rules.map(r => { r.re.lastIndex = 0; return [r, r.re.exec(txt)]; })
+                       .filter(([,m]) => m !== null)
+                       .sort(([r1,m1],[r2,m2]) => (r1.pr - r2.pr) || (m1.index - m2.index));
+    if (matches && matches.length > 0) {
+      let [rule, match] = matches[0];
+      let idStr = `<>(${nextId()})<>`;
+      let outerStr = txt.substring(0, match.index) + idStr + txt.substring(rule.re.lastIndex);
+      let innerStr = (rule.brackets)
+        ? (() => { let [l ,r ,f] = rule.with; return l + rt((f ? f(match[1]) : match[1]), rules) + r; })()
+        : match[0].replace(rule.re, rule.with);
+      return rt(outerStr, rules).replace(idStr, innerStr);
     }
+    return txt;
   }
-  return txt;
+  return rt(htmlEscape(txt), rules);
 }
 
 function getProto() {
@@ -804,34 +816,47 @@ function isDefaultLinkText(aNode) {
   return (aNode.textContent == extractDomain(aNode.href));
 }
 
-function urlReplace(match, p1, p2, p3, offset, string) {
+function urlReplace(match, p1, p2, p3) {
   let isBrackets = (p1 !== undefined);
   return (isBrackets)
     ? `<a href="${p2 || p3}">${p1}</a>`
     : `<a href="${match}">${extractDomain(match)}</a>`;
 }
 
-function bqReplace(match, offset, string) {
-  return '<q>' + match.replace(/^(?:>|&gt;)\s?/gmi, '') + '</q>';
+function urlReplace2(match, p1, p2, p3) {
+  let isBrackets = (p1 !== undefined);
+  return (isBrackets)
+    ? `<a href="${p2 || p3}">${match}</a>`
+    : `<a href="${match}">${match}</a>`;
 }
 
 function messageReplyReplace(messageId) {
-  return function(match, mid, rid, offset, string) {
+  return function(match, mid, rid) {
     let msgPart = '//juick.com/' + (mid || messageId);
     let replyPart = (rid && rid != '0') ? '#' + rid : '';
     return `<a href="${msgPart}${replyPart}">${match}</a>`;
   };
 }
 
-function juickPostParse(txt, messageId) {
+function juickPostParse(txt, messageId, isCode) {
   const urlRe = /(?:\[([^\]\[]+)\](?:\[([^\]]+)\]|\(((?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))\))|\b(?:[a-z]+:\/\/|www\.|ftp\.)(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[-\w+*&@#/%=~|$?!:;,.])*(?:\([-\w+*&@#/%=~|$?!:;,.]*\)|[\w+*&@#/%=~|$]))/gi;
-  const bqRe = /(?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+/gmi;
-  return replaceTree(htmlEscape(txt).replace(bqRe, bqReplace), [
-    {re: urlRe, with: urlReplace},
-    {re: /\n/g, with: '<br/>'},
-    {re: /\B(?:#(\d+))?(?:\/(\d+))?\b/gmi, with: messageReplyReplace(messageId)},
-    {re: /\B@([\w-]+)\b/gmi, with: '<a href="//juick.com/$1">@$1</a>'}
-  ]);
+  const bqReplace = m => m.replace(/^(?:>|&gt;)\s?/gmi, '');
+  return isCode
+    ? replaceTree(txt, [
+      { pr: 1, re: urlRe, with: urlReplace2 },
+      { pr: 1, re: /\B(?:#(\d+))?(?:\/(\d+))?\b/g, with: messageReplyReplace(messageId) },
+      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="//juick.com/$1">@$1</a>' },
+    ])
+    : replaceTree(txt, [
+      { pr: 0, re: /((?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+)/gmi, brackets: true, with: ['<q>', '</q>', bqReplace] },
+      { pr: 1, re: urlRe, with: urlReplace },
+      { pr: 1, re: /\B(?:#(\d+))?(?:\/(\d+))?\b/g, with: messageReplyReplace(messageId) },
+      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="//juick.com/$1">@$1</a>' },
+      { pr: 2, re: /\B\*([^\*\n<>]+)\*((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<b>', '</b>'] },
+      { pr: 2, re: /\B\/([^\/\n<>]+)\/((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<i>', '</i>'] },
+      { pr: 2, re: /\b\_([^\_\n<>]+)\_((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<span class="u">', '</span>'] },
+      { pr: 3, re: /\n/g, with: '<br/>' },
+    ]);
 }
 
 function juickPhotoLink(postId, ext) {
@@ -903,6 +928,9 @@ function getEmbeddableLinkTypes() {
             let isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
             let withReplies = (msg.replies !== undefined && msg.replies > 0);
             let isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
+            let isCode = (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'CODE');
+
+            if (isCode) { div.classList.add('codePost'); }
 
             let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="//juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
             let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${setProto(msg.photo.small)}"/></a></div>` : '';
@@ -922,7 +950,7 @@ function getEmbeddableLinkTypes() {
                   <div class="top-right-2nd">${tagsStr}</div>
                 </div>
               </div>
-              <div class="desc">${juickPostParse(msg.body, msgId)}</div>${photoStr}
+              <div class="desc">${juickPostParse(msg.body, msgId, isCode)}</div>${photoStr}
               <div class="bottom">
                 <div class="embedReply msg-links"><a href="${linkStr}">${idStr}</a>${replyStr}</div>
                 <div class="right">${likesDiv}${commentsDiv}</div>
@@ -2910,6 +2938,7 @@ function addStyle() {
     .embedContainer { margin-top: 0.7em; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; padding: 0.15em; margin-left: -0.3em; margin-right: -0.3em; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 0.15em; min-width: 49%; }
     .embedContainer > .compact { flex-grow: 0; }
+    .embedContainer > .codePost .desc { font-family: monospace; white-space: pre-wrap; font-size: 9pt; line-height: 120%; }
     .embedContainer .picture img { display: block; }
     .embedContainer img,
     .embedContainer video { max-width: 100%; max-height: 80vh; }
