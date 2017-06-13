@@ -32,7 +32,15 @@
         "semi-spacing": "warn",
         "brace-style": ["warn", "1tbs", { "allowSingleLine": true }],
         "dot-location": ["warn", "property"],
-        "indent": ["warn", 2],
+        "indent": ["warn", 2, {
+            "MemberExpression" : "off",
+            "FunctionExpression": {"parameters": "first"},
+            "FunctionDeclaration": {"parameters": "first"},
+            "CallExpression": {"arguments": "first"},
+            "ArrayExpression": "first",
+            "ObjectExpression": "first",
+            "flatTernaryExpressions": false
+            }],
         "no-tabs": "warn",
         "linebreak-style": ["warn", "unix"],
         "eol-last": "warn",
@@ -44,6 +52,7 @@
         "no-cond-assign": "off",
         "no-sparse-arrays": "off",
         "no-console": "off",
-        "no-unused-vars": "off"
+        "no-unused-vars": "off",
+        "no-useless-escape": "off"
     }
 }

@@ -907,8 +907,8 @@ function getEmbeddableLinkTypes() {
             let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="//juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
             let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${setProto(msg.photo.small)}"/></a></div>` : '';
             let replyStr = (isReply)
-                             ? ` in reply to <a class="whiteRabbit" href="//juick.com/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
-                             : '';
+              ? ` in reply to <a class="whiteRabbit" href="//juick.com/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
+              : '';
             let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
             let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
             div.innerHTML = `
@@ -1292,8 +1292,8 @@ function getEmbeddableLinkTypes() {
         let isAlbum = (albumType !== undefined);
         let isSpecificImage = (albumImageId !== undefined);
         let url = (isAlbum && isSpecificImage)
-                    ? 'http://imgur.com/' + albumImageId
-                    : 'http://imgur.com/' + (isAlbum ? albumType + '/' : '') + contentId;
+          ? 'http://imgur.com/' + albumImageId
+          : 'http://imgur.com/' + (isAlbum ? albumType + '/' : '') + contentId;
         GM_xmlhttpRequest({
           method: 'GET',
           url: 'http://api.imgur.com/oembed.json?url=' + url,
@@ -2230,11 +2230,11 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
 
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           let newNode = (isCts)
-              ? makeCts(
-                  () => linkType.makeNode(aNode, reResult, newNode),
-                  'Click to show: ' + ((typeof linkType.makeTitle == 'function') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55))
-                  )
-              : linkType.makeNode(aNode, reResult);
+            ? makeCts(
+              () => linkType.makeNode(aNode, reResult, newNode),
+              'Click to show: ' + ((typeof linkType.makeTitle == 'function') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55))
+            )
+            : linkType.makeNode(aNode, reResult);
           if (!newNode) { return false; }
 
           newNode.setAttribute('data-linkid', linkId);
