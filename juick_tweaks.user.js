@@ -733,7 +733,11 @@ function makeResizableToRatio(element, ratio) {
 
 // calcHeight :: Number -> Number -- calculate element height for a given width
 function makeResizable(element, calcHeight) {
-  const resizeToRatio = el => { el.style.height = (calcHeight(el.offsetWidth)).toFixed(2) + 'px'; };
+  const resizeToRatio = el => {
+    if (el.offsetWidth > 0) {
+      el.style.height = (calcHeight(el.offsetWidth)).toFixed(2) + 'px';
+    }
+  };
   window.addEventListener('resize', () => resizeToRatio(element));
   resizeToRatio(element);
 }
