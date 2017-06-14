@@ -301,6 +301,10 @@ function setProto(url, proto) {
   );
 }
 
+function fixWwwLink(url) {
+  return url.replace(/^(?!([a-z]+:)?\/\/)/i, '//');
+}
+
 function tryRun(f) {
   try { f(); } catch (e) {
     console.warn(`Failed to run ${f.name}()`);
@@ -823,15 +827,15 @@ function isDefaultLinkText(aNode) {
 function urlReplace(match, p1, p2, p3) {
   let isBrackets = (p1 !== undefined);
   return (isBrackets)
-    ? `<a href="${p2 || p3}">${p1}</a>`
-    : `<a href="${match}">${extractDomain(match)}</a>`;
+    ? `<a href="${fixWwwLink(p2 || p3)}">${p1}</a>`
+    : `<a href="${fixWwwLink(match)}">${extractDomain(match)}</a>`;
 }
 
 function urlReplace2(match, p1, p2, p3) {
   let isBrackets = (p1 !== undefined);
   return (isBrackets)
-    ? `<a href="${p2 || p3}">${match}</a>`
-    : `<a href="${match}">${match}</a>`;
+    ? `<a href="${fixWwwLink(p2 || p3)}">${match}</a>`
+    : `<a href="${fixWwwLink(match)}">${match}</a>`;
 }
 
 function messageReplyReplace(messageId) {
