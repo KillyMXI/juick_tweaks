@@ -863,9 +863,9 @@ function juickFormat(txt, messageId, isCode) {
       { pr: 1, re: urlRe, with: urlReplace },
       { pr: 1, re: /\B(?:#(\d+))?(?:\/(\d+))?\b/g, with: messageReplyReplace(messageId) },
       { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="//' + window.location.hostname + '/$1">@$1</a>' },
-      { pr: 2, re: /\B\*([^\*\n<>]+)\*((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<b>', '</b>'] },
-      { pr: 2, re: /\B\/([^\/\n<>]+)\/((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<i>', '</i>'] },
-      { pr: 2, re: /\b\_([^\_\n<>]+)\_((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<span class="u">', '</span>'] },
+      { pr: 2, re: /\B\*([^\n]+?)\*((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<b>', '</b>'] },
+      { pr: 2, re: /\B\/([^\n]+?)\/((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<i>', '</i>'] },
+      { pr: 2, re: /\b\_([^\n]+?)\_((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<span class="u">', '</span>'] },
       { pr: 3, re: /\n/g, with: '<br/>' },
     ]);
 }
