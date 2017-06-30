@@ -927,7 +927,7 @@ function getEmbeddableLinkTypes() {
             let threadInfo = JSON.parse(response.responseText);
             let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
             if (msg === undefined) {
-              div.textContent = '' + idStr + ' doesn\'t exist';
+              div.textContent = '' + idStr + ' does not exist';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
@@ -1058,9 +1058,10 @@ function getEmbeddableLinkTypes() {
         if (plist !== undefined) {
           iframeUrl = '//www.youtube-nocookie.com/embed/videoseries?list=' + plist;
         } else {
-          args = args.replace(/^\?/, '');
-          let arr = args.split('&').map(s => s.split('='));
-          let pp = {}; arr.forEach(z => pp[z[0]] = z[1]);
+          let pp = {}; args.replace(/^\?/, '')
+                           .split('&')
+                           .map(s => s.split('='))
+                           .forEach(z => pp[z[0]] = z[1]);
           let embedArgs = { rel: '0' };
           if (pp.t != undefined) {
             const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s|(?:(\d+)h)?(\d+)m|(\d+)h)$/i;
@@ -1071,7 +1072,10 @@ function getEmbeddableLinkTypes() {
             embedArgs['list'] = pp.list;
           }
           v = v || pp.v;
-          iframeUrl = '//www.youtube-nocookie.com/embed/' + v + '?' + Object.keys(embedArgs).map(k => `${k}=${embedArgs[k]}`).join('&');
+          let argsStr = Object.keys(embedArgs)
+                              .map(k => `${k}=${embedArgs[k]}`)
+                              .join('&');
+          iframeUrl = `//www.youtube-nocookie.com/embed/${v}?${argsStr}`;
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
         setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
@@ -1244,10 +1248,14 @@ function getEmbeddableLinkTypes() {
             let json = JSON.parse(response.responseText);
 
             let imageUrl = (json.url !== undefined) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
-            let imageStr = `<a href="${aNode.href}"><img src="${imageUrl}"></a>`;
             let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
-            let titleDiv = `<div class="title"><a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = `<div class="top">${titleDiv}</div>${imageStr}`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  <a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
+                </div>
+              </div>
+              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1283,9 +1291,13 @@ function getEmbeddableLinkTypes() {
 
             let date = new Date(json.pubdate);
             let typeStr = (json.type == 'photo') ? '' : ` (${json.type})`;
-            let dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
-            let titleDiv = `<div class="title"><a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  <a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
+                </div>
+                <div class="date">${date.toLocaleString('ru-RU')}</div>
+              </div>`;
 
             if ((json.type == 'rich') && (json.html !== undefined)) {
               div.innerHTML += `<div class="desc">${json.html}...</div>`;
@@ -1428,17 +1440,19 @@ function getEmbeddableLinkTypes() {
             });
             const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
             let timestampMsResult = timestampMsRe.exec(response.responseText);
-            let dateDiv = '';
-            if (timestampMsResult !== null) {
-              let date = new Date(+timestampMsResult[1]);
-              dateDiv = `<div class="date">${date.toLocaleString('ru-RU')}</div>`;
-            }
-            let titleDiv = `<div class="title">${title} (<a href="//twitter.com/${userId}">@${userId}</a>)</div>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><div class="desc">${description}</div>`;
+            let dateDiv = (timestampMsResult) ? `<div class="date">${new Date(+timestampMsResult[1]).toLocaleString('ru-RU')}</div>` : '';
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  ${title} (<a href="//twitter.com/${userId}">@${userId}</a>)
+                </div>
+                ${dateDiv}
+              </div>
+              <div class="desc">${description}</div>`;
             if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
             if (isVideo) {
-              let { w: videoW, h: videoH } = fitToBounds(videoW, videoH, 620, 720);
-              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, videoW + 'px', videoH + 'px'), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
+              let { w, h } = fitToBounds(videoW, videoH, 620, 720);
+              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, w + 'px', h + 'px'), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
             }
             div.className = div.className.replace(' loading', '');
           }
@@ -1614,7 +1628,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w%\u0400-\u04FF]+)(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
-        let [url] = reResult;
+        let [url,site,year,month,day,slug] = reResult;
 
         div = div || document.createElement('div');
         div.textContent = 'loading ' + naiveEllipsis(url, 60);
@@ -1622,7 +1636,7 @@ function getEmbeddableLinkTypes() {
 
         GM_xmlhttpRequest({
           method: 'GET',
-          url: 'https://public-api.wordpress.com/oembed/1.0/?format=json&for=juick.com&url=' + encodeURIComponent(url),
+          url: `https://public-api.wordpress.com/rest/v1.1/sites/${site}.wordpress.com/posts/slug:${slug}`,
           onload: function(response) {
             if (response.status != 200) {
               console.log('Failed to load ' + url);
@@ -1633,8 +1647,15 @@ function getEmbeddableLinkTypes() {
               return;
             }
             let json = JSON.parse(response.responseText);
-            let titleDiv = `<div class="title">"<a href="${url}">${json.title}</a>" by <a href="${json.provider_url}">${json.provider_name}</a> / <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = `<div class="top">${titleDiv}</div><hr/><div class="desc">${json.html}</div>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  "<a href="${url}">${json.title}</a>" by <a href="${json.author.URL}">${json.author.name}</a>
+                </div>
+                <div class="date">${new Date(json.date).toLocaleString('ru-RU')}</div>
+              </div>
+              <hr/>
+              <div class="desc">${json.content}</div>`;
 
             div.className = div.className.replace(' loading', ' loaded');
           }
@@ -1708,10 +1729,15 @@ function getEmbeddableLinkTypes() {
             }
             let json = JSON.parse(response.responseText);
             let date = new Date(json.created_at).toLocaleDateString('ru-RU');
-            let titleDiv = `<div class="title">"${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a></div>`;
-            let dateDiv = `<div class="date">${date}</div>`;
-            let stylesheet = `<link rel="stylesheet" href="${htmlEscape(json.stylesheet)}"></link>`;
-            div.innerHTML = '<div class="top">' + titleDiv + dateDiv + '</div>' + stylesheet + json.div;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  "${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a>
+                </div>
+                <div class="date">${date}</div>
+              </div>
+              <link rel="stylesheet" href="${htmlEscape(json.stylesheet)}"></link>
+              ${json.div}`;
 
             div.className = div.className.replace(' loading', ' loaded');
           }
@@ -1755,8 +1781,11 @@ function getEmbeddableLinkTypes() {
               return;
             }
             let json = JSON.parse(response.responseText);
-            let titleDiv = `<div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>`;
-            div.innerHTML = `<div class="top">${titleDiv}</div>${json.html}`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>
+              </div>
+              ${json.html}`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1811,8 +1840,14 @@ function getEmbeddableLinkTypes() {
 
             let dateDiv = (dateStr !== undefined) ? `<div class="date">${dateStr}</div>` : '';
             let authorStr = (authorId !== undefined) ? ` by <a href="http://www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
-            let titleDiv = `<div class="title">${isMultipage ? '(multipage) ' : ''}<a href="${url}">${imageTitle}</a>${authorStr}</div>`;
-            div.innerHTML = `<div class="top">${titleDiv}${dateDiv}</div><a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${imageTitle}</a>${authorStr}
+                </div>
+                ${dateDiv}
+              </div>
+              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -1863,7 +1898,9 @@ function getEmbeddableLinkTypes() {
           let ratingStr = (rating == 's') ? '' : ` (${rating})`;
           div.innerHTML = `
             <div class="top">
-              <div class="title"><a href="${url}">${id}</a>${ratingStr}${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}</div>
+              <div class="title">
+                <a href="${url}">${id}</a>${ratingStr}${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}
+              </div>
               <div class="date">${createdDateStr}</div>
             </div>
             <a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>
@@ -2105,7 +2142,13 @@ function getEmbeddableLinkTypes() {
             let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
             let imageUrl = matches.find(m => (m[1] || m[3]) == 'og:image')[2];
 
-            div.innerHTML = `<div class="top"><div class="title"><a href="${url}">${id}</a></div></div><a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">
+                  <a href="${url}">${id}</a>
+                </div>
+              </div>
+              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
 
             div.className = div.className.replace(' loading', '');
           }
@@ -2192,10 +2235,16 @@ function getEmbeddableLinkTypes() {
                   let description = longest([meta['og:description'], meta['twitter:description'], meta['description'], meta['sailthru.description']]);
 
                   if (title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
-                    let titleDiv = `<div class="title"><a href="${url}">${title}</a></div>`;
                     let imageStr = (image !== undefined) ? `<a href="${url}"><img src="${image}" /></a>` : '';
                     description = htmlDecode(description).replace(/\n+/g,'<br/>');
-                    div.innerHTML = `<div class="top">${titleDiv}</div>${imageStr}<div class="desc">${description}</div>`;
+                    div.innerHTML = `
+                      <div class="top">
+                        <div class="title">
+                          <a href="${url}">${title}</a>
+                        </div>
+                      </div>
+                      ${imageStr}
+                      <div class="desc">${description}</div>`;
                     div.className = div.className.replace(' loading', '');
                   } else {
                     unembed();
