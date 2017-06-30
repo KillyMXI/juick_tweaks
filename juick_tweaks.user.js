@@ -413,7 +413,7 @@ function addTagEditingLinkUnderPost() {
   let linode = document.createElement('li');
   let anode = document.createElement('a');
   let mid = document.getElementById('content').getAttribute('data-mid');
-  anode.href = '//juick.com/post?body=%23' + mid + '+%2ATag';
+  anode.href = '/post?body=%23' + mid + '+%2ATag';
   anode.innerHTML = '<div style="background-position: -16px 0"></div>Теги';
   linode.appendChild(anode);
   mtoolbar.appendChild(linode);
@@ -434,7 +434,7 @@ function addCommentRemovalLinks() {
           let postId = commentLink.pathname.replace('/','');
           let commentId = commentLink.hash.replace('#','');
           let anode = document.createElement('a');
-          anode.href = `//juick.com/post?body=D+%23${postId}%2F${commentId}`;
+          anode.href = `/post?body=D+%23${postId}%2F${commentId}`;
           anode.innerHTML = 'Удалить';
           anode.style.cssFloat = 'right';
           linksBlock.appendChild(anode);
@@ -495,7 +495,7 @@ function addSettingsLink() {
     let ctitle = asideColumn.querySelector('#ctitle');
     let anode = document.createElement('a');
     anode.innerHTML = svgIconHtml('gear');
-    anode.href = '//juick.com/settings';
+    anode.href = '/settings';
     ctitle.appendChild(anode);
     ctitle.style.display = 'flex';
     ctitle.style.justifyContent = 'space-between';
@@ -845,7 +845,7 @@ function urlReplaceInCode(match, p1, p2, p3) {
 function messageReplyReplace(messageId) {
   return function(match, mid, rid) {
     let replyPart = (rid && rid != '0') ? '#' + rid : '';
-    return `<a href="//${window.location.hostname}/${mid || messageId}${replyPart}">${match}</a>`;
+    return `<a href="/${mid || messageId}${replyPart}">${match}</a>`;
   };
 }
 
@@ -856,13 +856,13 @@ function juickFormat(txt, messageId, isCode) {
     ? formatText(txt, [
       { pr: 1, re: urlRe, with: urlReplaceInCode },
       { pr: 1, re: /\B(?:#(\d+))?(?:\/(\d+))?\b/g, with: messageReplyReplace(messageId) },
-      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="//' + window.location.hostname + '/$1">@$1</a>' },
+      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="/$1">@$1</a>' },
     ])
     : formatText(txt, [
       { pr: 0, re: /((?:^(?:>|&gt;)\s?[\s\S]+?$\n?)+)/gmi, brackets: true, with: ['<q>', '</q>', bqReplace] },
       { pr: 1, re: urlRe, with: urlReplace },
       { pr: 1, re: /\B(?:#(\d+))?(?:\/(\d+))?\b/g, with: messageReplyReplace(messageId) },
-      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="//' + window.location.hostname + '/$1">@$1</a>' },
+      { pr: 1, re: /\B@([\w-]+)\b/gi, with: '<a href="/$1">@$1</a>' },
       { pr: 2, re: /\B\*([^\n]+?)\*((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<b>', '</b>'] },
       { pr: 2, re: /\B\/([^\n]+?)\/((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<i>', '</i>'] },
       { pr: 2, re: /\b\_([^\n]+?)\_((?=\s)|(?=$)|(?=[!\"#$%&'*+,\-./:;<=>?@[\]^_`{|}~()]+))/g, brackets: true, with: ['<span class="u">', '</span>'] },
@@ -894,7 +894,7 @@ function getEmbeddableLinkTypes() {
         let isReply = ((replyId !== undefined) && (replyId !== '0'));
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
         let idStr = juickId(reResult);
-        let linkStr = '//juick.com/' + msgId + ((isReply) ? '#' + mrid : '');
+        let linkStr = '/' + msgId + ((isReply) ? '#' + mrid : '');
 
         if (GM_getValue('enable_move_into_view_on_same_page', true)) {
           let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
@@ -943,10 +943,10 @@ function getEmbeddableLinkTypes() {
 
             if (isCode) { div.classList.add('codePost'); }
 
-            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="//juick.com/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
+            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
             let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
             let replyStr = (isReply)
-              ? ` in reply to <a class="whiteRabbit" href="//juick.com/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
+              ? ` in reply to <a class="whiteRabbit" href="/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
               : '';
             let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
             let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
@@ -955,7 +955,7 @@ function getEmbeddableLinkTypes() {
                 <div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>
                 <div class="top-right">
                   <div class="top-right-1st">
-                    <div class="title"><a href="//juick.com/${msg.user.uname}/">@${msg.user.uname}</a></div>
+                    <div class="title"><a href="/${msg.user.uname}/">@${msg.user.uname}</a></div>
                     <div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>
                   </div>
                   <div class="top-right-2nd">${tagsStr}</div>
@@ -2902,7 +2902,7 @@ function addMentionsLink() {
   let liNode = document.createElement('li');
   let aNode = document.createElement('a');
   aNode.textContent = 'Упоминания';
-  aNode.href = '//juick.com/?search=%40' + userId;
+  aNode.href = '/?search=%40' + userId;
   liNode.appendChild(aNode);
   insertAfter(liNode, li2);
 }
