@@ -1,7 +1,7 @@
 Несколько фич для [juick.com](http://juick.com/)
 
 * вставка картинок (jpg, png, gif, svg, instagram, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re) из ссылок в постах;
-* вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub);
+* вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub, twitch);
 * вставка музыки (mp3, ogg, bandcamp, soundcloud, mixcloud);
 * вставка кода (gist, jsfiddle, codepen);
 * вставка из других источников (**juick**, twitter, facebook, google+, tumblr, reddit, wordpress, slideshare и других);

@@ -1121,6 +1121,22 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'Twitch streams',
+      id: 'embed_twitch',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:www\.)?twitch\.tv\/(\w+)(?:\/v\/(\d+))?/i,
+      makeNode: function(aNode, reResult) {
+        let [, channel, video] = reResult;
+        let url = (video)
+          ? `https://player.twitch.tv/?video=v${video}&autoplay=false`
+          : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
+        let iframe = makeIframe(url, '100%', '378px');
+        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        return wrapIntoTag(iframe, 'div', 'twitch resizableV');
+      }
+    },
+    {
       name: 'Bandcamp music',
       id: 'embed_bandcamp_music',
       onByDefault: true,
