@@ -278,12 +278,13 @@ function formatText(txt, rules) {
                        .sort(([r1,m1],[r2,m2]) => (r1.pr - r2.pr) || (m1.index - m2.index));
     if (matches && matches.length > 0) {
       let [rule, match] = matches[0];
+      let subsequentRules = rules.filter(r => r.pr >= rule.pr);
       let idStr = `<>(${nextId()})<>`;
       let outerStr = txt.substring(0, match.index) + idStr + txt.substring(rule.re.lastIndex);
       let innerStr = (rule.brackets)
-        ? (() => { let [l ,r ,f] = rule.with; return l + ft((f ? f(match[1]) : match[1]), rules) + r; })()
+        ? (() => { let [l ,r ,f] = rule.with; return l + ft((f ? f(match[1]) : match[1]), subsequentRules) + r; })()
         : match[0].replace(rule.re, rule.with);
-      return ft(outerStr, rules).replace(idStr, innerStr);
+      return ft(outerStr, subsequentRules).replace(idStr, innerStr);
     }
     return txt;
   }
