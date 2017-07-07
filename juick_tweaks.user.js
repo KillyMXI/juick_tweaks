@@ -1138,6 +1138,17 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'Steam games',
+      id: 'embed_steam',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/store\.steampowered\.com\/app\/(\d+)/i,
+      makeNode: function(aNode, reResult) {
+        let iframe = makeIframe('http://store.steampowered.com/widget/' + reResult[1] + '/', '100%', '190px');
+        return wrapIntoTag(iframe, 'div', 'steam singleColumn');
+      }
+    },
+    {
       name: 'Bandcamp music',
       id: 'embed_bandcamp_music',
       onByDefault: true,
