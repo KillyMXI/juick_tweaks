@@ -1044,7 +1044,7 @@ function getEmbeddableLinkTypes() {
         audio.src = aNode.href;
         audio.title = aNode.href;
         audio.setAttribute('controls', '');
-        return wrapIntoTag(audio, 'div', 'audio');
+        return wrapIntoTag(audio, 'div', 'audio singleColumn');
       }
     },
     {
@@ -1080,7 +1080,7 @@ function getEmbeddableLinkTypes() {
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
         setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
-        return wrapIntoTag(iframe, 'div', 'youtube resizableV');
+        return wrapIntoTag(iframe, 'div', 'youtube resizableV singleColumn');
       }
     },
     {
@@ -1356,7 +1356,7 @@ function getEmbeddableLinkTypes() {
         let [, albumType, contentId, albumImageId] = reResult;
         div = div || document.createElement('div');
         div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
-        div.className = 'imgur embed loading';
+        div.className = 'imgur embed loading singleColumn';
         let isAlbum = (albumType !== undefined);
         let isSpecificImage = (albumImageId !== undefined);
         let url = (isAlbum && isSpecificImage)
@@ -1488,7 +1488,7 @@ function getEmbeddableLinkTypes() {
         setTimeout(loadScript('https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3', false, undefined, true), 0);
         div = div || document.createElement('div');
         div.innerHTML = `<span>loading ${naiveEllipsis(reResult[0], 60)}</span><div class="fb-post" data-href="${aNode.href}" data-width="640" />`;
-        div.className = 'fbEmbed embed loading';
+        div.className = 'fbEmbed embed loading singleColumn';
         waitAndRun(
           () => (div.querySelector('iframe[height]') !== null),
           () => {
@@ -1553,7 +1553,7 @@ function getEmbeddableLinkTypes() {
         let [url] = reResult;
         div = div || document.createElement('div');
         div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
-        div.className = 'tumblr embed loading';
+        div.className = 'tumblr embed loading singleColumn';
 
         GM_xmlhttpRequest({
           method: 'GET',
@@ -1599,7 +1599,7 @@ function getEmbeddableLinkTypes() {
         let [url] = reResult;
         div = div || document.createElement('div');
         div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
-        div.className = 'reddit embed loading';
+        div.className = 'reddit embed loading singleColumn';
 
         GM_xmlhttpRequest({
           method: 'GET',
@@ -3015,13 +3015,12 @@ function addStyle() {
     .embedContainer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; padding: 0; margin: 30px -3px 15px -3px; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 3px; min-width: 49%; }
     .embedContainer > .compact { flex-grow: 0; }
+    .embedContainer > .singleColumn { min-width: 90%; }
     .embedContainer > .codePost .desc { font-family: monospace; white-space: pre-wrap; font-size: 9pt; line-height: 120%; }
     .embedContainer .picture img { display: block; }
     .embedContainer img,
     .embedContainer video { max-width: 100%; max-height: 80vh; }
     .embedContainer audio { width: 100%; }
-    .embedContainer > .audio,
-    .embedContainer > .youtube { min-width: 90%; }
     .embedContainer iframe { overflow:hidden; resize: vertical; display: block; }
     .embedContainer > .embed { width: 100%; border: 1px solid ${color02}; padding: 8px; display: flex; flex-direction: column; }
     .embedContainer > .embed.loading,
@@ -3052,16 +3051,14 @@ function addStyle() {
     .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; }
     .gistEmbed.embed.loaded { border-width: 0px; padding: 0; }
     .wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; }
-    .tumblr { max-height: 86vh; overflow-y: auto; min-width: 90%; }
+    .tumblr { max-height: 86vh; overflow-y: auto; }
     .tumblr.loading iframe { visibility: hidden; height: 0px; }
-    .reddit { max-height: 75vh; overflow-y: auto; min-width: 90%; }
+    .reddit { max-height: 75vh; overflow-y: auto; }
     .reddit iframe { resize: none; }
     .reddit.loading > blockquote,
     .reddit.loading > div { display: none; }
-    .fbEmbed { min-width: 90%; }
     .fbEmbed:not(.fallback) iframe { resize: none; }
     .fbEmbed.loading > div { visibility: hidden; height: 0px; }
-    .imgur { min-width: 90%; }
     .imgur iframe { border-width: 0px; }
     .imgur.loading iframe { visibility: hidden; height: 0px; }
     .embedContainer > .gelbooru.embed,
