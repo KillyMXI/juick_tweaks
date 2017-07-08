@@ -556,6 +556,7 @@ function addEasyTagsUnderPostEditorSharp() {
         t.href = '';
         t.onclick = (e => { e.preventDefault(); tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim(); });
       });
+      return;
     }
   ).catch( err => console.warn(err) );
 }
@@ -604,7 +605,8 @@ function sortTagsPage() {
     removeAllFrom(contentSection);
     contentSection.appendChild(tagsContainer);
     sortAndColorizeTagsInContainer(tagsContainer, null, true);
-  });
+    return;
+  }).catch( err => console.warn(err) );
 }
 
 function getLastArticleDate(html) {
@@ -680,8 +682,9 @@ function sortUsers() {
         ul.appendChild(li);
       });
       contentBlock.appendChild(ul);
+      return;
     }
-  );
+  ).catch( err => console.warn(err) );
 }
 
 function addUsersSortingButton() {
