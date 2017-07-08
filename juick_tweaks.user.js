@@ -1375,10 +1375,10 @@ function getEmbeddableLinkTypes() {
           : 'http://imgur.com/' + (isAlbum ? albumType + '/' : '') + contentId;
         GM_xmlhttpRequest({
           method: 'GET',
-          url: 'http://api.imgur.com/oembed.json?url=' + url,
+          url: 'http://api.imgur.com/oembed.json?url=' + encodeURIComponent(url),
           onload: function(response) {
             if (response.status != 200) {
-              console.log(`Failed to load ${reResult[0]} (${url})`);
+              console.log(`Failed to load ${reResult[0]} (${response.finalUrl})`);
               div.textContent = `Failed to load (${response.status})`;
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
