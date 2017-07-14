@@ -1055,7 +1055,7 @@ function getEmbeddableLinkTypes() {
       id: 'embed_youtube_videos',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.|m\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
+      re: /^(?:https?:)?\/\/(?:www\.|m\.|gaming\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
       makeNode: function(aNode, reResult) {
         let [url, v, args, plist] = reResult;
         let iframeUrl;
