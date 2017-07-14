@@ -1147,7 +1147,7 @@ function getEmbeddableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/store\.steampowered\.com\/app\/(\d+)/i,
       makeNode: function(aNode, reResult) {
-        let iframe = makeIframe('http://store.steampowered.com/widget/' + reResult[1] + '/', '100%', '190px');
+        let iframe = makeIframe('//store.steampowered.com/widget/' + reResult[1] + '/', '100%', '190px');
         return wrapIntoTag(iframe, 'div', 'steam singleColumn');
       }
     },
