@@ -103,6 +103,7 @@ if (isFeed) {                            // в ленте или любом сп
   if (isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
     tryRun(filterArticles);
   }
+  tryRun(limitArticlesHeight);
   tryRun(checkReplyArticles);
   tryRun(updateTagsInFeed);
   tryRun(markNsfwPostsInFeed);
@@ -2709,6 +2710,11 @@ function getUserscriptSettings() {
       name: 'Сбросить стили для тега *code. Уменьшить шрифт взамен',
       id: 'unset_code_style',
       enabledByDefault: false
+    },
+    {
+      name: 'Сворачивать длинные посты',
+      id: 'enable_long_message_folding',
+      enabledByDefault: true
     }
   ];
 }
@@ -3012,11 +3018,38 @@ function addLocalWarning () {
   }
 }
 
+function makeElementExpandable(element) {
+  let aNode = document.createElement('a');
+  aNode.className = 'expandLink';
+  aNode.textContent = 'Expand';
+  aNode.href = '#expand';
+  aNode.onclick = (e => {
+    e.preventDefault();
+    element.classList.remove('expandable');
+    element.removeChild(aNode);
+  });
+  element.appendChild(aNode);
+  element.classList.add('expandable');
+}
+
+function limitArticlesHeight () {
+  if (!GM_getValue('enable_long_message_folding', true)) { return; }
+  let maxHeight = window.innerHeight * 0.7;
+  Array.from(document.querySelectorAll('#content article[data-mid] > p')).forEach(p => {
+    if (p.offsetHeight > maxHeight) {
+      makeElementExpandable(p);
+    }
+  });
+}
+
 function addStyle() {
+  let article = document.querySelector('#content article');
   let [br, bg, bb] = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor, [255,255,255]);
   let [tr, tg, tb] = parseRgbColor(getComputedStyle(document.body).color, [34,34,34]);
+  let [ar, ag, ab] = (article) ? parseRgbColor(getComputedStyle(article).backgroundColor, [br, bg, bb]) : [br, bg, bb];
   const rgba = (r,g,b,a) => `rgba(${r},${g},${b},${a})`;
   let bg10 = rgba(br, bg, bb, 1.0);
+  let abg10 = rgba(ar, ag, ab, 1.0);
   let color10 = rgba(tr, tg, tb, 1.0);
   let color07 = rgba(tr, tg, tb, 0.7);
   let color03 = rgba(tr, tg, tb, 0.3);
@@ -3124,6 +3157,9 @@ function addStyle() {
     .users.sorted > span { width: 300px; }
     #toggleBetaLink,
     #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
+    .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
+    .expandable:before { content:''; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
+    .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 0; text-align: center; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
