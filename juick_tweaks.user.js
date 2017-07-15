@@ -3021,7 +3021,7 @@ function addLocalWarning () {
 function makeElementExpandable(element) {
   let aNode = document.createElement('a');
   aNode.className = 'expandLink';
-  aNode.textContent = 'Expand';
+  aNode.innerHTML = '<span>Expand</span>';
   aNode.href = '#expand';
   aNode.onclick = (e => {
     e.preventDefault();
@@ -3159,7 +3159,8 @@ function addStyle() {
     #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
     .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
     .expandable:before { content:''; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
-    .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 0; text-align: center; }
+    .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
+    .expandable > a.expandLink > span { border: 1px dotted ${color07}; border-radius: 15px; padding: 0 15px 2px; background: ${abg10}; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
