@@ -6,8 +6,8 @@
 // @match       *://beta.juick.com/*
 // @match       *://localhost:8080/*
 // @author      Killy
-// @version     2.14.0
-// @date        2016.09.02 - 2017.07.02
+// @version     2.15.0
+// @date        2016.09.02 - 2017.07.15
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
