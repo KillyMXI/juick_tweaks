@@ -166,7 +166,7 @@ function intersect(a, b) {
 }
 
 function fitToBounds(w, h, maxW, maxH) {
-  let r = h/w;
+  let r = h / w;
   let w1 = ((h > maxH) ? maxH : h) / r;
   let w2 = ((w1 > maxW) ? maxW : w1);
   let h2 = w2 * r;
@@ -582,7 +582,7 @@ function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
   }
   removeAllFrom(tagsContainer);
   sortedTags.forEach(t => {
-    let p = (t.c/maxC - 1)*p0 + 1; // normalize to [p0..1]
+    let p = (t.c / maxC - 1) * p0 + 1; // normalize to [p0..1]
     t.a.style.setProperty('color', `rgba(${r},${g},${b},${p})`, 'important');
     tagsContainer.appendChild(t.a);
     tagsContainer.appendChild(document.createTextNode (' '));
@@ -694,7 +694,7 @@ function addUsersSortingButton() {
   let usersTable = document.querySelector('div.users');
   let button = document.createElement('button');
   button.id = 'usersSortingButton';
-  button.textContent='Sort by date';
+  button.textContent = 'Sort by date';
   button.onclick = sortUsers;
   contentBlock.insertBefore(button, usersTable);
 }
@@ -1083,7 +1083,7 @@ function getEmbeddableLinkTypes() {
           iframeUrl = `//www.youtube-nocookie.com/embed/${v}?${argsStr}`;
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
         return wrapIntoTag(iframe, 'div', 'youtube resizableV singleColumn');
       }
     },
@@ -1096,7 +1096,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
       makeNode: function(aNode, reResult) {
         let iframe = makeIframe('//player.vimeo.com/video/' + reResult[1], '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
         return wrapIntoTag(iframe, 'div', 'vimeo resizableV');
       }
     },
@@ -1108,7 +1108,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
       makeNode: function(aNode, reResult) {
         let iframe = makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
         return wrapIntoTag(iframe, 'div', 'dailymotion resizableV');
       }
     },
@@ -1121,7 +1121,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         let iframe = makeIframe(embedUrl, '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
         return wrapIntoTag(iframe, 'div', 'coub resizableV');
       }
     },
@@ -1137,7 +1137,7 @@ function getEmbeddableLinkTypes() {
           ? `https://player.twitch.tv/?video=v${video}&autoplay=false`
           : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
         let iframe = makeIframe(url, '100%', '378px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0/16.0), 10);
+        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
         return wrapIntoTag(iframe, 'div', 'twitch resizableV');
       }
     },
@@ -2817,7 +2817,7 @@ function showUserscriptSettings() {
 
   let resetButton = document.createElement('button');
   { // Reset button
-    resetButton.textContent='Reset userscript settings to default';
+    resetButton.textContent = 'Reset userscript settings to default';
     resetButton.onclick = function(e){
       if (!confirm('Are you sure you want to reset Tweaks settings to default?')) { return; }
       GM_listValues().slice().forEach(key => GM_deleteValue(key));
