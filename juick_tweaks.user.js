@@ -388,8 +388,7 @@ function updateTagsOnAPostPage() {
 
 function updateTagsInFeed() {
   if (!GM_getValue('enable_user_tag_links_in_feed', false)) { return; }
-  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
-    if (!article.hasAttribute('data-mid')) { return; }
+  [].forEach.call(document.querySelectorAll('#content > article[data-mid]'), function(article, i, arr) {
     let userId = getPostUserName(article);
     let tagsDiv = article.querySelector('div.msg-tags');
     if (tagsDiv === null) { return; }
@@ -399,8 +398,7 @@ function updateTagsInFeed() {
 
 function markNsfwPostsInFeed() {
   if (!GM_getValue('enable_mark_nsfw_posts_in_feed', true)) { return; }
-  [].forEach.call(document.querySelectorAll('#content > article'), function(article, i, arr) {
-    if (!article.hasAttribute('data-mid')) { return; }
+  [].forEach.call(document.querySelectorAll('#content > article[data-mid]'), function(article, i, arr) {
     let tagsDiv = article.querySelector('div.msg-tags');
     let isNsfw = (tagsDiv !== null) && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
     if (isNsfw) { article.classList.add('nsfw'); }
@@ -2443,7 +2441,7 @@ function embedLinksToArticles() {
   let beforeNodeSelector = 'nav.l';
   let allLinksSelector = 'p:not(.ir) a, pre a';
   setTimeout(function() {
-    Array.from(document.querySelectorAll('#content > article')).forEach(article => {
+    Array.from(document.querySelectorAll('#content > article[data-mid]')).forEach(article => {
       embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
     });
   }, 50);
@@ -2463,7 +2461,7 @@ function embedLinksToPost() {
 function filterArticles() {
   let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
   let keepHeader = GM_getValue('filtered_posts_keep_header', true);
-  Array.from(document.querySelectorAll('#content > article'))
+  Array.from(document.querySelectorAll('#content > article[data-mid]'))
        .filter(article => isFilteredX(article, filteredUsers, filteredTags))
        .forEach(article => {
          if (keepHeader) {
@@ -2599,7 +2597,7 @@ function checkReply(allPostsSelector, replySelector) {
 
 function checkReplyArticles() {
   if (!GM_getValue('enable_blocklisters_styling', false)) { return; }
-  checkReply('#content > article', 'nav.l > a.a-comment');
+  checkReply('#content > article[data-mid]', 'nav.l > a.a-comment');
 }
 
 function checkReplyPost() {
