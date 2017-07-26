@@ -549,13 +549,21 @@ function addEasyTagsUnderPostEditorSharp() {
   loadOwnTagsAsync().then(
     tagsContainer => {
       let messageForm = document.getElementById('newmessage');
-      let tagsField = messageForm.getElementsByTagName('div')[0].getElementsByClassName('tags')[0];
-      messageForm.getElementsByTagName('div')[0].appendChild(tagsContainer);
+      let tagsField = messageForm.querySelector('div > .tags');
+      tagsField.parentNode.appendChild(tagsContainer);
       sortAndColorizeTagsInContainer(tagsContainer, 60, true);
+      const addTag = (tagsField, newTag) => {
+        let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
+        if (re.test(tagsField.value)) {
+          tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
+        } else {
+          tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim();
+        }
+      };
       Array.from(tagsContainer.children).forEach(t => {
         let newTag = t.textContent;
         t.href = '';
-        t.onclick = (e => { e.preventDefault(); tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim(); });
+        t.onclick = (e => { e.preventDefault(); addTag(tagsField, newTag); });
       });
       return;
     }
