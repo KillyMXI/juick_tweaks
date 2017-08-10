@@ -1861,31 +1861,30 @@ function getEmbeddableLinkTypes() {
             }
             let isMultipage = (url.includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
             const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            let imageUrl, imageTitle;
-            matches.forEach(m => {
-              if (m[1] == 'og:image') { imageUrl = m[2]; }
-              if (m[1] == 'twitter:image') { imageUrl = m[2]; }
-              if (m[1] == 'twitter:title') { imageTitle = m[2]; }
-            });
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
+            let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
+            let title = meta['twitter:title'] || meta['og:title'];
+            let image = /* meta['twitter:image'] || meta['og:image'] || */ '//embed.pixiv.net/decorate.php?illust_id=' + illustId;
+            let description = meta['twitter:description'] || meta['og:description'];
+
             if (response.responseText.includes('This work was deleted')) {
               div.textContent = 'Deleted work.';
               return;
             }
             let [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
-            let [, authorId, authorName] = /<a\s+href="member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
-            //imageUrl = 'http://embed.pixiv.net/decorate.php?illust_id=' + illustId;
+            let [, authorId, authorName] = /<a\s+href="\/?member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
 
             let dateDiv = (dateStr !== undefined) ? `<div class="date">${dateStr}</div>` : '';
-            let authorStr = (authorId !== undefined) ? ` by <a href="http://www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
+            let authorStr = (authorId !== undefined) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
             div.innerHTML = `
               <div class="top">
                 <div class="title">
-                  ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${imageTitle}</a>${authorStr}
+                  ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${title}</a>${authorStr}
                 </div>
                 ${dateDiv}
               </div>
-              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+              <a href="${aNode.href}"><img src="${image}"></a>
+              ${description ? '<p>' + description + '</p>' : ''}`;
 
             div.className = div.className.replace(' loading', '');
           }
