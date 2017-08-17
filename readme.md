@@ -4,7 +4,7 @@
 * вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub, twitch);
 * вставка музыки (mp3, ogg, bandcamp, soundcloud, mixcloud);
 * вставка кода (gist, jsfiddle, codepen);
-* вставка из других источников (**juick**, twitter, facebook, google+, tumblr, reddit, wordpress, slideshare, steam и других);
+* вставка из других источников (**juick**, twitter, facebook, google+, tumblr, reddit, wordpress, arxiv, slideshare, steam и других);
 * фильтрация постов и комментариев по авторам и тегам;
 * отображение соответствующих комментариев при наведении мышью на ссылки "в ответ на /x";
 * сворачивание длинных постов;
