@@ -26,6 +26,7 @@
 // @connect     slideshare.net
 // @connect     gist.github.com
 // @connect     codepen.io
+// @connect     arxiv.org
 // @connect     pixiv.net
 // @connect     konachan.net
 // @connect     yande.re
@@ -1833,6 +1834,65 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'arXiv',
+      id: 'embed_arxiv',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?arxiv.org\/(?:abs|pdf)\/(\d+\.\d+)(v\d+)?/i,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, arxivId, rev] = reResult;
+        let absUrl = 'https://arxiv.org/abs/' + arxivId + (rev || '');
+        let pdfUrl = 'https://arxiv.org/pdf/' + arxivId + (rev || '');
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
+        div.className = 'arxiv embed loading';
+
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: absUrl,
+          onload: function(response) {
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+              return;
+            }
+            const metaRe = /<\s*meta\s+name\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
+            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: m[1].toLowerCase(), v: m[2] }));
+            let title = matches.find(x => x.k == 'citation_title').v;
+
+            let [, dateline] = /<div class="dateline">\s*([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+            let [, abstract] = /<blockquote class="abstract\b.*?">\s*<span class="descriptor">[\s\S]*?<\/span>\s*([\s\S]+?)<\/blockquote>/.exec(response.responseText) || [];
+            let authors = getAllMatchesAndCaptureGroups(/<a href="(\/find.+?)">(.+?)<\/a>/gi, response.responseText).map(m => ({ url: m[1], name: m[2] }));
+            let authorsStr = authors.map(a => `<a href="${a.url}">${a.name}</a>`).join(', ');
+
+            div.innerHTML = `
+              <div class="top">
+                <div class="title"><a href="${absUrl}">${title}</a> (<a href="${pdfUrl}">pdf</a>)</div>
+                <div class="date">${dateline}</div>
+              </div>
+              <div class="abstract">${abstract}</div>
+              <div class="bottom">
+                <div class="authors">${authorsStr}</div>
+              </div>`;
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return 'arXiv:' + reResult[1] + (reResult[2] || '');
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        if (isDefaultLinkText(aNode)) {
+          aNode.textContent = 'arXiv:' + reResult[1] + (reResult[2] || '');
+        }
+      }
+    },
+    {
       name: 'Pixiv',
       id: 'embed_pixiv',
       onByDefault: true,
@@ -1860,7 +1920,7 @@ function getEmbeddableLinkTypes() {
               return;
             }
             let isMultipage = (url.includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
-            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
             let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
             let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
             let title = meta['twitter:title'] || meta['og:title'];
@@ -3103,6 +3163,9 @@ function addStyle() {
     .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; }
     .gistEmbed.embed.loaded { border-width: 0px; padding: 0; }
     .wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; }
+    .arxiv .top { flex-direction: column; }
+    .arxiv .date { text-align: left; }
+    .arxiv .bottom { margin-top: 8px; }
     .tumblr { max-height: 86vh; overflow-y: auto; }
     .tumblr.loading iframe { visibility: hidden; height: 0px; }
     .reddit { max-height: 75vh; overflow-y: auto; }
