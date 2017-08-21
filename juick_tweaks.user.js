@@ -535,13 +535,12 @@ function loadTagsAsync(uid) {
   let predicates = [
     { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
   ];
-  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 500, predicates).then(response => {
+  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 1000, predicates).then(response => {
     return JSON.parse(response.responseText);
   });
 }
 
-function processTagsList(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]) {
-  if (!tags || tags.length === 0) { console.log('No tags.'); return; }
+function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]) {
   const tagUrl = (uname)
     ? t => `/${uname}/?tag=${t.tag}`
     : t => `/tag/${t.tag}`;
@@ -559,10 +558,14 @@ function processTagsList(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]) 
   if (sortBy) {
     tags = tags.sort((t1, t2) => t1[sortBy].localeCompare(t2[sortBy]));
   }
-  return tags.map(t => {
+  let aNodes = tags.map(t => {
     let p = (Math.log(t.messages) / maxC - 1) * p0 + 1; // normalize to [1-p0..1]
     return `<a title="${t.messages}" href="${tagUrl(t)}" style="color: rgba(${r},${g},${b},${p}) !important;">${t.tag}</a>`;
   });
+  let tagsContainer = document.createElement('p');
+  tagsContainer.classList.add('tagsContainer');
+  tagsContainer.innerHTML = aNodes.join(' ');
+  return tagsContainer;
 }
 
 function addEasyTagsUnderPostEditorSharp() {
@@ -572,31 +575,26 @@ function addEasyTagsUnderPostEditorSharp() {
     return loadTagsAsync(uid);
   }).then(tags => {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
-    return processTagsList(tags, 60, 'tag', uname, color);
-  }).then(
-    aNodeStrings => {
-      let tagsContainer = document.createElement('p');
-      tagsContainer.classList.add('tagsContainer');
-      tagsContainer.innerHTML = aNodeStrings.join(' ');
-
-      let messageForm = document.getElementById('newmessage');
-      let tagsField = messageForm.querySelector('div > .tags');
-      tagsField.parentNode.appendChild(tagsContainer);
-      const addTag = (tagsField, newTag) => {
-        let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
-        if (re.test(tagsField.value)) {
-          tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
-        } else {
-          tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim();
-        }
-      };
-      Array.from(tagsContainer.children).forEach(t => {
-        let newTag = t.textContent;
-        t.href = '';
-        t.onclick = (e => { e.preventDefault(); addTag(tagsField, newTag); });
-      });
-      return;
-    }
+    return makeTagsContainer(tags, 60, 'tag', uname, color);
+  }).then(tagsContainer => {
+    let messageForm = document.getElementById('newmessage');
+    let tagsField = messageForm.querySelector('div > .tags');
+    tagsField.parentNode.appendChild(tagsContainer);
+    const addTag = (tagsField, newTag) => {
+      let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
+      if (re.test(tagsField.value)) {
+        tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
+      } else {
+        tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim();
+      }
+    };
+    Array.from(tagsContainer.children).forEach(t => {
+      let newTag = t.textContent;
+      t.href = '';
+      t.onclick = (e => { e.preventDefault(); addTag(tagsField, newTag); });
+    });
+    return;
+  }
   ).catch( err => console.warn(err) );
 }
 
@@ -606,12 +604,8 @@ function sortTagsPage() {
   let uname = getColumnUserName();
   loadTagsAsync(uid).then(tags => {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
-    return processTagsList(tags, undefined, 'tag', uname, color);
-  }).then(aNodeStrings => {
-    let tagsContainer = document.createElement('p');
-    tagsContainer.classList.add('tagsContainer');
-    tagsContainer.innerHTML = aNodeStrings.join(' ');
-
+    return makeTagsContainer(tags, undefined, 'tag', uname, color);
+  }).then(tagsContainer => {
     let contentSection = document.querySelector('section#content');
     removeAllFrom(contentSection);
     contentSection.appendChild(tagsContainer);
