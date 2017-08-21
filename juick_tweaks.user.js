@@ -78,7 +78,7 @@ const content = document.getElementById('content');
 const isPost = (content !== null) && content.hasAttribute('data-mid');
 const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
 const isCommonFeed = (/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
-const isPostEditorSharp = (document.getElementById('newmessage') === null) ? false : true;
+const isNewMessage = (document.getElementById('newmessage') === null) ? false : true;
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
 const isSettingsPage = window.location.pathname.endsWith('/settings');
@@ -89,6 +89,10 @@ const isUsersTable = (document.querySelector('#content > div.users') === null) ?
 // userscript features =====================================================================================
 
 addStyle();                              // минимальный набор стилей, необходимый для работы скрипта
+
+if (isNewMessage) {                      // если форма ввода нового сообщения присутствует на странице (/#post и т.п.)
+  tryRun(addEasyTagsUnderNewMessageForm);
+}
 
 if (isPost) {                            // на странице поста
   tryRun(filterPostComments);
@@ -117,10 +121,6 @@ if (isUserColumn) {                      // если колонка пользо
   tryRun(biggerAvatar);
   tryRun(addMentionsLink);
   tryRun(addIRecommendLink);
-}
-
-if (isPostEditorSharp) {                 // на форме создания поста (/#post)
-  tryRun(addEasyTagsUnderPostEditorSharp);
 }
 
 if (isTagsPage) {                        // на странице тегов пользователя
@@ -568,7 +568,7 @@ function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]
   return tagsContainer;
 }
 
-function addEasyTagsUnderPostEditorSharp() {
+function addEasyTagsUnderNewMessageForm() {
   if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
   let uname = getMyUserName();
   getUidForUnameAsync(uname).then(uid => {
