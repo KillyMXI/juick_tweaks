@@ -348,6 +348,18 @@ function xhrFirstResponse(urls, timeout, predicates) {
   return urls.reduce ( (p, url) => p.catch(e => xhrGetAsync(url, timeout, predicates)), Promise.reject({reason: 'init'}) );
 }
 
+function computeStyle(newElement) {
+  if (document.body.contains(newElement)) {
+    return getComputedStyle(newElement);
+  }
+  document.body.appendChild(newElement);
+  let style = getComputedStyle(newElement);
+  setTimeout(function() {
+    document.body.removeChild(newElement);
+  }, 1); // let getComputedStyle to do the job
+  return style;
+}
+
 
 // function definitions =====================================================================================
 
@@ -377,6 +389,15 @@ function getPostUserName(element) {
 function getPostUid(element) {
   let avatar = document.querySelector('div.msg-avatar > a > img');
   return (avatar === null) ? null : avatar.src.match(/\/as?\/(\d+)\./i)[1];
+}
+
+function getUidForUnameAsync(uname) {
+  let predicates = [
+    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
+  ];
+  return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500, predicates).then(response => {
+    return JSON.parse(response.responseText)[0].uid;
+  });
 }
 
 function updateTagsOnAPostPage() {
@@ -516,41 +537,51 @@ function loadTagsAsync(uid) {
   ];
   return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 500, predicates).then(response => {
     return JSON.parse(response.responseText);
-  }).catch(({reason, response}) => {
-    console.log(`Failed to load (${reason})`);
-    console.log(response);
   });
 }
 
-function loadOwnTagsAsync() {
-  let predicates = [
-    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-  ];
-  return xhrGetAsync(setProto('//juick.com/post'), 500, predicates).then(response => {
-    const re = /<p style="text-align: justify">([\s\S]+)<\/p>[\s]*<\/section>/i;
-    let [result, tagsStr] = re.exec(response.responseText);
-    if (result !== null) {
-      let tagsContainer = document.createElement('p');
-      tagsContainer.classList.add('tagsContainer');
-      tagsContainer.innerHTML = tagsStr;
-      return tagsContainer;
-    } else {
-      throw {reason: 'no tags found', response: response};
-    }
-  }).catch(({reason, response}) => {
-    console.log(`Failed to load (${reason})`);
-    console.log(response);
+function processTagsList(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]) {
+  if (!tags || tags.length === 0) { console.log('No tags.'); return; }
+  const tagUrl = (uname)
+    ? t => `/${uname}/?tag=${t.tag}`
+    : t => `/tag/${t.tag}`;
+
+  let [r, g, b] = color;
+  let p0 = 0.7; // 70% of color range is used for color coding
+  let maxC = 0.1;
+  tags.forEach(t => { maxC = (t.messages > maxC) ? t.messages : maxC; });
+  maxC = Math.log(maxC);
+
+  if (numberLimit && (tags.length > numberLimit)) {
+    tags = tags.sort((t1, t2) => t2.messages - t1.messages)
+               .slice(0, numberLimit);
+  }
+  if (sortBy) {
+    tags = tags.sort((t1, t2) => t1[sortBy].localeCompare(t2[sortBy]));
+  }
+  return tags.map(t => {
+    let p = (Math.log(t.messages) / maxC - 1) * p0 + 1; // normalize to [1-p0..1]
+    return `<a title="${t.messages}" href="${tagUrl(t)}" style="color: rgba(${r},${g},${b},${p}) !important;">${t.tag}</a>`;
   });
 }
 
 function addEasyTagsUnderPostEditorSharp() {
   if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
-  loadOwnTagsAsync().then(
-    tagsContainer => {
+  let uname = getMyUserName();
+  getUidForUnameAsync(uname).then(uid => {
+    return loadTagsAsync(uid);
+  }).then(tags => {
+    let color = parseRgbColor(computeStyle(document.createElement('a')).color);
+    return processTagsList(tags, 60, 'tag', uname, color);
+  }).then(
+    aNodeStrings => {
+      let tagsContainer = document.createElement('p');
+      tagsContainer.classList.add('tagsContainer');
+      tagsContainer.innerHTML = aNodeStrings.join(' ');
+
       let messageForm = document.getElementById('newmessage');
       let tagsField = messageForm.querySelector('div > .tags');
       tagsField.parentNode.appendChild(tagsContainer);
-      sortAndColorizeTagsInContainer(tagsContainer, 60, true);
       const addTag = (tagsField, newTag) => {
         let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
         if (re.test(tagsField.value)) {
@@ -569,50 +600,21 @@ function addEasyTagsUnderPostEditorSharp() {
   ).catch( err => console.warn(err) );
 }
 
-function sortAndColorizeTagsInContainer(tagsContainer, numberLimit, isSorting) {
-  let tags = Array.from(tagsContainer.querySelectorAll('a[title]'));
-  if (tags.length === 0) { console.log('No tags with counters.'); return; }
-  let [r, g, b] = parseRgbColor(getComputedStyle(tags[0]).color);
-  let p0 = 0.7; // 70% of color range is used for color coding
-  let maxC = 0.1;
-  const tagInfo = a => {
-    let c = Math.log(parseInt(a.title, 10));
-    maxC = (c > maxC) ? c : maxC;
-    return { c: c, a: a, text: a.textContent.toLowerCase() };
-  };
-  let sortedTags = tags.map(tagInfo).sort((t1, t2) => t2.c - t1.c);
-  if ((numberLimit) && (sortedTags.length > numberLimit)) {
-    sortedTags = sortedTags.slice(0, numberLimit);
-  }
-  if (isSorting) {
-    sortedTags.sort((t1, t2) => t1.text.localeCompare(t2.text));
-  }
-  removeAllFrom(tagsContainer);
-  sortedTags.forEach(t => {
-    let p = (t.c / maxC - 1) * p0 + 1; // normalize to [p0..1]
-    t.a.style.setProperty('color', `rgba(${r},${g},${b},${p})`, 'important');
-    tagsContainer.appendChild(t.a);
-    tagsContainer.appendChild(document.createTextNode (' '));
-  });
-  tagsContainer.classList.add('tagsContainer');
-}
-
 function sortTagsPage() {
   if (!GM_getValue('enable_tags_page_coloring', true)) { return; }
   let uid = getColumnUid();
   let uname = getColumnUserName();
-
   loadTagsAsync(uid).then(tags => {
-    if (!tags || tags.length == 0) { return; }
-    let tagsStr = tags.map(t => `<a title="${t.messages}" href="/${uname}/?tag=${t.tag}">${t.tag}</a>`);
+    let color = parseRgbColor(computeStyle(document.createElement('a')).color);
+    return processTagsList(tags, undefined, 'tag', uname, color);
+  }).then(aNodeStrings => {
     let tagsContainer = document.createElement('p');
     tagsContainer.classList.add('tagsContainer');
-    tagsContainer.innerHTML = tagsStr;
+    tagsContainer.innerHTML = aNodeStrings.join(' ');
 
     let contentSection = document.querySelector('section#content');
     removeAllFrom(contentSection);
     contentSection.appendChild(tagsContainer);
-    sortAndColorizeTagsInContainer(tagsContainer, null, true);
     return;
   }).catch( err => console.warn(err) );
 }
