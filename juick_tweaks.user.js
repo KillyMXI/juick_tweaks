@@ -2340,7 +2340,7 @@ function getEmbeddableLinkTypes() {
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
       match: function(aNode, reResult) {
-        let domain = aNode.hostname.replace(/^www\./, '');
+        let domain = aNode.hostname.replace(/^(?:www|m)\./, '');
         let domainsWhitelist = GM_getValue('domains_whitelist', getDefaultDomainWhitelist().join('\n')).split(/\r?\n/);
         return domainsWhitelist.some(w => matchWildcard(domain, w));
       },
