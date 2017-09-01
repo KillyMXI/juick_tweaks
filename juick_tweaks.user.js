@@ -2731,12 +2731,12 @@ function getUserscriptSettings() {
     {
       name: 'Форма нового сообщения в ленте (как старый /#post)',
       id: 'enable_post_sharp',
-      enabledByDefault: true
+      enabledByDefault: false
     },
     {
       name: 'Открывать /post вместо диалога нового сообщения',
       id: 'enable_replace_post_link',
-      enabledByDefault: true
+      enabledByDefault: false
     },
     {
       name: 'Кликабельные теги на странице нового поста (/post)',
