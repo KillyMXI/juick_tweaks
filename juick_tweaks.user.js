@@ -78,7 +78,7 @@ const content = document.getElementById('content');
 const isPost = (content !== null) && content.hasAttribute('data-mid');
 const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
 const isCommonFeed = (/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
-const isNewPostPage = window.location.pathname.endsWith('/post');
+const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
 const isSettingsPage = window.location.pathname.endsWith('/settings');
@@ -106,6 +106,7 @@ if (isPost) {                            // на странице поста
 if (isFeed) {                            // в ленте или любом списке постов
   if (isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
     tryRun(filterArticles);
+    tryRun(addPostSharpForm);
   }
   tryRun(limitArticlesHeight);
   tryRun(checkReplyArticles);
@@ -588,6 +589,75 @@ function easyTagsUnderNewMessageForm() {
       let newTag = t.textContent;
       t.href = '';
       t.onclick = (e => { e.preventDefault(); addTag(messageBox, newTag); });
+    });
+    return;
+  }
+  ).catch( err => console.warn(err) );
+}
+
+function addPostSharpForm() {
+  if (!GM_getValue('enable_post_sharp', true)) { return; }
+  let content = document.querySelector('#content');
+  let newMessageForm = `
+    <form id="oldNewMessage" action="/post" method="post" enctype="multipart/form-data">
+      <textarea name="body" placeholder="New message..."></textarea>
+      <div>
+        <input class="img" name="img" placeholder="Link to image (JPG/PNG up to 10 MB)"/>
+        or <a id="aUpload" href="#">Upload</a><br/>
+        <input class="tags" name="tags" placeholder="Tags (space separated)"/><br/>
+        <input type="submit" class="subm" value="Send"/>
+      </div>
+    </form>`;
+  content.insertAdjacentHTML('afterbegin', newMessageForm);
+  let f = document.querySelector('#oldNewMessage');
+  let ta = f.querySelector('textarea');
+  let aUpload = f.querySelector('#aUpload');
+  console.log([f,ta,aUpload]);
+  ta.addEventListener("focus", () => {
+    ta.parentNode.classList.add('active');
+  });
+  aUpload.addEventListener('click', (e) => {
+    let fileInput = f.querySelector('input[type="file"]');
+    if (!fileInput) {
+      let inp = document.createElement('input');
+      inp.setAttribute('type', 'file');
+      inp.setAttribute('name', 'attach');
+      inp.setAttribute('accept', 'image/jpeg,image/png');
+      inp.style.visibility = 'hidden';
+      inp.style.float = 'left';
+      inp.style.width = 0;
+      inp.style.height = 0;
+      inp.addEventListener('change', () => aUpload.textContent = 'Upload (✓)');
+      f.appendChild(inp);
+      inp.click();
+    } else {
+      fileInput.remove();
+      aUpload.textContent = 'Upload';
+    }
+  });
+
+  let uname = getMyUserName();
+  getUidForUnameAsync(uname).then(uid => {
+    return loadTagsAsync(uid);
+  }).then(tags => {
+    let color = parseRgbColor(computeStyle(document.createElement('a')).color);
+    return makeTagsContainer(tags, 60, 'tag', uname, color);
+  }).then(tagsContainer => {
+    let messageForm = document.getElementById('oldNewMessage');
+    let tagsField = messageForm.querySelector('div > .tags');
+    tagsField.parentNode.appendChild(tagsContainer);
+    const addTag = (tagsField, newTag) => {
+      let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
+      if (re.test(tagsField.value)) {
+        tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
+      } else {
+        tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim();
+      }
+    };
+    Array.from(tagsContainer.children).forEach(t => {
+      let newTag = t.textContent;
+      t.href = '';
+      t.onclick = (e => { e.preventDefault(); addTag(tagsField, newTag); });
     });
     return;
   }
@@ -2659,16 +2729,19 @@ function checkReplyPost() {
 function getUserscriptSettings() {
   return [
     {
+      name: 'Форма нового сообщения в ленте (как старый /#post)',
+      id: 'enable_post_sharp',
+      enabledByDefault: true
+    },
+    {
       name: 'Открывать /post вместо диалога нового сообщения',
       id: 'enable_replace_post_link',
-      enabledByDefault: false,
-      isNew: true
+      enabledByDefault: true
     },
     {
       name: 'Кликабельные теги на странице нового поста (/post)',
       id: 'enable_tags_on_new_post_page',
-      enabledByDefault: true,
-      isNew: true
+      enabledByDefault: true
     },
     {
       name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
@@ -3218,6 +3291,13 @@ function addStyle() {
     .expandable:before { content:''; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
     .expandable > a.expandLink > span { border: 1px dotted ${color07}; border-radius: 15px; padding: 0 15px 2px; background: ${abg10}; }
+    #oldNewMessage { background: #e5e5e0; margin-bottom: 20px; padding: 15px; }
+    #oldNewMessage > textarea { border: 1px solid #ccc; box-sizing: border-box; margin: 0 0 5px; padding: 4px; width: 100%; }
+    #oldNewMessage input { border: 1px solid #ccc; margin: 5px 0; padding: 2px 4px }
+    #oldNewMessage .img, #oldNewMessage .tags { width: 500px }
+    #oldNewMessage .subm { background: #eeeee5; width: 150px }
+    #oldNewMessage > div { display: none; }
+    #oldNewMessage.active > div { display: block; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
