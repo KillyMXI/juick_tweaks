@@ -612,7 +612,6 @@ function addPostSharpForm() {
   let f = document.querySelector('#oldNewMessage');
   let ta = f.querySelector('textarea');
   let aUpload = f.querySelector('#aUpload');
-  console.log([f,ta,aUpload]);
   ta.addEventListener("focus", () => {
     ta.parentNode.classList.add('active');
   });
