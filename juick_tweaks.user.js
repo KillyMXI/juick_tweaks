@@ -97,7 +97,6 @@ if (isNewMessage) {                      // если форма ввода но�
 if (isPost) {                            // на странице поста
   tryRun(filterPostComments);
   tryRun(checkReplyPost);
-  tryRun(updateTagsOnAPostPage);
   tryRun(addTagEditingLinkUnderPost);
   tryRun(addCommentRemovalLinks);
   tryRun(bringCommentsIntoViewOnHover);
@@ -110,7 +109,6 @@ if (isFeed) {                            // в ленте или любом сп
   }
   tryRun(limitArticlesHeight);
   tryRun(checkReplyArticles);
-  tryRun(updateTagsInFeed);
   tryRun(markNsfwPostsInFeed);
   tryRun(embedLinksToArticles);
 }
@@ -397,24 +395,6 @@ function getUidForUnameAsync(uname) {
   ];
   return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500, predicates).then(response => {
     return JSON.parse(response.responseText)[0].uid;
-  });
-}
-
-function updateTagsOnAPostPage() {
-  if (!GM_getValue('enable_user_tag_links', true)) { return; }
-  let tagsDiv = document.querySelector('div.msg-tags');
-  if (tagsDiv === null) { return; }
-  let userId = getPostUserName(document);
-  Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
-}
-
-function updateTagsInFeed() {
-  if (!GM_getValue('enable_user_tag_links_in_feed', false)) { return; }
-  [].forEach.call(document.querySelectorAll('#content > article[data-mid]'), function(article, i, arr) {
-    let userId = getPostUserName(article);
-    let tagsDiv = article.querySelector('div.msg-tags');
-    if (tagsDiv === null) { return; }
-    Array.from(tagsDiv.children).forEach(t => { t.href = t.href.replace('tag/', userId + '/?tag='); });
   });
 }
 
@@ -2662,16 +2642,6 @@ function checkReplyPost() {
 
 function getUserscriptSettings() {
   return [
-    {
-      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в постах',
-      id: 'enable_user_tag_links',
-      enabledByDefault: true
-    },
-    {
-      name: 'Пользовательские теги (/user/?tag=) вместо общих (/tag/) - в ленте',
-      id: 'enable_user_tag_links_in_feed',
-      enabledByDefault: false
-    },
     {
       name: 'Теги на форме редактирования нового поста (/#post)',
       id: 'enable_tags_on_new_post_form',
