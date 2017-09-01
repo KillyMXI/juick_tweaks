@@ -419,7 +419,7 @@ function getUidForUnameAsync(uname) {
 }
 
 function replacePostLink() {
-  if (!GM_getValue('enable_replace_post_link', true)) { return; }
+  if (!GM_getValue('enable_replace_post_link', false)) { return; }
   setTimeout(function() {
     let postLink = document.querySelector('#post');
     let cleanLink = postLink.cloneNode(true);
@@ -616,7 +616,7 @@ function addPostSharpFormUser() {
 }
 
 function addPostSharpForm() {
-  if (!GM_getValue('enable_post_sharp', true)) { return; }
+  if (!GM_getValue('enable_post_sharp', false)) { return; }
   let content = document.querySelector('#content');
   let newMessageForm = `
     <form id="oldNewMessage" action="/post" method="post" enctype="multipart/form-data">
