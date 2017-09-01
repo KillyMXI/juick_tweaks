@@ -137,6 +137,7 @@ if (isSettingsPage) {                    // на странице настрое
   tryRun(addTweaksSettingsButton);
 }
 
+tryRun(replacePostLink);
 tryRun(addToggleBetaLink);
 tryRun(addLocalWarning);
 
@@ -396,6 +397,15 @@ function getUidForUnameAsync(uname) {
   return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500, predicates).then(response => {
     return JSON.parse(response.responseText)[0].uid;
   });
+}
+
+function replacePostLink() {
+  if (!GM_getValue('enable_replace_post_link', true)) { return; }
+  setTimeout(function() {
+    let postLink = document.querySelector('#post');
+    let cleanLink = postLink.cloneNode(true);
+    postLink.parentNode.replaceChild(postLink.cloneNode(true), postLink);
+  }, 100);
 }
 
 function markNsfwPostsInFeed() {
@@ -2642,6 +2652,12 @@ function checkReplyPost() {
 
 function getUserscriptSettings() {
   return [
+    {
+      name: 'Открывать /post вместо диалога нового сообщения',
+      id: 'enable_replace_post_link',
+      enabledByDefault: false,
+      isNew: true
+    },
     {
       name: 'Теги на форме редактирования нового поста (/#post)',
       id: 'enable_tags_on_new_post_form',
