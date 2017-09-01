@@ -120,6 +120,9 @@ if (isUserColumn) {                      // если колонка пользо
   tryRun(biggerAvatar);
   tryRun(addMentionsLink);
   tryRun(addIRecommendLink);
+  if(isFeed) {
+    tryRun(addPostSharpFormUser);
+  }
 }
 
 if (isTagsPage) {                        // на странице тегов пользователя
@@ -593,6 +596,12 @@ function easyTagsUnderNewMessageForm() {
     return;
   }
   ).catch( err => console.warn(err) );
+}
+
+function addPostSharpFormUser() {
+  if (getColumnUserName() == getMyUserName()) {
+    addPostSharpForm();
+  }
 }
 
 function addPostSharpForm() {
