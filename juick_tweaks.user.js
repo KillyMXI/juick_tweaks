@@ -78,7 +78,7 @@ const content = document.getElementById('content');
 const isPost = (content !== null) && content.hasAttribute('data-mid');
 const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
 const isCommonFeed = (/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
-const isNewMessage = (document.getElementById('newmessage') === null) ? false : true;
+const isNewPostPage = window.location.pathname.endsWith('/post');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
 const isSettingsPage = window.location.pathname.endsWith('/settings');
@@ -90,8 +90,8 @@ const isUsersTable = (document.querySelector('#content > div.users') === null) ?
 
 addStyle();                              // минимальный набор стилей, необходимый для работы скрипта
 
-if (isNewMessage) {                      // если форма ввода нового сообщения присутствует на странице (/#post и т.п.)
-  tryRun(addEasyTagsUnderNewMessageForm);
+if (isNewPostPage) {                     // на странице нового сообщения (/post)
+  tryRun(easyTagsUnderNewMessageForm);
 }
 
 if (isPost) {                            // на странице поста
@@ -209,6 +209,10 @@ function htmlEscape(html) {
   let textarea = document.createElement('textarea');
   textarea.textContent = html;
   return textarea.innerHTML;
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 function naiveEllipsis(str, len, ellStr='...') {
@@ -558,30 +562,32 @@ function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]
   return tagsContainer;
 }
 
-function addEasyTagsUnderNewMessageForm() {
-  if (!GM_getValue('enable_tags_on_new_post_form', true)) { return; }
+function easyTagsUnderNewMessageForm() {
+  if (!GM_getValue('enable_tags_on_new_post_page', true)) { return; }
   let uname = getMyUserName();
   getUidForUnameAsync(uname).then(uid => {
     return loadTagsAsync(uid);
   }).then(tags => {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
-    return makeTagsContainer(tags, 60, 'tag', uname, color);
+    return makeTagsContainer(tags, 300, 'tag', uname, color);
   }).then(tagsContainer => {
-    let messageForm = document.getElementById('newmessage');
-    let tagsField = messageForm.querySelector('div > .tags');
-    tagsField.parentNode.appendChild(tagsContainer);
-    const addTag = (tagsField, newTag) => {
-      let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
-      if (re.test(tagsField.value)) {
-        tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
+    Array.from(document.querySelectorAll('#content > a')).forEach(a => a.remove());
+    let content = document.querySelector('#content');
+    let messageBox = content.querySelector('textarea.newmessage');
+    content.insertAdjacentElement('beforeend', tagsContainer);
+    const addTag = (box, newTag) => {
+      let escapedTag = escapeRegExp(newTag);
+      let re = new RegExp(`(^.* |^)(\\*${escapeRegExp(newTag)})($|\\s[\\s\\S]*$)`, 'g');
+      if (re.test(box.value)) {
+        box.value = box.value.replace(re, '$1$3').replace(/(^.*? )( +)/, '$1').replace(/^ /, '');
       } else {
-        tagsField.value = (tagsField.value.trim() + ' ' + newTag).trim();
+        box.value = box.value.replace(/(^.*)([\s\S]*)/g, `$1 *${newTag}$2`).replace(/(^.*? )( +)/, '$1').replace(/^ /, '');
       }
     };
     Array.from(tagsContainer.children).forEach(t => {
       let newTag = t.textContent;
       t.href = '';
-      t.onclick = (e => { e.preventDefault(); addTag(tagsField, newTag); });
+      t.onclick = (e => { e.preventDefault(); addTag(messageBox, newTag); });
     });
     return;
   }
@@ -2659,9 +2665,10 @@ function getUserscriptSettings() {
       isNew: true
     },
     {
-      name: 'Теги на форме редактирования нового поста (/#post)',
-      id: 'enable_tags_on_new_post_form',
-      enabledByDefault: true
+      name: 'Кликабельные теги на странице нового поста (/post)',
+      id: 'enable_tags_on_new_post_page',
+      enabledByDefault: true,
+      isNew: true
     },
     {
       name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
