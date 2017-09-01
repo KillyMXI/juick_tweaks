@@ -367,6 +367,17 @@ function computeStyle(newElement) {
   return style;
 }
 
+function autosize(el) {
+  let offset = (!window.opera)
+    ? (el.offsetHeight - el.clientHeight)
+    : (el.offsetHeight + parseInt(window.getComputedStyle(el, null).getPropertyValue('border-top-width')));
+  let resize = function (el) {
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + offset) + 'px';
+  };
+  el.addEventListener('input', () => resize(el));
+}
+
 
 // function definitions =====================================================================================
 
@@ -624,6 +635,7 @@ function addPostSharpForm() {
   ta.addEventListener("focus", () => {
     ta.parentNode.classList.add('active');
   });
+  autosize(ta);
   aUpload.addEventListener('click', (e) => {
     let fileInput = f.querySelector('input[type="file"]');
     if (!fileInput) {
