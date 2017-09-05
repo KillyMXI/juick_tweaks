@@ -75,15 +75,15 @@ const isLocal = (window.location.hostname == 'localhost');
 if (isLocal && !GM_getValue('enable_local', false)) { return; }
 
 const content = document.getElementById('content');
-const isPost = (content !== null) && content.hasAttribute('data-mid');
-const isFeed = (document.querySelectorAll('#content article[data-mid]').length > 0);
-const isCommonFeed = (/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href) !== null);
+const isPost = content && content.hasAttribute('data-mid');
+const isFeed = document.querySelectorAll('#content article[data-mid]').length > 0;
+const isCommonFeed = is(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href));
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
-const isSingleTagPage = (window.location.pathname.indexOf('/tag/') != -1);
+const isSingleTagPage = window.location.pathname.indexOf('/tag/') != -1;
 const isSettingsPage = window.location.pathname.endsWith('/settings');
-const isUserColumn = (document.querySelector('aside#column > div#ctitle:not(.tag)') === null) ? false : true;
-const isUsersTable = (document.querySelector('#content > div.users') === null) ? false : true;
+const isUserColumn = is(document.querySelector('aside#column > div#ctitle:not(.tag)'));
+const isUsersTable = is(document.querySelector('#content > div.users'));
 
 
 // userscript features =====================================================================================
@@ -120,7 +120,7 @@ if (isUserColumn) {                      // если колонка пользо
   tryRun(biggerAvatar);
   tryRun(addMentionsLink);
   tryRun(addIRecommendLink);
-  if(isFeed) {
+  if (isFeed) {
     tryRun(addPostSharpFormUser);
   }
 }
@@ -159,6 +159,10 @@ Number.prototype.pad = function(size=2) {
   while (s.length < size) { s = '0' + s; }
   return s;
 };
+
+function is(value) {
+  return value ? true : false;
+}
 
 function longest(arr) {
   return arr.reduce((a,b) => (!a) ? b : (!b || a.length > b.length) ? a : b);
@@ -235,7 +239,7 @@ function naiveEllipsisRight(str, len, ellStr='...') {
 
 function wrapIntoTag(node, tagName, className) {
   let tag = document.createElement(tagName);
-  if (className !== undefined) { tag.className = className; }
+  if (className) { tag.className = className; }
   tag.appendChild(node);
   return tag;
 }
@@ -307,7 +311,7 @@ function getProto() {
 function setProto(url, proto) {
   return url.replace(
     /^(https?:)?(?=\/\/)/i,
-    (proto === undefined) ? getProto() : proto
+    proto ? proto : getProto()
   );
 }
 
@@ -333,11 +337,11 @@ function xhrGetAsync (url, timeout=3000, predicates) {
       url: url,
       timeout: timeout,
       onload: function(response) {
-        if (predicates === undefined) {
+        if (!predicates) {
           resolve(response);
         } else {
           let match = predicates.find(({msg, p}) => p(response));
-          if (match === undefined) {
+          if (!match) {
             resolve(response);
           } else {
             let {msg, p} = match;
@@ -345,8 +349,8 @@ function xhrGetAsync (url, timeout=3000, predicates) {
           }
         }
       },
-      ontimeout: function(response) { reject({reason: 'timeout', response: response}); },
-      onerror: function(response) { reject({reason: 'unknown error', response: response}); }
+      ontimeout: function(response) { reject({ reason: 'timeout', response: response }); },
+      onerror: function(response) { reject({ reason: 'unknown error', response: response }); }
     });
   });
 }
@@ -387,17 +391,17 @@ function svgIconHtml(name) {
 
 function getMyUserName() {
   let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
-  return (myUserIdLink === null) ? null : myUserIdLink.textContent.replace('@', '');
+  return (myUserIdLink) ? myUserIdLink.textContent.replace('@', '') : null;
 }
 
 function getColumnUserName() {
   let columnUserIdLink = document.querySelector('div#ctitle > a');
-  return (columnUserIdLink === null) ? null : columnUserIdLink.textContent.trim();
+  return (columnUserIdLink) ? columnUserIdLink.textContent.trim() : null;
 }
 
 function getColumnUid() {
   let avatar = document.querySelector('div#ctitle > a > img');
-  return (avatar === null) ? null : avatar.src.match(/\/as?\/(\d+)\./i)[1];
+  return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
 }
 
 function getPostUserName(element) {
@@ -406,7 +410,7 @@ function getPostUserName(element) {
 
 function getPostUid(element) {
   let avatar = document.querySelector('div.msg-avatar > a > img');
-  return (avatar === null) ? null : avatar.src.match(/\/as?\/(\d+)\./i)[1];
+  return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
 }
 
 function getUidForUnameAsync(uname) {
@@ -431,7 +435,7 @@ function markNsfwPostsInFeed() {
   if (!GM_getValue('enable_mark_nsfw_posts_in_feed', true)) { return; }
   [].forEach.call(document.querySelectorAll('#content > article[data-mid]'), function(article, i, arr) {
     let tagsDiv = article.querySelector('div.msg-tags');
-    let isNsfw = (tagsDiv !== null) && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
+    let isNsfw = tagsDiv && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
     if (isNsfw) { article.classList.add('nsfw'); }
   });
 }
@@ -454,10 +458,10 @@ function addCommentRemovalLinks() {
   if (!GM_getValue('enable_comment_removal_links', true)) { return; }
   let myUserId = getMyUserName();
   let commentsBlock = document.querySelector('ul#replies');
-  if ((commentsBlock !== null) && (myUserId !== null)) {
+  if (commentsBlock && myUserId) {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
       let postUserAvatar = linode.querySelector('div.msg-avatar > a > img');
-      if (postUserAvatar !== null) {
+      if (postUserAvatar) {
         let postUserId = postUserAvatar.alt;
         if (postUserId == myUserId) {
           let linksBlock = linode.querySelector('div.msg-links');
@@ -703,7 +707,7 @@ function getLastArticleDate(html) {
   const re = /datetime\=\"([^\"]+) ([^\"]+)\"/;
   //const re = /\"timestamp\"\:\"([^\"]+) ([^\"]+)\"/;
   let [, dateStr, timeStr] = re.exec(html) || [];
-  return (dateStr === undefined) ? null : new Date(`${dateStr}T${timeStr}`);
+  return (dateStr) ? new Date(`${dateStr}T${timeStr}`) : null;
 }
 
 function processPageAsync(url, retrievalFunction, timeout=110) {
@@ -737,11 +741,11 @@ function loadUserDatesAsync(unprocessedUsers, processedUsers=[]) {
       processPageAsync(postsUrl, getLastArticleDate).then(lastPostDate => {
         processPageAsync(recsUrl, getLastArticleDate).then(lastRecDate => {
           let date = (lastPostDate > lastRecDate) ? lastPostDate : lastRecDate;
-          if (date === null) {
-            console.log(`${user.id}: no posts or recommendations found`);
-          } else {
+          if (date) {
             user.date = date;
             user.a.appendChild(document.createTextNode (` (${date.getFullYear()}-${(date.getMonth()+1).pad(2)}-${date.getDate().pad(2)})` ));
+          } else {
+            console.log(`${user.id}: no posts or recommendations found`);
           }
           processedUsers.push(user);
           loadUserDatesAsync(unprocessedUsers, processedUsers).then(rr => resolve(rr));
@@ -905,7 +909,7 @@ function splitScriptsFromHtml(html) {
   const scriptRe = /<script.*?(?:src="(.+?)".*?)?>([\s\S]*?)<\/\s?script>/gmi;
   let scripts = getAllMatchesAndCaptureGroups(scriptRe, html).map(m => {
     let [, url, s] = m;
-    return (url !== undefined)
+    return (url)
       ? { call: function(){ loadScript(url, true); } }
       : { call: function(){ setTimeout(window.eval(s), 0); } };
   });
@@ -969,7 +973,7 @@ function juickPhotoLink(postId, ext) {
 }
 
 function juickId([, userId, postId, replyId]) {
-  let isReply = ((replyId !== undefined) && (replyId != '0'));
+  let isReply = replyId && (replyId != '0');
   return '#' + postId + (isReply ? '/' + replyId : '');
 }
 
@@ -985,10 +989,10 @@ function getEmbeddableLinkTypes() {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
 
-        let isReply = ((replyId !== undefined) && (replyId !== '0'));
+        let isReply = (replyId && replyId !== '0');
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
         let idStr = juickId(reResult);
-        let linkStr = '/' + msgId + ((isReply) ? '#' + mrid : '');
+        let linkStr = '/' + msgId + (isReply ? '#' + mrid : '');
 
         if (GM_getValue('enable_move_into_view_on_same_page', true)) {
           let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
@@ -1020,25 +1024,23 @@ function getEmbeddableLinkTypes() {
             }
             let threadInfo = JSON.parse(response.responseText);
             let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
-            if (msg === undefined) {
+            if (!msg) {
               div.textContent = '' + idStr + ' does not exist';
               div.className = div.className.replace(' loading', ' failed');
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
 
-            let withTags = (msg.tags !== undefined);
-            let withPhoto = (msg.photo !== undefined);
-            let withLikes = (msg.likes !== undefined && msg.likes > 0);
-            let isReplyToOp = isReply && (msg.replyto === undefined || msg.replyto == 0);
-            let withReplies = (msg.replies !== undefined && msg.replies > 0);
-            let isNsfw = withPhoto && (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'NSFW');
-            let isCode = (msg.tags !== undefined) && msg.tags.some(t => t.toUpperCase() == 'CODE');
+            let withLikes = msg.likes && msg.likes > 0;
+            let isReplyToOp = isReply && (!msg.replyto || msg.replyto == 0);
+            let withReplies = msg.replies && msg.replies > 0;
+            let isNsfw = msg.tags && msg.tags.some(t => t.toUpperCase() == 'NSFW');
+            let isCode = msg.tags && msg.tags.some(t => t.toUpperCase() == 'CODE');
 
             if (isCode) { div.classList.add('codePost'); }
 
-            let tagsStr = (withTags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
-            let photoStr = (withPhoto) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
+            let tagsStr = (msg.tags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
+            let photoStr = (msg.photo) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
             let replyStr = (isReply)
               ? ` in reply to <a class="whiteRabbit" href="/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
               : '';
@@ -1077,7 +1079,7 @@ function getEmbeddableLinkTypes() {
       },
       linkTextUpdate: function(aNode, reResult) {
         if (isDefaultLinkText(aNode)) {
-          //var isUser = (reResult[1] !== undefined);
+          //var isUser = (reResult[1]);
           aNode.textContent = juickId(reResult); // + ((!isReply && isUser) ? ' (@' + reResult[1] + ')' : '');
         }
       }
@@ -1149,7 +1151,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let [url, v, args, plist] = reResult;
         let iframeUrl;
-        if (plist !== undefined) {
+        if (plist) {
           iframeUrl = '//www.youtube-nocookie.com/embed/videoseries?list=' + plist;
         } else {
           let pp = {}; args.replace(/^\?/, '')
@@ -1157,12 +1159,12 @@ function getEmbeddableLinkTypes() {
                            .map(s => s.split('='))
                            .forEach(z => pp[z[0]] = z[1]);
           let embedArgs = { rel: '0' };
-          if (pp.t != undefined) {
+          if (pp.t) {
             const tre = /^(?:(\d+)|(?:(\d+)h)?(?:(\d+)m)?(\d+)s|(?:(\d+)h)?(\d+)m|(\d+)h)$/i;
             let [, t, h, m, s, h1, m1, h2] = tre.exec(pp.t);
             embedArgs['start'] = (+t) || ((+(h || h1 || h2 || 0))*60*60 + (+(m || m1 || 0))*60 + (+(s || 0)));
           }
-          if (pp.list !== undefined) {
+          if (pp.list) {
             embedArgs['list'] = pp.list;
           }
           v = v || pp.v;
@@ -1368,7 +1370,7 @@ function getEmbeddableLinkTypes() {
             }
             let json = JSON.parse(response.responseText);
 
-            let imageUrl = (json.url !== undefined) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
+            let imageUrl = (json.url) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
             let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
             div.innerHTML = `
               <div class="top">
@@ -1420,11 +1422,11 @@ function getEmbeddableLinkTypes() {
                 <div class="date">${date.toLocaleString('ru-RU')}</div>
               </div>`;
 
-            if ((json.type == 'rich') && (json.html !== undefined)) {
+            if ((json.type == 'rich') && json.html) {
               div.innerHTML += `<div class="desc">${json.html}...</div>`;
             } else {
               let imageClassStr = (json.safety == 'adult') ? 'class="rating_e"' : '';
-              let imageUrl = (json.fullsize_url !== undefined) ? json.fullsize_url : (json.url !== undefined) ? json.url : json.thumbnail_url;
+              let imageUrl = (json.fullsize_url) ? json.fullsize_url : (json.url) ? json.url : json.thumbnail_url;
               div.innerHTML += `<a href="${aNode.href}"><img ${imageClassStr} src="${imageUrl}"></a>`;
             }
 
@@ -1461,11 +1463,9 @@ function getEmbeddableLinkTypes() {
         div = div || document.createElement('div');
         div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
         div.className = 'imgur embed loading singleColumn';
-        let isAlbum = (albumType !== undefined);
-        let isSpecificImage = (albumImageId !== undefined);
-        let url = (isAlbum && isSpecificImage)
+        let url = (albumType && albumImageId)
           ? 'http://imgur.com/' + albumImageId
-          : 'http://imgur.com/' + (isAlbum ? albumType + '/' : '') + contentId;
+          : 'http://imgur.com/' + (albumType ? albumType + '/' : '') + contentId;
         GM_xmlhttpRequest({
           method: 'GET',
           url: 'http://api.imgur.com/oembed.json?url=' + encodeURIComponent(url),
@@ -1720,7 +1720,7 @@ function getEmbeddableLinkTypes() {
             ss.forEach(s => s.call());
             div.innerHTML += h;
             waitAndRun(
-              () => { let iframe = div.querySelector('iframe'); return (iframe !== null && (parseInt(iframe.height) > 30)); },
+              () => { let iframe = div.querySelector('iframe'); return (iframe && (parseInt(iframe.height) > 30)); },
               () => {
                 div.querySelector('iframe').style.margin = '0px';
                 div.querySelector('span').remove();
@@ -2016,8 +2016,8 @@ function getEmbeddableLinkTypes() {
             let [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
             let [, authorId, authorName] = /<a\s+href="\/?member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
 
-            let dateDiv = (dateStr !== undefined) ? `<div class="date">${dateStr}</div>` : '';
-            let authorStr = (authorId !== undefined) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
+            let dateDiv = (dateStr) ? `<div class="date">${dateStr}</div>` : '';
+            let authorStr = (authorId) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
             div.innerHTML = `
               <div class="top">
                 <div class="title">
@@ -2128,7 +2128,7 @@ function getEmbeddableLinkTypes() {
 
           let [finalUrl, finalDomain, ] = thisType.re.exec(response.finalUrl);
           let json = JSON.parse(response.responseText);
-          if (json.preview_file_url === undefined) {
+          if (!json.preview_file_url) {
             div.innerHTML = `<span>Can't show <a href="${finalUrl}">${id}</a> (<a href="${url}">${json.rating}</a>)</span>`;
             return;
           }
@@ -2137,8 +2137,8 @@ function getEmbeddableLinkTypes() {
                           .filter(s => s != '')
                           .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://${finalDomain}.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
                           .join('<br>');
-          let notesStr = (json.last_noted_at !== null) ? ' (notes)' : '';
-          let commentsStr = (json.last_commented_at !== null) ? ' (comments)' : '';
+          let notesStr = (json.last_noted_at) ? ' (notes)' : '';
+          let commentsStr = (json.last_commented_at) ? ' (comments)' : '';
           let ratingStr = (json.rating == 's') ? '' : ` (<a href="${url}">${json.rating}</a>)`;
           let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
           let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
@@ -2195,7 +2195,7 @@ function getEmbeddableLinkTypes() {
         xhrGetAsync('https://konachan.net/post.json?tags=id:' + id, 3000, predicates).then(response => {
 
           let json = (JSON.parse(response.responseText))[0];
-          if (json === undefined || json.preview_url === undefined) {
+          if (!json || !json.preview_url) {
             div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (<a href="${unsafeUrl}">${json.rating}</a>)</span>'`;
             return;
           }
@@ -2248,14 +2248,14 @@ function getEmbeddableLinkTypes() {
         xhrGetAsync('https://yande.re/post.json?tags=id:' + id, 3000, predicates).then(response => {
 
           let json = (JSON.parse(response.responseText))[0];
-          if (json === undefined || json.preview_url === undefined) {
+          if (!json || !json.preview_url) {
             div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (${json.rating})</span>`;
             return;
           }
 
           let ratingStr = (json.rating == 's') ? '' : ` (${json.rating})`;
-          let notesStr = (json.last_noted_at !== null && json.last_noted_at !== 0) ? ' (notes)' : '';
-          let commentsStr = (json.last_commented_at !== null && json.last_commented_at !== 0) ? ' (comments)' : '';
+          let notesStr = (json.last_noted_at && json.last_noted_at !== 0) ? ' (notes)' : '';
+          let commentsStr = (json.last_commented_at && json.last_commented_at !== 0) ? ' (comments)' : '';
           let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
           let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
           if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})`; }
@@ -2373,7 +2373,7 @@ function getEmbeddableLinkTypes() {
         div.className = 'other embed loading ' + domain.replace(/\./g, '_');
 
         let unembed = (reason) => {
-          if (reason !== undefined) { console.log(`${reason} - ${url}`); }
+          if (reason) { console.log(`${reason} - ${url}`); }
           div.innerHTML = '';
           div.className = 'notEmbed';
           aNode.classList.add('notEmbed');
@@ -2392,7 +2392,7 @@ function getEmbeddableLinkTypes() {
             let headerMatches = getAllMatchesAndCaptureGroups(headRe, response1.responseHeaders);
             let [, , contentType] = headerMatches.find(m => (m[1].toLowerCase() == 'content-type'));
 
-            if (contentType !== undefined && contentType.match(/^text\/html\b/i)) {
+            if (contentType && contentType.match(/^text\/html\b/i)) {
 
               GM_xmlhttpRequest({
                 method: 'GET',
@@ -2413,8 +2413,8 @@ function getEmbeddableLinkTypes() {
                   let image = meta['twitter:image'] || meta['twitter:image:src'] || meta['og:image'] || meta['sailthru.image.full'];
                   let description = longest([meta['og:description'], meta['twitter:description'], meta['description'], meta['sailthru.description']]);
 
-                  if (title !== undefined && description !== undefined && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
-                    let imageStr = (image !== undefined) ? `<a href="${url}"><img src="${image}" /></a>` : '';
+                  if (title && description && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
+                    let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
                     description = htmlDecode(description).replace(/\n+/g,'<br/>');
                     div.innerHTML = `
                       <div class="top">
@@ -2488,12 +2488,16 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
   let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/i,''));
   let sameEmbed = container.querySelector(`*[data-linkid='${linkId}']`); // do not embed the same thing twice
-  if (sameEmbed === null) {
+  if (sameEmbed) {
+    if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
+    setHighlightOnHover(aNode, sameEmbed);
+    //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
+  } else {
     anyEmbed = [].some.call(linkTypes, function(linkType) {
       if (GM_getValue(linkType.id, linkType.onByDefault)) {
         let reResult = linkType.re.exec(aNode.href);
-        if (reResult !== null) {
-          if ((linkType.match !== undefined) && (linkType.match(aNode, reResult) === false)) { return false; }
+        if (reResult) {
+          if (linkType.match && (linkType.match(aNode, reResult) === false)) { return false; }
 
           let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
           let newNode = (isCts)
@@ -2505,7 +2509,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
           if (!newNode) { return false; }
 
           newNode.setAttribute('data-linkid', linkId);
-          if (afterNode !== undefined) {
+          if (afterNode) {
             insertAfter(newNode, afterNode);
           } else {
             container.appendChild(newNode);
@@ -2513,7 +2517,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
 
           aNode.classList.add('embedLink');
           if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
-          if (GM_getValue('enable_link_text_update', true) && (linkType.linkTextUpdate !== undefined)) { linkType.linkTextUpdate(aNode, reResult); }
+          if (GM_getValue('enable_link_text_update', true) && linkType.linkTextUpdate) { linkType.linkTextUpdate(aNode, reResult); }
 
           setHighlightOnHover(aNode, newNode);
           //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
@@ -2521,10 +2525,6 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
         }
       }
     });
-  } else {
-    if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
-    setHighlightOnHover(aNode, sameEmbed);
-    //setMoveIntoViewOnHover(aNode, aNode, newNode, 5, 30);
   }
   return anyEmbed;
 }
@@ -2554,7 +2554,7 @@ function articleInfo(article) {
 
 function isFilteredX(x, filteredUsers, filteredTags) {
   let {userId, tags} = articleInfo(x);
-  return (filteredUsers !== undefined && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
+  return (filteredUsers && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
          || (intersect(tags, filteredTags).length > 0);
 }
 
@@ -2563,7 +2563,7 @@ function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTag
   let allLinks = x.querySelectorAll(allLinksSelector);
 
   let existingContainer = x.querySelector('div.embedContainer');
-  if (existingContainer !== null) {
+  if (existingContainer) {
     embedLinks(allLinks, existingContainer, isCtsPost);
   } else {
     let embedContainer = document.createElement('div');
@@ -2628,7 +2628,7 @@ function filterPostComments() {
       linksDiv.querySelector('.a-thread-comment').remove();
       linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
       let media = reply.querySelector('.msg-comment');
-      if (media !== null) { media.remove(); }
+      if (media) { media.remove(); }
       if (!keepHeader) {
         reply.classList.add('headless');
         reply.querySelector('.msg-header').remove();
@@ -2732,7 +2732,7 @@ function bringCommentsIntoViewOnHover() {
 function checkReply(allPostsSelector, replySelector) {
   let userId = getMyUserName();
   Array.from(document.querySelectorAll(allPostsSelector))
-       .filter(p => (p.querySelector(replySelector) === null) && (getPostUserName(p) != userId))
+       .filter(p => !p.querySelector(replySelector) && (getPostUserName(p) != userId))
        .forEach(p => p.classList.add('readonly'));
 }
 
@@ -3022,7 +3022,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
   function recUpdate(depth, oldestMid, oldestDate) {
     if (depth <= 0) { return; }
 
-    let beforeStr = (oldestMid !== undefined) ? '&before=' + oldestMid : '';
+    let beforeStr = (oldestMid) ? ('&before=' + oldestMid) : '';
     let url = `//juick.com/${userId}/?show=recomm${beforeStr}`;
     GM_xmlhttpRequest({
       method: 'GET',
@@ -3035,7 +3035,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
         const articleRe = /<article[\s\S]+?<\/article>/gmi;
         let articles = response.responseText.match(articleRe);
-        if (articles === null) {
+        if (!articles) {
           console.log('no more articles in response');
           return;
         }
