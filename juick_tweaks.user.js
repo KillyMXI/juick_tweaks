@@ -442,16 +442,14 @@ function markNsfwPostsInFeed() {
 
 function addTagEditingLinkUnderPost() {
   if (!GM_getValue('enable_tags_editing_link', true)) { return; }
-  let mtoolbar = document.querySelector('#content li.toolbar ul');
-  let canEdit = (mtoolbar.textContent.indexOf('Удалить') > -1) ? true : false;
+  let postToolbar = document.querySelector('#content li.toolbar ul');
+  let canEdit = (postToolbar.innerHTML.indexOf('/post?body=D+%23') > -1);
   if (!canEdit) { return; }
-  let linode = document.createElement('li');
-  let anode = document.createElement('a');
   let mid = document.getElementById('content').getAttribute('data-mid');
-  anode.href = '/post?body=%23' + mid + '+%2ATag';
-  anode.innerHTML = '<div style="background-position: -16px 0"></div>Теги';
-  linode.appendChild(anode);
-  mtoolbar.appendChild(linode);
+  postToolbar.insertAdjacentHTML(
+    'beforeend',
+    `<li><a href="/post?body=%23${mid}+%2ATag"><div style="background-position: -16px 0"></div>Теги</a></li>`
+  );
 }
 
 function addCommentRemovalLinks() {
