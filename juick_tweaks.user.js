@@ -1275,7 +1275,7 @@ function getEmbeddableLinkTypes() {
             let isAlbum = pageType == 'album';
             if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
             videoUrl = videoUrl.replace('/artwork=small', '');
-            let iframe = makeIframe(videoUrl, '100%', '480px');
+            let iframe = makeIframe(videoUrl, '100%', '600px');
             removeAllFrom(div);
             div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
             div.className = div.className.replace(' embed loading', '');
