@@ -827,6 +827,7 @@ function makeIframe(src, w, h, scrolling='no') {
   iframe.scrolling = scrolling;
   iframe.setAttribute('allowFullScreen', '');
   iframe.src = src;
+  iframe.innerHTML = 'Cannot show iframes.';
   return iframe;
 }
 
@@ -838,7 +839,7 @@ function makeResizableToRatio(element, ratio) {
 // calcHeight :: Number -> Number -- calculate element height for a given width
 function makeResizable(element, calcHeight) {
   const setHeight = el => {
-    if (el.offsetWidth > 0) {
+    if (document.body.contains(el) && (el.offsetWidth > 0)) {
       el.style.height = (calcHeight(el.offsetWidth)).toFixed(2) + 'px';
     }
   };
@@ -1172,7 +1173,7 @@ function getEmbeddableLinkTypes() {
           iframeUrl = `//www.youtube-nocookie.com/embed/${v}?${argsStr}`;
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
+        iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return wrapIntoTag(iframe, 'div', 'youtube resizableV singleColumn');
       }
     },
@@ -1185,7 +1186,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
       makeNode: function(aNode, reResult) {
         let iframe = makeIframe('//player.vimeo.com/video/' + reResult[1], '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
+        iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return wrapIntoTag(iframe, 'div', 'vimeo resizableV');
       }
     },
@@ -1197,7 +1198,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
       makeNode: function(aNode, reResult) {
         let iframe = makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
+        iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return wrapIntoTag(iframe, 'div', 'dailymotion resizableV');
       }
     },
@@ -1210,7 +1211,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult) {
         let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         let iframe = makeIframe(embedUrl, '100%', '360px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
+        iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return wrapIntoTag(iframe, 'div', 'coub resizableV');
       }
     },
@@ -1226,7 +1227,7 @@ function getEmbeddableLinkTypes() {
           ? `https://player.twitch.tv/?video=v${video}&autoplay=false`
           : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
         let iframe = makeIframe(url, '100%', '378px');
-        setTimeout(() => makeResizableToRatio(iframe, 9.0 / 16.0), 10);
+        iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return wrapIntoTag(iframe, 'div', 'twitch resizableV');
       }
     },
@@ -1279,7 +1280,7 @@ function getEmbeddableLinkTypes() {
             div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
             div.className = div.className.replace(' embed loading', '');
             let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
-            setTimeout(() => makeResizable(iframe, calcHeight), 50);
+            iframe.onload = () => makeResizable(iframe, calcHeight);
           }
         });
 
@@ -1338,8 +1339,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
       makeNode: function(aNode, reResult) {
         let iframe = makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', '100%', '722px');
-        let calcHeight = w => w + 82;
-        setTimeout(() => makeResizable(iframe, calcHeight), 50);
+        iframe.onload = () => makeResizable(iframe, w => w + 82);
         return wrapIntoTag(iframe, 'div', 'instagram resizableV');
       }
     },
