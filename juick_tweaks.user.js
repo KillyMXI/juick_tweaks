@@ -1914,6 +1914,40 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'XKCD',
+      id: 'embed_xkcd',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/xkcd\.com\/(\d+)/i,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, xkcdId] = reResult;
+        div = div || document.createElement('div');
+        div.textContent = 'loading ' + naiveEllipsis(url, 60);
+        div.className = 'xkcd embed loading';
+
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: url,
+          onload: function(response) {
+            if (response.status != 200) {
+              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
+              div.className = div.className.replace(' loading', ' failed');
+              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
+              return;
+            }
+            let [, comic] = /<div id="comic">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+
+            div.innerHTML = `<a href="${url}" class="comic">${comic}</a>`;
+
+            div.className = div.className.replace(' loading', '');
+          }
+        });
+
+        return div;
+      }
+    },
+    {
       name: 'arXiv',
       id: 'embed_arxiv',
       onByDefault: true,
@@ -3243,6 +3277,7 @@ function addStyle() {
     .gistEmbed .gist-file .gist-data article { max-height: 70vh; overflow-y: auto; }
     .gistEmbed.embed.loaded { border-width: 0px; padding: 0; }
     .wordpress .desc { max-height: 70vh; overflow-y: auto; line-height: 160%; }
+    .xkcd .comic { display: block; margin: 0 auto; }
     .arxiv .top { flex-direction: column; }
     .arxiv .date { text-align: left; }
     .arxiv .bottom { margin-top: 8px; }
