@@ -1936,15 +1936,28 @@ function getEmbeddableLinkTypes() {
               turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
               return;
             }
+            let [, title] = /<div id="ctitle">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
             let [, comic] = /<div id="comic">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
 
-            div.innerHTML = `<a href="${url}" class="comic">${comic}</a>`;
+            div.innerHTML = `
+              <div class="top">
+                <div class="title">${title}</div>
+              </div>
+              <a href="${url}" class="comic">${comic}</a>`;
 
             div.className = div.className.replace(' loading', '');
           }
         });
 
         return div;
+      },
+      makeTitle: function(aNode, reResult) {
+        return 'xkcd.com/' + reResult[1] + '/';
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        if (isDefaultLinkText(aNode)) {
+          aNode.textContent = 'xkcd.com/' + reResult[1] + '/';
+        }
       }
     },
     {
