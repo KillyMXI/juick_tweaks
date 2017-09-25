@@ -634,7 +634,7 @@ function addPostSharpForm() {
   let f = document.querySelector('#oldNewMessage');
   let ta = f.querySelector('textarea');
   let aUpload = f.querySelector('#aUpload');
-  ta.addEventListener("focus", () => {
+  ta.addEventListener('focus', () => {
     ta.parentNode.classList.add('active');
   });
   autosize(ta);
@@ -849,12 +849,12 @@ function makeResizable(element, calcHeight) {
 
 function makeIframeWithHtmlAndId(myHTML) {
   let id = randomId();
-  let script =  `(function(html){
-                   var iframe = document.createElement('iframe');
-                   iframe.id='${id}';
-                   iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();};
-                   document.getElementsByTagName('body')[0].appendChild(iframe);
-                 })(${JSON.stringify(myHTML)});`;
+  let script = `(function(html){
+                  var iframe = document.createElement('iframe');
+                  iframe.id='${id}';
+                  iframe.onload = function(){var d = iframe.contentWindow.document; d.open(); d.write(html); d.close();};
+                  document.body.appendChild(iframe);
+                })(${JSON.stringify(myHTML)});`;
   window.eval(script);
   return id;
 }
