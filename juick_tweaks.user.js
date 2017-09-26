@@ -194,10 +194,6 @@ function parseRgbColor(colorStr, fallback=[0,0,0]){
   return [ +r, +g, +b ];
 }
 
-function getContrastColor([r, g, b]) {
-  return (r + g + b > 127*3) ? [0,0,0] : [255,255,255];
-}
-
 function getAllMatchesAndCaptureGroups(re, str) {
   let results = [], result;
   while ((result = re.exec(str)) !== null) { results.push(Array.from(result)); }
