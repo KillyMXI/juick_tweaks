@@ -77,13 +77,13 @@ if (isLocal && !GM_getValue('enable_local', false)) { return; }
 const content = document.getElementById('content');
 const isPost = content && content.hasAttribute('data-mid');
 const isFeed = document.querySelectorAll('#content article[data-mid]').length > 0;
-const isCommonFeed = is(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href));
+const isCommonFeed = !!(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href));
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSingleTagPage = window.location.pathname.indexOf('/tag/') != -1;
 const isSettingsPage = window.location.pathname.endsWith('/settings');
-const isUserColumn = is(document.querySelector('aside#column > div#ctitle:not(.tag)'));
-const isUsersTable = is(document.querySelector('#content > div.users'));
+const isUserColumn = !!(document.querySelector('aside#column > div#ctitle:not(.tag)'));
+const isUsersTable = !!(document.querySelector('#content > div.users'));
 
 
 // userscript features =====================================================================================
@@ -159,10 +159,6 @@ Number.prototype.pad = function(size=2) {
   while (s.length < size) { s = '0' + s; }
   return s;
 };
-
-function is(value) {
-  return value ? true : false;
-}
 
 function longest(arr) {
   return arr.reduce((a,b) => (!a) ? b : (!b || a.length > b.length) ? a : b);
