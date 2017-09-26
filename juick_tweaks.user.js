@@ -181,8 +181,10 @@ function insertAfter(newNode, referenceNode) {
   referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
-function moveAll(fromNode, toNode) {
-  for (let c; c = fromNode.firstChild; ) { toNode.appendChild(c); }
+function replaceContent(containerNode, ...newNodes) {
+  removeAllFrom(containerNode);
+  newNodes.forEach(n => containerNode.appendChild(n));
+  return containerNode;
 }
 
 function removeAllFrom(fromNode) {
@@ -234,19 +236,6 @@ function wrapIntoTag(node, tagName, className) {
   if (className) { tag.className = className; }
   tag.appendChild(node);
   return tag;
-}
-
-function waitAndRun(test, doneCallback, timeoutCallback, tick=100, count) {
-  if (test()) {
-    doneCallback();
-  } else {
-    let newCount = (count === undefined) ? undefined : count - 1;
-    if (newCount === undefined || newCount > 0) {
-      setTimeout(() => waitAndRun(test, doneCallback, timeoutCallback, tick, newCount), tick);
-    } else {
-      if (typeof timeoutCallback == 'function') { timeoutCallback(); }
-    }
-  }
 }
 
 function randomId() {
@@ -322,33 +311,54 @@ function tryRun(f) {
   }
 }
 
-function xhrGetAsync (url, timeout=3000, predicates) {
+function waitAndRunAsync(test, count, tick=100, successCallback, failCallback) {
+  return new Promise((resolve, reject) => {
+    function r(c){
+      if (test()) { resolve(successCallback()); } else {
+        if (c && (c > 0)) {
+          setTimeout(() => r(c-1), tick);
+        } else {
+          reject(failCallback());
+        }
+      }
+    }
+    r(count);
+  });
+}
+
+// predicates :: [{ msg: Response -> string, test: Response -> bool, permanent: Response -> bool }]
+function xhrGetAsync(url, timeout=3000, predicates=undefined, method='GET') {
+  predicates = predicates || [
+    {
+      msg: response => (response.statusText ? `${response.status} - ${response.statusText}` : `${response.status}`),
+      test: response => response.status != 200,
+      permanent: response => response.status != 503
+    }
+  ];
   return new Promise(function(resolve, reject) {
     GM_xmlhttpRequest({
-      method: 'GET',
+      method: method,
       url: url,
       timeout: timeout,
       onload: function(response) {
-        if (!predicates) {
+        let match = predicates && predicates.find(p => p.test(response));
+        if (!match) {
           resolve(response);
         } else {
-          let match = predicates.find(({msg, p}) => p(response));
-          if (!match) {
-            resolve(response);
-          } else {
-            let {msg, p} = match;
-            reject({reason: msg(response), response: response});
-          }
+          reject({ reason: match.msg(response), response: response, permanent: (match.permanent) ? match.permanent(response) : false });
         }
       },
-      ontimeout: function(response) { reject({ reason: 'timeout', response: response }); },
-      onerror: function(response) { reject({ reason: 'unknown error', response: response }); }
+      ontimeout: function(response) { reject({ reason: 'timeout', response: response, permanent: false }); },
+      onerror: function(response) { reject({ reason: 'unknown error', response: response, permanent: false }); }
     });
   });
 }
 
-function xhrFirstResponse(urls, timeout, predicates) {
-  return urls.reduce ( (p, url) => p.catch(e => xhrGetAsync(url, timeout, predicates)), Promise.reject({reason: 'init'}) );
+function xhrFirstResponse(urls, timeout) {
+  return urls.reduce(
+    (p, url) => p.catch(e => xhrGetAsync(url, timeout)),
+    Promise.reject({reason: 'init'})
+  );
 }
 
 function computeStyle(newElement) {
@@ -406,10 +416,7 @@ function getPostUid(element) {
 }
 
 function getUidForUnameAsync(uname) {
-  let predicates = [
-    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-  ];
-  return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500, predicates).then(response => {
+  return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500).then(response => {
     return JSON.parse(response.responseText)[0].uid;
   });
 }
@@ -535,10 +542,7 @@ function biggerAvatar() {
 }
 
 function loadTagsAsync(uid) {
-  let predicates = [
-    { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-  ];
-  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 1000, predicates).then(response => {
+  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 1000).then(response => {
     return JSON.parse(response.responseText);
   });
 }
@@ -785,30 +789,74 @@ function addUsersSortingButton() {
 function turnIntoCts(node, makeNodeCallback) {
   node.onclick = function(e){
     e.preventDefault();
-    let newNode = makeNodeCallback();
-    if (newNode !== node) {
-      removeAllFrom(node);
-      moveAll(newNode, node);
-      node.className = (node.className.includes('highlightable'))
-        ? newNode.className + ' highlightable'
-        : newNode.className;
-      node.onclick = '';
-    } else {
-      node.onclick = '';
-      node.classList.remove('cts');
-    }
+    makeNodeCallback();
+    node.onclick = '';
+    node.classList.remove('cts');
   };
 }
 
-function makeCts(makeNodeCallback, title) {
+function makeCts(makeNodeCallback, titleHtml) {
   let ctsNode = document.createElement('div');
   let placeholder = document.createElement('div');
   placeholder.className = 'placeholder';
-  placeholder.innerHTML = title;
-  ctsNode.className = 'cts';
+  placeholder.innerHTML = titleHtml;
+  ctsNode.classList.add('cts');
   ctsNode.appendChild(placeholder);
   turnIntoCts(ctsNode, makeNodeCallback);
   return ctsNode;
+}
+
+function makeTitle(embedType, reResult) {
+  return (embedType.makeTitle)
+    ? embedType.makeTitle(reResult)
+    : naiveEllipsis(reResult[0], 55);
+}
+
+function makeNewNode(embedType, aNode, reResult, alwaysCts) {
+  const withClasses = el => {
+    if (embedType.className) {
+      el.classList.add(...embedType.className.split(' '));
+    }
+    return el;
+  };
+  let isCts = alwaysCts || GM_getValue('cts_' + embedType.id, embedType.ctsDefault);
+  if (isCts) {
+    let div = makeCts(
+      () => embedType.makeNode(aNode, reResult, div),
+      'Click to show: ' + htmlEscape(makeTitle(embedType, reResult))
+    );
+    return withClasses(div);
+  } else {
+    return embedType.makeNode(aNode, reResult, withClasses(document.createElement('div')));
+  }
+}
+
+function doFetchingEmbed(aNode, reResult, div, embedType, promiseCallback) {
+  return doFetchingEmbed2(
+    div,
+    makeTitle(embedType, reResult),
+    promiseCallback,
+    () => embedType.makeNode(aNode, reResult, div)
+  );
+}
+
+function doFetchingEmbed2(div, title, promiseCallback, remakeCallback) {
+  div.innerHTML = `<span>loading ${htmlEscape(title)}</span>`;
+  div.classList.add('embed', 'loading');
+  promiseCallback()
+    .then(() => { div.classList.remove('loading'); div.classList.add('loaded'); })
+    .catch(({ reason, response, permanent }) => {
+      console.log({reason: reason, response: response, permanent: permanent, div: div, title: title});
+      if (permanent) {
+        div.textContent = reason;
+      } else {
+        div.textContent = `Failed to load (${reason})`;
+        div.classList.remove('loading');
+        div.classList.add('failed');
+        turnIntoCts(div, remakeCallback);
+      }
+    });
+  return div;
 }
 
 function makeIframe(src, w, h, scrolling='no') {
@@ -851,20 +899,18 @@ function makeIframeWithHtmlAndId(myHTML) {
   return id;
 }
 
-function makeIframeHtml(html, w, h, onloadCallback, onerrorCallback) {
-  let iframeId = makeIframeWithHtmlAndId(html);
-  let iframe = document.getElementById(iframeId);
-  iframe.className = 'newIframe';
-  iframe.width = w;
-  iframe.height = h;
-  iframe.frameBorder = 0;
-  if (typeof onloadCallback == 'function') {
-    iframe.addEventListener('load', () => onloadCallback(iframe.contentWindow.document), false);
-  }
-  if (typeof onerrorCallback == 'function') {
-    iframe.onerror = onerrorCallback;
-  }
-  return iframe;
+function makeIframeHtmlAsync(html, w, h, insertCallback, successCallback, failCallback) {
+  return new Promise((resolve, reject) => {
+    let iframeId = makeIframeWithHtmlAndId(html);
+    let iframe = document.getElementById(iframeId);
+    iframe.className = 'newIframe';
+    iframe.width = w;
+    iframe.height = h;
+    iframe.frameBorder = 0;
+    iframe.addEventListener('load', () => resolve(successCallback(iframe)), false);
+    iframe.onerror = er => reject(failCallback(er));
+    insertCallback(iframe);
+  });
 }
 
 function loadScript(url, async=false, callback, once=false) {
@@ -973,12 +1019,14 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Juick',
       id: 'embed_juick',
+      className: 'juickEmbed',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
+        let apiUrl = setProto('//api.juick.com/thread?mid=' + msgId);
 
         let isReply = (replyId && replyId !== '0');
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
@@ -999,73 +1047,54 @@ function getEmbeddableLinkTypes() {
           }
         }
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + idStr;
-        div.className = 'juickEmbed embed loading';
-
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: setProto('//api.juick.com/thread?mid=' + msgId),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load ${idStr} (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let threadInfo = JSON.parse(response.responseText);
-            let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
-            if (!msg) {
-              div.textContent = '' + idStr + ' does not exist';
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-
-            let withLikes = msg.likes && msg.likes > 0;
-            let isReplyToOp = isReply && (!msg.replyto || msg.replyto == 0);
-            let withReplies = msg.replies && msg.replies > 0;
-            let isNsfw = msg.tags && msg.tags.some(t => t.toUpperCase() == 'NSFW');
-            let isCode = msg.tags && msg.tags.some(t => t.toUpperCase() == 'CODE');
-
-            if (isCode) { div.classList.add('codePost'); }
-
-            let tagsStr = (msg.tags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
-            let photoStr = (msg.photo) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
-            let replyStr = (isReply)
-              ? ` in reply to <a class="whiteRabbit" href="/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
-              : '';
-            let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
-            let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
-            div.innerHTML = `
-              <div class="top">
-                <div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>
-                <div class="top-right">
-                  <div class="top-right-1st">
-                    <div class="title"><a href="/${msg.user.uname}/">@${msg.user.uname}</a></div>
-                    <div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>
-                  </div>
-                  <div class="top-right-2nd">${tagsStr}</div>
-                </div>
-              </div>
-              <div class="desc">${juickFormat(msg.body, msgId, isCode)}</div>${photoStr}
-              <div class="bottom">
-                <div class="embedReply msg-links"><a href="${linkStr}">${idStr}</a>${replyStr}</div>
-                <div class="right">${likesDiv}${commentsDiv}</div>
-              </div>
-              `;
-
-            let allLinks = div.querySelectorAll('.desc a, .embedReply a.whiteRabbit');
-            let embedContainer = div.parentNode;
-            embedLinks(Array.from(allLinks).reverse(), embedContainer, true, div);
-
-            div.className = div.className.replace(' loading', '');
+        const callback = response => {
+          let threadInfo = JSON.parse(response.responseText);
+          let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
+          if (!msg) {
+            throw { reason: `${idStr} does not exist`, response: response, permanent: true };
           }
-        });
 
-        return div;
+          let withLikes = msg.likes && msg.likes > 0;
+          let isReplyToOp = isReply && (!msg.replyto || msg.replyto == 0);
+          let withReplies = msg.replies && msg.replies > 0;
+          let isNsfw = msg.tags && msg.tags.some(t => t.toUpperCase() == 'NSFW');
+          let isCode = msg.tags && msg.tags.some(t => t.toUpperCase() == 'CODE');
+
+          if (isCode) { div.classList.add('codePost'); }
+
+          let tagsStr = (msg.tags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
+          let photoStr = (msg.photo) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
+          let replyStr = (isReply)
+            ? ` in reply to <a class="whiteRabbit" href="/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
+            : '';
+          let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
+          let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
+          div.innerHTML = `
+            <div class="top">
+              <div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>
+              <div class="top-right">
+                <div class="top-right-1st">
+                  <div class="title"><a href="/${msg.user.uname}/">@${msg.user.uname}</a></div>
+                  <div class="date"><a href="${linkStr}">${msg.timestamp}</a></div>
+                </div>
+                <div class="top-right-2nd">${tagsStr}</div>
+              </div>
+            </div>
+            <div class="desc">${juickFormat(msg.body, msgId, isCode)}</div>${photoStr}
+            <div class="bottom">
+              <div class="embedReply msg-links"><a href="${linkStr}">${idStr}</a>${replyStr}</div>
+              <div class="right">${likesDiv}${commentsDiv}</div>
+            </div>
+            `;
+
+          let allLinks = div.querySelectorAll('.desc a, .embedReply a.whiteRabbit');
+          let embedContainer = div.parentNode;
+          embedLinks(Array.from(allLinks).reverse(), embedContainer, true, div);
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       },
-      makeTitle: function(aNode, reResult) {
+      makeTitle: function(reResult) {
         return juickId(reResult);
       },
       linkTextUpdate: function(aNode, reResult) {
@@ -1078,68 +1107,59 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Jpeg and png images',
       id: 'embed_jpeg_and_png_images',
+      className: 'picture compact',
       onByDefault: true,
       ctsDefault: false,
-      re: /\.(jpeg|jpg|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
-      makeNode: function(aNode, reResult) {
-        let aNode2 = document.createElement('a');
-        let imgNode = document.createElement('img');
-        imgNode.src = aNode.href;
-        aNode2.href = aNode.href;
-        aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div', 'picture compact');
+      re: /\.(jpe?g|png|svg)(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<a href="${aNode.href}"><img src="${aNode.href}"></a>`;
+        return div;
       }
     },
     {
       name: 'Gif images',
       id: 'embed_gif_images',
+      className: 'picture compact',
       onByDefault: true,
       ctsDefault: true,
       re: /\.gif(:[a-zA-Z]+)?(?:\?[\w&;\?=]*)?$/i,
-      makeNode: function(aNode, reResult) {
-        let aNode2 = document.createElement('a');
-        let imgNode = document.createElement('img');
-        imgNode.src = aNode.href;
-        aNode2.href = aNode.href;
-        aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div', 'picture compact');
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<a href="${aNode.href}"><img src="${aNode.href}"></a>`;
+        return div;
       }
     },
     {
       name: 'Video (webm, mp4, ogv)',
       id: 'embed_webm_and_mp4_videos',
+      className: 'video compact',
       onByDefault: true,
       ctsDefault: false,
       re: /\.(webm|mp4|m4v|ogv)(?:\?[\w&;\?=]*)?$/i,
-      makeNode: function(aNode, reResult) {
-        let video = document.createElement('video');
-        video.src = aNode.href;
-        video.title = aNode.href;
-        video.setAttribute('controls', '');
-        return wrapIntoTag(video, 'div', 'video compact');
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<video src="${aNode.href}" title="${aNode.href}" controls></video>`;
+        return div;
       }
     },
     {
       name: 'Audio (mp3, ogg, weba, opus, m4a, oga, wav)',
       id: 'embed_sound_files',
+      className: 'audio singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /\.(mp3|ogg|weba|opus|m4a|oga|wav)(?:\?[\w&;\?=]*)?$/i,
-      makeNode: function(aNode, reResult) {
-        let audio = document.createElement('audio');
-        audio.src = aNode.href;
-        audio.title = aNode.href;
-        audio.setAttribute('controls', '');
-        return wrapIntoTag(audio, 'div', 'audio singleColumn');
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<audio src="${aNode.href}" title="${aNode.href}" controls></audio>`;
+        return div;
       }
     },
     {
       name: 'YouTube videos (and playlists)',
       id: 'embed_youtube_videos',
+      className: 'youtube resizableV singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.|gaming\.)?(?:youtu(?:(?:\.be\/|be\.com\/(?:v|embed)\/)([-\w]+)|be\.com\/watch)((?:(?:\?|&(?:amp;)?)(?:\w+=[-\.\w]*[-\w]))*)|youtube\.com\/playlist\?list=([-\w]*)(&(amp;)?[-\w\?=]*)?)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let [url, v, args, plist] = reResult;
         let iframeUrl;
         if (plist) {
@@ -1166,784 +1186,646 @@ function getEmbeddableLinkTypes() {
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return wrapIntoTag(iframe, 'div', 'youtube resizableV singleColumn');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Vimeo videos',
       id: 'embed_vimeo_videos',
+      className: 'vimeo resizableV',
       onByDefault: true,
       ctsDefault: false,
-      //re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:(?:video\/|album\/[\d]+\/video\/)?([\d]+)|([\w-]+)\/(?!videos)([\w-]+))/i,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|album\/[\d]+\/video\/)?([\d]+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//player.vimeo.com/video/' + reResult[1], '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return wrapIntoTag(iframe, 'div', 'vimeo resizableV');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Dailymotion videos',
       id: 'embed_youtube_videos',
+      className: 'dailymotion resizableV',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?dailymotion\.com\/video\/([a-zA-Z\d]+)(?:_[-%\w]*)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return wrapIntoTag(iframe, 'div', 'dailymotion resizableV');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Coub clips',
       id: 'embed_coub_clips',
+      className: 'coub resizableV',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?coub\.com\/(?:view|embed)\/([a-zA-Z\d]+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         let iframe = makeIframe(embedUrl, '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return wrapIntoTag(iframe, 'div', 'coub resizableV');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Twitch streams',
       id: 'embed_twitch',
+      className: 'twitch resizableV',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?twitch\.tv\/(\w+)(?:\/v\/(\d+))?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let [, channel, video] = reResult;
         let url = (video)
           ? `https://player.twitch.tv/?video=v${video}&autoplay=false`
           : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
         let iframe = makeIframe(url, '100%', '378px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return wrapIntoTag(iframe, 'div', 'twitch resizableV');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Steam games',
       id: 'embed_steam',
+      className: 'steam singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/store\.steampowered\.com\/app\/(\d+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//store.steampowered.com/widget/' + reResult[1] + '/', '100%', '190px');
-        return wrapIntoTag(iframe, 'div', 'steam singleColumn');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Bandcamp music',
       id: 'embed_bandcamp_music',
+      className: 'bandcamp',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.bandcamp\.com\/(track|album)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, band, pageType, pageName] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'bandcamp embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: url,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let videoUrl, videoH;
-            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            matches.forEach(m => {
-              if (m[1] == 'og:video') { videoUrl = m[2]; }
-              if (m[1] == 'video_height') { videoH = parseInt(m[2], 10); }
-            });
-            let isAlbum = pageType == 'album';
-            if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
-            videoUrl = videoUrl.replace('/artwork=small', '');
-            let iframe = makeIframe(videoUrl, '100%', '600px');
-            removeAllFrom(div);
-            div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
-            div.className = div.className.replace(' embed loading', '');
-            let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
-            iframe.onload = () => makeResizable(iframe, calcHeight);
-          }
-        });
+        const callback = response => {
+          let videoUrl, videoH;
+          const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+          matches.forEach(m => {
+            if (m[1] == 'og:video') { videoUrl = m[2]; }
+            if (m[1] == 'video_height') { videoH = parseInt(m[2], 10); }
+          });
+          let isAlbum = pageType == 'album';
+          if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
+          videoUrl = videoUrl.replace('/artwork=small', '');
+          let iframe = makeIframe(videoUrl, '100%', '600px');
+          removeAllFrom(div);
+          div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
+          let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
+          iframe.onload = () => makeResizable(iframe, calcHeight);
+          div.classList.remove('embed');
+        };
 
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url, 3000).then(callback));
       }
     },
     {
       name: 'SoundCloud music',
       id: 'embed_soundcloud_music',
+      className: 'soundcloud',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?(?!tracks$)([-%\w]*))(?:\/)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
-        return wrapIntoTag(makeIframe(embedUrl, '100%', 450), 'div', 'soundcloud');
+        return replaceContent(div, makeIframe(embedUrl, '100%', 450));
       }
     },
     {
       name: 'Mixcloud music',
       id: 'embed_mixcloud_music',
+      className: 'mixcloud singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?mixcloud\.com\/(?!discover\/)([\w]+)\/(?!playlists\/)([-%\w]+)\/?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, mix] = reResult;
+        let apiUrl = 'https://www.mixcloud.com/oembed/?format=json&url=' + encodeURIComponent(url);
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'mixcloud embed loading';
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          div.innerHTML = json.html;
+          div.className = div.classList.remove('embed');
+        };
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://www.mixcloud.com/oembed/?format=json&url=' + encodeURIComponent(url),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            div.innerHTML = json.html;
-            div.className = div.className.replace(' embed loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'Instagram',
       id: 'embed_instagram',
+      className: 'instagram resizableV',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', '100%', '722px');
         iframe.onload = () => makeResizable(iframe, w => w + 82);
-        return wrapIntoTag(iframe, 'div', 'instagram resizableV');
+        return replaceContent(div, iframe);
       }
     },
     {
       name: 'Flickr images',
       id: 'embed_flickr_images',
+      className: 'flickr',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:(?:www\.)?flickr\.com\/photos\/([\w@-]+)\/(\d+)|flic.kr\/p\/(\w+))(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
-        let [url] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'flickr embed loading';
+        let apiUrl = 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(reResult[0]);
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://www.flickr.com/services/oembed?format=json&url=' + encodeURIComponent(url),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-
-            let imageUrl = (json.url) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
-            let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  <a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
-                </div>
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let imageUrl = (json.url) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
+          let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                <a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
               </div>
-              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+            </div>
+            <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+        };
 
-            div.className = div.className.replace(' loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'DeviantArt images',
       id: 'embed_deviantart_images',
+      className: 'deviantart',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/([\w-]+)\.deviantart\.com\/art\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
-        let [url, userId, workId] = reResult;
         let thisType = this;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'deviantart embed loading';
+        let [url, userId, workId] = reResult;
+        let apiUrl = 'https://backend.deviantart.com/oembed?format=json&url=' + encodeURIComponent(url);
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://backend.deviantart.com/oembed?format=json&url=' + encodeURIComponent(url),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-
-            let date = new Date(json.pubdate);
-            let typeStr = (json.type == 'photo') ? '' : ` (${json.type})`;
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  <a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
-                </div>
-                <div class="date">${date.toLocaleString('ru-RU')}</div>
-              </div>`;
-
-            if ((json.type == 'rich') && json.html) {
-              div.innerHTML += `<div class="desc">${json.html}...</div>`;
-            } else {
-              let imageClassStr = (json.safety == 'adult') ? 'class="rating_e"' : '';
-              let imageUrl = (json.fullsize_url) ? json.fullsize_url : (json.url) ? json.url : json.thumbnail_url;
-              div.innerHTML += `<a href="${aNode.href}"><img ${imageClassStr} src="${imageUrl}"></a>`;
-            }
-
-            div.className = div.className.replace(' loading', '');
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let date = new Date(json.pubdate);
+          let typeStr = (json.type == 'photo') ? '' : ` (${json.type})`;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                <a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
+              </div>
+              <div class="date">${date.toLocaleString('ru-RU')}</div>
+            </div>`;
+          if ((json.type == 'rich') && json.html) {
+            div.innerHTML += `<div class="desc">${json.html}...</div>`;
+          } else {
+            let imageClassStr = (json.safety == 'adult') ? 'class="rating_e"' : '';
+            let imageUrl = json.fullsize_url || json.url || json.thumbnail_url;
+            div.innerHTML += `<a href="${aNode.href}"><img ${imageClassStr} src="${imageUrl}"></a>`;
           }
-        });
+        };
 
-        return div;
+        // consider adding note 'Failed to load (maybe this article can\'t be embedded)'
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'Imgur gifv videos',
       id: 'embed_imgur_gifv_videos',
+      className: 'video compact',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/([a-zA-Z\d]+)\.gifv/i,
-      makeNode: function(aNode, reResult) {
-        let video = document.createElement('video');
-        video.src = '//i.imgur.com/' + reResult[1] + '.mp4';
-        video.title = aNode.href + '\n' + video.src;
-        video.setAttribute('controls', '');
-        return wrapIntoTag(video, 'div', 'video compact');
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<video src="//i.imgur.com/${reResult[1]}.mp4" title="${aNode.href}" controls loop></video>`;
+        return div;
       }
     },
     {
       name: 'Imgur indirect links',
       id: 'embed_imgur_indirect_links',
+      className: 'imgur singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?imgur\.com\/(?:(gallery|a)\/)?(?!gallery|jobs|about|blog|apps)([a-zA-Z\d]+)(?:#\d{1,2}$|#([a-zA-Z\d]+))?(\/\w+)?$/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [, albumType, contentId, albumImageId] = reResult;
-        div = div || document.createElement('div');
-        div.innerHTML = '<span>loading ' + naiveEllipsis(reResult[0], 60) + '</span>';
-        div.className = 'imgur embed loading singleColumn';
+
         let url = (albumType && albumImageId)
           ? 'http://imgur.com/' + albumImageId
           : 'http://imgur.com/' + (albumType ? albumType + '/' : '') + contentId;
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'http://api.imgur.com/oembed.json?url=' + encodeURIComponent(url),
-          onload: function(response) {
-            if (response.status != 200) {
-              console.log(`Failed to load ${reResult[0]} (${response.finalUrl})`);
-              div.textContent = `Failed to load (${response.status})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            let iframe = makeIframeHtml(json.html, '100%', 24, doc => {
-              waitAndRun(
-                () => (doc.querySelector('iframe') !== null),
-                () => {
-                  div.replaceChild(doc.querySelector('iframe'), iframe);
-                  div.querySelector('span').remove();
-                  div.classList.remove('embed');
-                  div.classList.remove('loading');
-                }
-              );
-            });
-            div.appendChild(iframe);
-          }
-        });
-        return div;
+        let apiUrl = 'https://api.imgur.com/oembed.json?url=' + encodeURIComponent(url);
+
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let iframe = makeIframeHtmlAsync(
+            json.html,
+            '100%',
+            '24px',
+            iframe => div.appendChild(iframe),
+            iframe => [iframe, iframe.contentWindow.document],
+            e => ({ reason: e.message, permanent: false })
+          ).then(([iframe, doc]) => {
+            return waitAndRunAsync(
+              () => !!doc.querySelector('iframe'),
+              50,
+              100,
+              () => ([iframe, doc]),
+              () => ({ reason: 'timeout', permanent: false })
+            );
+          }).then(([iframe, doc]) => {
+            div.replaceChild(doc.querySelector('iframe'), iframe);
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+          });
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'Gfycat indirect links',
       id: 'embed_gfycat_indirect_links',
+      className: 'gfycat',
       onByDefault: true,
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:\w+\.)?gfycat\.com\/([a-zA-Z\d]+)$/i,
-      makeNode: function(aNode, reResult) {
-        return wrapIntoTag(makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480), 'div', 'gfycat');
+      makeNode: function(aNode, reResult, div) {
+        return replaceContent(div, makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480));
       }
     },
     {
       name: 'Twitter',
       id: 'embed_twitter_status',
+      className: 'twi',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status\/([\d]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
-        let [twitterUrl, userId, postId] = reResult;
-        twitterUrl = twitterUrl.replace('mobile.','');
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + twitterUrl;
-        div.className = 'twi embed loading';
+        let [url, userId, postId] = reResult;
+        url = url.replace('mobile.','');
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: twitterUrl,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            if (response.finalUrl.endsWith('account/suspended')) {
-              div.textContent = 'Account @' + userId + ' is suspended';
-              return;
-            }
-            if (response.finalUrl.indexOf('protected_redirect=true') != -1) {
-              div.textContent = 'Account @' + userId + ' is protected';
-              return;
-            }
-            let images = [];
-            let userGenImg = false;
-            let isVideo = false;
-            let videoUrl, videoW, videoH;
-            let title, description;
-            const metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            matches.forEach(m => {
-              if (m[1] == 'og:title') { title = m[2]; }
-              if (m[1] == 'og:description') {
-                description = htmlDecode(m[2])
-                  .replace(/\n/g,'<br/>')
-                  .replace(/\B@(\w{1,15})\b/gmi, '<a href="//twitter.com/$1">@$1</a>')
-                  .replace(/#(\w+)/gmi, '<a href="//twitter.com/hashtag/$1">#$1</a>')
-                  .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, '<a href="$&">$&</a>');
-              }
-              if (m[1] == 'og:image') { images.push(m[2]); }
-              if (m[1] == 'og:image:user_generated') { userGenImg = true; }
-              if (m[1] == 'og:video:url') { videoUrl = m[2]; isVideo = true; }
-              if (m[1] == 'og:video:height') { videoH = +m[2]; }
-              if (m[1] == 'og:video:width') { videoW = +m[2]; }
-            });
-            const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
-            let timestampMsResult = timestampMsRe.exec(response.responseText);
-            let dateDiv = (timestampMsResult) ? `<div class="date">${new Date(+timestampMsResult[1]).toLocaleString('ru-RU')}</div>` : '';
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  ${title} (<a href="//twitter.com/${userId}">@${userId}</a>)
-                </div>
-                ${dateDiv}
-              </div>
-              <div class="desc">${description}</div>`;
-            if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
-            if (isVideo) {
-              let { w, h } = fitToBounds(videoW, videoH, 620, 720);
-              div.appendChild(makeCts(() => wrapIntoTag(makeIframe(videoUrl, w + 'px', h + 'px'), 'div'), `<img src="${images[0]}">${svgIconHtml('play')}`));
-            }
-            div.className = div.className.replace(' loading', '');
+        const predicates = [
+          {
+            msg: response => (response.statusText ? `${response.status} - ${response.statusText}` : `${response.status}`),
+            test: response => response.status != 200,
+            permanent: response => response.status != 503
+          },
+          {
+            msg: response => 'Account @' + userId + ' is suspended',
+            test: response => response.finalUrl.endsWith('account/suspended'),
+            permanent: response => true
+          },
+          {
+            msg: response => 'Account @' + userId + ' is protected',
+            test: response => response.finalUrl.indexOf('protected_redirect=true') != -1,
+            permanent: response => true
           }
-        });
+        ];
+        const callback = response => {
+          let images = [];
+          let userGenImg = false;
+          let isVideo = false;
+          let videoUrl, videoW, videoH;
+          let title, description;
+          const metaRe = /<\s*meta\s+property\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+          matches.forEach(m => {
+            if (m[1] == 'og:title') { title = m[2]; }
+            if (m[1] == 'og:description') {
+              description = htmlDecode(m[2])
+                .replace(/\n/g,'<br/>')
+                .replace(/\B@(\w{1,15})\b/gmi, '<a href="//twitter.com/$1">@$1</a>')
+                .replace(/#(\w+)/gmi, '<a href="//twitter.com/hashtag/$1">#$1</a>')
+                .replace(/(?:https?:)?\/\/t\.co\/([\w]+)/gmi, '<a href="$&">$&</a>');
+            }
+            if (m[1] == 'og:image') { images.push(m[2]); }
+            if (m[1] == 'og:image:user_generated') { userGenImg = true; }
+            if (m[1] == 'og:video:url') { videoUrl = m[2]; isVideo = true; }
+            if (m[1] == 'og:video:height') { videoH = +m[2]; }
+            if (m[1] == 'og:video:width') { videoW = +m[2]; }
+          });
+          const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
+          let timestampMsResult = timestampMsRe.exec(response.responseText);
+          let dateDiv = (timestampMsResult) ? `<div class="date">${new Date(+timestampMsResult[1]).toLocaleString('ru-RU')}</div>` : '';
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                ${title} (<a href="//twitter.com/${userId}">@${userId}</a>)
+              </div>
+              ${dateDiv}
+            </div>
+            <div class="desc">${description}</div>`;
+          if (userGenImg) { div.innerHTML += images.map(x => { return `<a href="${x}"><img src="${x}"></a>`; }).join(''); }
+          if (isVideo) {
+            let { w, h } = fitToBounds(videoW, videoH, 620, 720);
+            let ctsVideo = makeCts(
+              () => replaceContent(ctsVideo, makeIframe(videoUrl, w + 'px', h + 'px')),
+              `<img src="${images[0]}">${svgIconHtml('play')}`
+            );
+            div.appendChild(ctsVideo);
+          }
+        };
 
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url, 3000, predicates).then(callback));
       }
     },
     {
       name: 'Facebook',
       id: 'embed_facebook',
+      className: 'fbEmbed singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|m\.)?facebook\.com\/(?:[\w.]+\/(?:posts|videos|photos)\/[\w:./]+(?:\?[\w=%&.]+)?|(?:photo|video)\.php\?[\w=%&.]+)/i,
       makeNode: function(aNode, reResult, div) {
-        setTimeout(loadScript('https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3', false, undefined, true), 0);
-        div = div || document.createElement('div');
-        div.innerHTML = `<span>loading ${naiveEllipsis(reResult[0], 60)}</span><div class="fb-post" data-href="${aNode.href}" data-width="640" />`;
-        div.className = 'fbEmbed embed loading singleColumn';
-        waitAndRun(
-          () => (div.querySelector('iframe[height]') !== null),
-          () => {
+        let thisType = this;
+
+        const promiseCallback = () => {
+          setTimeout(loadScript('https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v2.3', false, undefined, true), 0);
+          div.insertAdjacentHTML('beforeend', `<div class="fb-post" data-href="${aNode.href}" data-width="640" />`);
+          return waitAndRunAsync(
+            () => !!div.querySelector('iframe[height]'),
+            20,
+            100,
+            () => {},
+            () => ({ reason: 'timeout', permanent: false })
+          ).then(() => {
             div.querySelector('span').remove();
             div.classList.remove('embed');
-            div.classList.remove('loading');
-          },
-          () => {
+          }).catch(e => {
             console.log('Juick tweaks: time out on facebook embedding, applying workaround.');
             let embedUrl = 'https://www.facebook.com/plugins/post.php?width=640&height=570&href=' + encodeURIComponent(reResult[0]);
             div.innerHTML = '';
             div.appendChild(makeIframe(embedUrl, '100%', 570));
             div.classList.remove('embed');
-            div.classList.remove('loading');
             div.classList.add('fallback');
-          },
-          100,
-          15
-        );
-        return div;
+          });
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, promiseCallback);
       }
     },
     {
       name: 'Google+',
       id: 'embed_google_plus',
+      className: 'gplusEmbed',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/plus\.google\.com\/(?:u\/0\/)?(\d+|\+[\w%]+)\/posts\/(\w+)/i,
       makeNode: function(aNode, reResult, div) {
+        let thisType = this;
         let [url, author, postId] = reResult;
-        div = div || document.createElement('div');
-        let id = randomId();
-        div.className = 'g-post';
-        div.className = 'gplusEmbed embed loading';
-        div.innerHTML = `<span>loading ${naiveEllipsis(url, 60)}</span><div id="${id}" />`;
-        setTimeout(loadScript('https://apis.google.com/js/plusone.js', false, () => {
-          addScript('({"parsetags": "explicit"})', true);
-          addScript(`gapi.post.render("${id}", {href: "${url}"});`, false);
-        }, false), 0);
-        waitAndRun(
-          () => (div.querySelector('div[style]') !== null),
-          () => {
+
+        const promiseCallback = () => {
+          let id = randomId();
+          div.insertAdjacentHTML('beforeend', `<div id="${id}" />`);
+          setTimeout(loadScript('https://apis.google.com/js/plusone.js', false, () => {
+            addScript('({"parsetags": "explicit"})', true);
+            addScript(`gapi.post.render("${id}", {href: "${url}"});`, false);
+          }, false), 0);
+          return waitAndRunAsync(
+            () => !!div.querySelector('div[style]'),
+            30,
+            100,
+            () => {},
+            () => ({ reason: 'Can\'t show this post', permanent: true })
+          ).then(() => {
             div.querySelector('span').remove();
             div.classList.remove('embed');
-            div.classList.remove('loading');
-          },
-          () => { div.textContent = 'Can\'t show this post'; },
-          100,
-          20
-        );
-        return div;
+          });
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, promiseCallback);
       }
     },
     {
       name: 'Tumblr',
       id: 'embed_tumblr',
+      className: 'tumblr singleColumn',
       onByDefault: true,
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:([\w\-\_]+)\.)?tumblr\.com\/post\/([\d]*)(?:\/([-%\w]*))?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
-        let [url] = reResult;
-        div = div || document.createElement('div');
-        div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
-        div.className = 'tumblr embed loading singleColumn';
+        let apiUrl = 'https://www.tumblr.com/oembed/1.0?url=' + reResult[0];
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://www.tumblr.com/oembed/1.0?url=' + url,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            let iframe = makeIframeHtml(json.html, '100%', 24, doc => {
-              waitAndRun(
-                () => (doc.querySelector('iframe[height]') !== null),
-                () => {
-                  div.replaceChild(doc.querySelector('iframe[height]'), iframe);
-                  div.querySelector('span').remove();
-                  div.classList.remove('embed');
-                  div.classList.remove('loading');
-                }
-              );
-            }, () => {
-              div.textContent = 'Failed to load';
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-            });
-            div.appendChild(iframe);
-          }
-        });
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          return makeIframeHtmlAsync(
+            json.html,
+            '100%',
+            '24px',
+            iframe => div.appendChild(iframe),
+            iframe => [iframe, iframe.contentWindow.document],
+            e => ({ reason: e.message, permanent: false })
+          ).then(([iframe, doc]) => {
+            return waitAndRunAsync(
+              () => !!doc.querySelector('iframe[height]'),
+              50,
+              100,
+              () => ([iframe, doc]),
+              () => ({ reason: 'timeout', permanent: false })
+            );
+          }).then(([iframe, doc]) => {
+            div.replaceChild(doc.querySelector('iframe[height]'), iframe);
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+          });
+        };
 
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'Reddit',
       id: 'embed_reddit',
+      className: 'reddit singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.|np\.|m\.)?reddit\.com\/r\/([\w]+)\/comments\/(\w+)(?:\/(?:\w+(?:\/(\w+)?)?)?)?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
-        let [url] = reResult;
-        div = div || document.createElement('div');
-        div.innerHTML = '<span>loading ' + naiveEllipsis(url, 60) + '</span>';
-        div.className = 'reddit embed loading singleColumn';
+        let apiUrl = 'https://www.reddit.com/oembed?url=' + encodeURIComponent(reResult[0]);
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://www.reddit.com/oembed?url=' + encodeURIComponent(url),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            let [h, ss] = splitScriptsFromHtml(json.html);
-            ss.forEach(s => s.call());
-            div.innerHTML += h;
-            waitAndRun(
-              () => { let iframe = div.querySelector('iframe'); return (iframe && (parseInt(iframe.height) > 30)); },
-              () => {
-                div.querySelector('iframe').style.margin = '0px';
-                div.querySelector('span').remove();
-                div.classList.remove('embed');
-                div.classList.remove('loading');
-              },
-              () => {
-                div.textContent = 'Failed to load (time out)';
-                div.className = div.className.replace(' loading', ' failed');
-                turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              },
-              100,
-              30
-            );
-          }
-        });
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let [h, ss] = splitScriptsFromHtml(json.html);
+          div.innerHTML += h;
+          ss.forEach(s => s.call());
+          return waitAndRunAsync(
+            () => { let iframe = div.querySelector('iframe'); return (iframe && (parseInt(iframe.height) > 30)); },
+            30,
+            100,
+            () => {},
+            () => ({ reason: 'timeout', permanent: false })
+          ).then(iframe => {
+            div.querySelector('iframe').style.margin = '0px';
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+          });
+        };
 
-        return div;
+        // consider adding note 'Failed to load (maybe this article can\'t be embedded)'
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'WordPress',
       id: 'embed_wordpress',
+      className: 'wordpress singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(\w+)\.wordpress\.com\/(\d{4})\/(\d{2})\/(\d{2})\/([-\w%\u0400-\u04FF]+)(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url,site,year,month,day,slug] = reResult;
+        let apiUrl = `https://public-api.wordpress.com/rest/v1.1/sites/${site}.wordpress.com/posts/slug:${slug}`;
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'wordpress embed loading';
-
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: `https://public-api.wordpress.com/rest/v1.1/sites/${site}.wordpress.com/posts/slug:${slug}`,
-          onload: function(response) {
-            if (response.status != 200) {
-              console.log('Failed to load ' + url);
-              console.log(response);
-              div.textContent = 'Failed to load (maybe this article can\'t be embedded)';
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  "<a href="${url}">${json.title}</a>" by <a href="${json.author.URL}">${json.author.name}</a>
-                </div>
-                <div class="date">${new Date(json.date).toLocaleString('ru-RU')}</div>
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                "<a href="${url}">${json.title}</a>" by <a href="${json.author.URL}">${json.author.name}</a>
               </div>
-              <hr/>
-              <div class="desc">${json.content}</div>`;
+              <div class="date">${new Date(json.date).toLocaleString('ru-RU')}</div>
+            </div>
+            <hr/>
+            <div class="desc">${json.content}</div>`;
+        };
 
-            div.className = div.className.replace(' loading', ' loaded');
-          }
-        });
-
-        return div;
+        // consider adding note 'Failed to load (maybe this article can\'t be embedded)'
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'SlideShare',
       id: 'embed_slideshare',
+      className: 'slideshare singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?slideshare\.net\/(\w+)\/([-%\w]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, author, id] = reResult;
+        let apiUrl = 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url;
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'slideshare embed loading';
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let baseSize = 640;
+          let newH = 1.0 * baseSize / json.width * json.height;
+          let iframeStr = json.html
+                              .match(/<iframe[^>]+>[\s\S]*?<\/iframe>/i)[0]
+                              .replace(/width="\d+"/i, `width="${baseSize}"`)
+                              .replace(/height="\d+"/i, `height="${newH}"`);
+          div.innerHTML = iframeStr;
+        };
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'http://www.slideshare.net/api/oembed/2?format=json&url=' + url,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            let baseSize = 640;
-            let newH = 1.0 * baseSize / json.width * json.height;
-            let iframeStr = json.html
-                                .match(/<iframe[^>]+>[\s\S]*?<\/iframe>/i)[0]
-                                .replace(/width="\d+"/i, `width="${baseSize}"`)
-                                .replace(/height="\d+"/i, `height="${newH}"`);
-            div.innerHTML = iframeStr;
-            div.className = div.className.replace(' embed loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'Gist',
       id: 'embed_gist',
+      className: 'gistEmbed singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, , id] = reResult;
+        let apiUrl = 'https://gist.github.com/' + id + '.json';
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'gistEmbed embed loading';
-
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://gist.github.com/' + id + '.json',
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            let date = new Date(json.created_at).toLocaleDateString('ru-RU');
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  "${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a>
-                </div>
-                <div class="date">${date}</div>
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          let date = new Date(json.created_at).toLocaleDateString('ru-RU');
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                "${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a>
               </div>
-              <link rel="stylesheet" href="${htmlEscape(json.stylesheet)}"></link>
-              ${json.div}`;
+              <div class="date">${date}</div>
+            </div>
+            <link rel="stylesheet" href="${htmlEscape(json.stylesheet)}"></link>
+            ${json.div}`;
+        };
 
-            div.className = div.className.replace(' loading', ' loaded');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'JSFiddle',
       id: 'embed_jsfiddle',
+      className: 'jsfiddle',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
-      makeNode: function(aNode, reResult) {
+      makeNode: function(aNode, reResult, div) {
         let embedUrl = reResult[1].replace(/[^\/]$/, '$&/') + 'embedded/';
-        return wrapIntoTag(makeIframe(embedUrl, '100%', 500), 'div', 'jsfiddle');
+        return replaceContent(div, makeIframe(embedUrl, '100%', 500));
       }
     },
     {
       name: 'Codepen',
       id: 'embed_codepen',
+      className: 'codepen singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/codepen\.io\/(\w+)\/(?:pen|full)\/(\w+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'codepen embed loading';
+        let apiUrl = 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(url.replace('/full/', '/pen/'));
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: 'https://codepen.io/api/oembed?format=json&url=' + encodeURIComponent(url.replace('/full/', '/pen/')),
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let json = JSON.parse(response.responseText);
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>
-              </div>
-              ${json.html}`;
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>
+            </div>
+            ${json.html}`;
+        };
 
-            div.className = div.className.replace(' loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       }
     },
     {
       name: 'XKCD',
       id: 'embed_xkcd',
+      className: 'xkcd singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/xkcd\.com\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, xkcdId] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'xkcd embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: url,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let [, title] = /<div id="ctitle">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
-            let [, comic] = /<div id="comic">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+        const callback = response => {
+          let [, title] = /<div id="ctitle">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+          let [, comic] = /<div id="comic">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">${title}</div>
+            </div>
+            <a href="${url}" class="comic">${comic}</a>`;
+        };
 
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">${title}</div>
-              </div>
-              <a href="${url}" class="comic">${comic}</a>`;
-
-            div.className = div.className.replace(' loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url, 3000).then(callback));
       },
-      makeTitle: function(aNode, reResult) {
+      makeTitle: function(reResult) {
         return 'xkcd.com/' + reResult[1] + '/';
       },
       linkTextUpdate: function(aNode, reResult) {
@@ -1955,6 +1837,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'arXiv',
       id: 'embed_arxiv',
+      className: 'arxiv singleColumn',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:\w+\.)?arxiv.org\/(?:abs|pdf)\/(\d+\.\d+)(v\d+)?/i,
@@ -1963,46 +1846,31 @@ function getEmbeddableLinkTypes() {
         let [url, arxivId, rev] = reResult;
         let absUrl = 'https://arxiv.org/abs/' + arxivId + (rev || '');
         let pdfUrl = 'https://arxiv.org/pdf/' + arxivId + (rev || '');
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'arxiv embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: absUrl,
-          onload: function(response) {
-            if (response.status != 200) {
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            const metaRe = /<\s*meta\s+name\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: m[1].toLowerCase(), v: m[2] }));
-            let title = matches.find(x => x.k == 'citation_title').v;
+        const callback = response => {
+          const metaRe = /<\s*meta\s+name\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: m[1].toLowerCase(), v: m[2] }));
+          let title = matches.find(x => x.k == 'citation_title').v;
 
-            let [, dateline] = /<div class="dateline">\s*([\s\S]+?)<\/div>/.exec(response.responseText) || [];
-            let [, abstract] = /<blockquote class="abstract\b.*?">\s*<span class="descriptor">[\s\S]*?<\/span>\s*([\s\S]+?)<\/blockquote>/.exec(response.responseText) || [];
-            let authors = getAllMatchesAndCaptureGroups(/<a href="(\/find.+?)">(.+?)<\/a>/gi, response.responseText).map(m => ({ url: m[1], name: m[2] }));
-            let authorsStr = authors.map(a => `<a href="${a.url}">${a.name}</a>`).join(', ');
+          let [, dateline] = /<div class="dateline">\s*([\s\S]+?)<\/div>/.exec(response.responseText) || [];
+          let [, abstract] = /<blockquote class="abstract\b.*?">\s*<span class="descriptor">[\s\S]*?<\/span>\s*([\s\S]+?)<\/blockquote>/.exec(response.responseText) || [];
+          let authors = getAllMatchesAndCaptureGroups(/<a href="(\/find.+?)">(.+?)<\/a>/gi, response.responseText).map(m => ({ url: m[1], name: m[2] }));
+          let authorsStr = authors.map(a => `<a href="${a.url}">${a.name}</a>`).join(', ');
 
-            div.innerHTML = `
-              <div class="top">
-                <div class="title"><a href="${absUrl}">${title}</a> (<a href="${pdfUrl}">pdf</a>)</div>
-                <div class="date">${dateline}</div>
-              </div>
-              <div class="abstract">${abstract}</div>
-              <div class="bottom">
-                <div class="authors">${authorsStr}</div>
-              </div>`;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${absUrl}">${title}</a> (<a href="${pdfUrl}">pdf</a>)</div>
+              <div class="date">${dateline}</div>
+            </div>
+            <div class="abstract">${abstract}</div>
+            <div class="bottom">
+              <div class="authors">${authorsStr}</div>
+            </div>`;
+        };
 
-            div.className = div.className.replace(' loading', '');
-          }
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(absUrl, 3000).then(callback));
       },
-      makeTitle: function(aNode, reResult) {
+      makeTitle: function(reResult) {
         return 'arXiv:' + reResult[1] + (reResult[2] || '');
       },
       linkTextUpdate: function(aNode, reResult) {
@@ -2014,82 +1882,72 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Pixiv',
       id: 'embed_pixiv',
+      className: 'pixiv',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/www\.pixiv\.net\/member_illust\.php\?((?:\w+=\w+&)*illust_id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, , illustId] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'pixiv embed loading';
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: url.replace(/mode=\w+/, 'mode=medium'),
-          onload: function(response) {
-            if (response.status != 200) {
-              if (response.responseText.includes('work private')) {
-                div.textContent = 'Private work';
-                return;
-              }
-              div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            let isMultipage = (url.includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
-            const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
-            let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
-            let title = meta['twitter:title'] || meta['og:title'];
-            let image = /* meta['twitter:image'] || meta['og:image'] || */ '//embed.pixiv.net/decorate.php?illust_id=' + illustId;
-            let description = meta['twitter:description'] || meta['og:description'];
-
-            if (response.responseText.includes('This work was deleted')) {
-              div.textContent = 'Deleted work.';
-              return;
-            }
-            let [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
-            let [, authorId, authorName] = /<a\s+href="\/?member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
-
-            let dateDiv = (dateStr) ? `<div class="date">${dateStr}</div>` : '';
-            let authorStr = (authorId) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${title}</a>${authorStr}
-                </div>
-                ${dateDiv}
-              </div>
-              <a href="${aNode.href}"><img src="${image}"></a>
-              ${description ? '<p>' + description + '</p>' : ''}`;
-
-            div.className = div.className.replace(' loading', '');
+        const predicates = [
+          {
+            msg: response => 'Private work',
+            test: response => (response.status != 200) && response.responseText.includes('work private'),
+            permanent: response => true
+          },
+          {
+            msg: response => (response.statusText ? `${response.status} - ${response.statusText}` : `${response.status}`),
+            test: response => response.status != 200,
+            permanent: response => response.status != 503
+          },
+          {
+            msg: response => 'Deleted work',
+            test: response => response.responseText.includes('This work was deleted'),
+            permanent: response => true
           }
-        });
+        ];
+        const callback = response => {
+          let isMultipage = (url.includes('mode=manga') || response.responseText.includes('member_illust.php?mode=manga'));
+          const metaRe = /<\s*meta\s+(?:property|name)\s*=\s*\"([^\"]+)\"\s+content\s*=\s*\"([^\"]*)\"\s*\/?>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
+          let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
+          let title = meta['twitter:title'] || meta['og:title'];
+          let image = /* meta['twitter:image'] || meta['og:image'] || */ '//embed.pixiv.net/decorate.php?illust_id=' + illustId;
+          let description = meta['twitter:description'] || meta['og:description'];
 
-        return div;
+          let [, dateStr] = /<span\s+class=\"date\">([^<]+)<\/span>/.exec(response.responseText) || [];
+          let [, authorId, authorName] = /<a\s+href="\/?member\.php\?id=(\d+)">\s*<img\s+src="[^"]+"\s+alt="[^"]+"\s+title="([^"]+)"\s\/?>/i.exec(response.responseText) || [];
+
+          let dateDiv = (dateStr) ? `<div class="date">${dateStr}</div>` : '';
+          let authorStr = (authorId) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${title}</a>${authorStr}
+              </div>
+              ${dateDiv}
+            </div>
+            <a href="${aNode.href}"><img src="${image}"></a>
+            ${description ? '<p>' + description + '</p>' : ''}`;
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url.replace(/mode=\w+/, 'mode=medium'), 3000, predicates).then(callback));
       }
     },
     {
       name: 'Gelbooru',
       id: 'embed_gelbooru',
+      className: 'gelbooru booru',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, domain, , illustId] = reResult;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
-        div.className = 'gelbooru booru embed loading';
+        let apiUrl = `http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`;
 
-        let predicates = [
-          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-        ];
-        xhrGetAsync(`http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`, 3000, predicates).then(response => {
-
+        const callback = response => {
           let count, id, previewUrl, rating, createdAt, change, hasNotes=false, hasComments=false;
           const attributeRe = /(\w+)="([^"]+)"/gmi;
           let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
@@ -2104,8 +1962,7 @@ function getEmbeddableLinkTypes() {
             if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
           });
           if (count === 0) {
-            div.textContent = illustId + ' is not available';
-            return;
+            throw { reason: illustId + ' is not available', response: response, permanent: true };
           }
 
           let createdDateStr = createdAt.toLocaleDateString('ru-RU');
@@ -2121,28 +1978,17 @@ function getEmbeddableLinkTypes() {
             </div>
             <a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>
             `;
+        };
 
-          div.className = div.className.replace(' loading', ' loaded');
-
-        }).catch(({reason, response}) => {
-
-          let msg = `Failed to load (${reason})`;
-          console.log(msg);
-          console.log(response);
-          div.textContent = msg;
-          div.className = div.className.replace(' loading', ' failed');
-          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       },
-      makeTitle: function(aNode, [, domain, , illustId]) { return `${domain} (${illustId})`; },
+      makeTitle: function([, domain, , illustId]) { return `${domain} (${illustId})`; },
       linkTextUpdate: function(aNode, [, , , illustId]) { aNode.textContent += ` (${illustId})`; }
     },
     {
       name: 'Danbooru',
       id: 'embed_danbooru',
+      className: 'danbooru booru',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(danbooru|safebooru)\.donmai\.us\/post(?:s|\/show)\/(\d+)/i,
@@ -2150,19 +1996,11 @@ function getEmbeddableLinkTypes() {
         let thisType = this;
         let [url, domain, id] = reResult;
         url = url.replace('http:', 'https:');
-
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
-        div.className = 'danbooru booru embed loading';
-
         let urls = (domain == 'safebooru')
           ? [`https://${domain}.donmai.us/posts/${id}.json`]
           : [`https://${domain}.donmai.us/posts/${id}.json`, `https://safebooru.donmai.us/posts/${id}.json`];
-        let predicates = [
-          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-        ];
-        xhrFirstResponse(urls, 3000, predicates).then(response => {
 
+        const callback = response => {
           let [finalUrl, finalDomain, ] = thisType.re.exec(response.finalUrl);
           let json = JSON.parse(response.responseText);
           if (!json.preview_file_url) {
@@ -2188,23 +2026,11 @@ function getEmbeddableLinkTypes() {
             <div class="booru-tags">${tagsStr}</div>
             <a href="${finalUrl}"><img class="rating_${json.rating}" src="https://${finalDomain}.donmai.us${json.preview_file_url}"></a>
             `;
+        };
 
-          div.className = div.className.replace(' loading', ' loaded');
-
-        }).catch(({reason, response}) => {
-
-          let msg = `Failed to load (${reason})`;
-          console.log(msg);
-          console.log(response);
-          div.textContent = msg;
-          div.className = div.className.replace(' loading', ' failed');
-          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrFirstResponse(urls, 3000).then(callback));
       },
-      makeTitle: function(aNode, [, domain, id]) { return `${domain} (${id})`; },
+      makeTitle: function([, domain, id]) { return `${domain} (${id})`; },
       linkTextUpdate: function(aNode, [, , id]) {
         aNode.href = aNode.href.replace('http:', 'https:');
         aNode.textContent += ` (${id})`;
@@ -2213,6 +2039,7 @@ function getEmbeddableLinkTypes() {
     {
       name: 'Konachan',
       id: 'embed_konachan',
+      className: 'konachan booru',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/konachan\.(com|net)\/post\/show\/(\d+)/i,
@@ -2221,16 +2048,9 @@ function getEmbeddableLinkTypes() {
         let [url, domain, id] = reResult;
         url = url.replace('.com/', '.net/');
         let unsafeUrl = url.replace('.net/', '.com/');
+        let apiUrl = 'https://konachan.net/post.json?tags=id:' + id;
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
-        div.className = 'konachan booru embed loading';
-
-        let predicates = [
-          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-        ];
-        xhrGetAsync('https://konachan.net/post.json?tags=id:' + id, 3000, predicates).then(response => {
-
+        const callback = response => {
           let json = (JSON.parse(response.responseText))[0];
           if (!json || !json.preview_url) {
             div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (<a href="${unsafeUrl}">${json.rating}</a>)</span>'`;
@@ -2246,44 +2066,26 @@ function getEmbeddableLinkTypes() {
             </div>
             <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>
             `;
+        };
 
-          div.className = div.className.replace(' loading', ' loaded');
-
-        }).catch(({reason, response}) => {
-
-          let msg = `Failed to load (${reason})`;
-          console.log(msg);
-          console.log(response);
-          div.textContent = msg;
-          div.className = div.className.replace(' loading', ' failed');
-          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       },
-      makeTitle: function(aNode, [, , id]) { return `konachan (${id})`; },
+      makeTitle: function([, , id]) { return `konachan (${id})`; },
       linkTextUpdate: function(aNode, [, , id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'yande.re',
       id: 'embed_yandere',
+      className: 'yandere booru',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/yande.re\/post\/show\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, id] = reResult;
+        let apiUrl = 'https://yande.re/post.json?tags=id:' + id;
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
-        div.className = 'yandere booru embed loading';
-
-        let predicates = [
-          { msg: response => `${response.status} - ${response.statusText}`, p: response => response.status != 200 }
-        ];
-        xhrGetAsync('https://yande.re/post.json?tags=id:' + id, 3000, predicates).then(response => {
-
+        const callback = response => {
           let json = (JSON.parse(response.responseText))[0];
           if (!json || !json.preview_url) {
             div.innerHTML = `<span>Can't show <a href="${url}">${id}</a> (${json.rating})</span>`;
@@ -2302,28 +2104,17 @@ function getEmbeddableLinkTypes() {
               <div class="date">${createdDateStr}</div>
             </div>
             <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
+        };
 
-          div.className = div.className.replace(' loading', ' loaded');
-
-        }).catch(({reason, response}) => {
-
-          let msg = `Failed to load (${reason})`;
-          console.log(msg);
-          console.log(response);
-          div.textContent = msg;
-          div.className = div.className.replace(' loading', ' failed');
-          turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-
-        });
-
-        return div;
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
       },
-      makeTitle: function(aNode, [, id]) { return `yande.re (${id})`; },
+      makeTitle: function([, id]) { return `yande.re (${id})`; },
       linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'anime-pictures.net',
       id: 'embed_anime_pictures_net',
+      className: 'anime-pictures booru',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/anime-pictures.net\/pictures\/view_post\/(\d+)/i,
@@ -2331,68 +2122,58 @@ function getEmbeddableLinkTypes() {
         let thisType = this;
         let [url, id] = reResult;
 
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + thisType.makeTitle(aNode, reResult);
-        div.className = 'yandere embed loading';
-
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: url,
-          onload: function(response) {
-            if (response.status != 200) {
-              if (response.status == 503) {
-                div.textContent = 'Click to show ' + thisType.makeTitle(aNode, reResult);
-              } else {
-                div.textContent = `Failed to load (${response.status} - ${response.statusText})`;
-              }
-              div.className = div.className.replace(' loading', ' failed');
-              turnIntoCts(div, () => thisType.makeNode(aNode, reResult, div));
-              return;
-            }
-            if (response.responseText.includes('must be logged in')) {
-              div.innerHTML = `<span>You must be logged in to view <a href="${url}">${thisType.makeTitle(aNode, reResult)}</a></span>`;
-              return;
-            }
-
-            const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*>/gmi;
-            let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
-            let imageUrl = matches.find(m => (m[1] || m[3]) == 'og:image')[2];
-
-            div.innerHTML = `
-              <div class="top">
-                <div class="title">
-                  <a href="${url}">${id}</a>
-                </div>
-              </div>
-              <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
-
-            div.className = div.className.replace(' loading', '');
+        const predicates = [
+          {
+            msg: response => 'Click to show ' + thisType.makeTitle(reResult),
+            test: response => response.status == 503,
+            permanent: response => false
+          },
+          {
+            msg: response => (response.statusText ? `${response.status} - ${response.statusText}` : `${response.status}`),
+            test: response => response.status != 200,
+            permanent: response => true
+          },
+          {
+            msg: response => 'Login required',
+            test: response => response.responseText.includes('must be logged in'),
+            permanent: response => true
           }
-        });
+        ];
+        const callback = response => {
+          const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*\"([^\"]+)\"\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?\s*>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
+          let imageUrl = matches.find(m => (m[1] || m[3]) == 'og:image')[2];
 
-        return div;
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                <a href="${url}">${id}</a>
+              </div>
+            </div>
+            <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url, 3000, predicates).then(callback));
       },
-      makeTitle: function(aNode, [, id]) { return `anime-pictures.net (${id})`; },
+      makeTitle: function([, id]) { return `anime-pictures.net (${id})`; },
       linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
     },
     {
       name: 'Яндекс.Фотки',
       id: 'embed_yandex_fotki',
+      className: 'picture compact',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/img-fotki\.yandex\.ru\/get\/\d+\/[\w\.]+\/[\w]+$/i,
-      makeNode: function(aNode, reResult) {
-        let aNode2 = document.createElement('a');
-        let imgNode = document.createElement('img');
-        imgNode.src = aNode.href;
-        aNode2.href = aNode.href;
-        aNode2.appendChild(imgNode);
-        return wrapIntoTag(aNode2, 'div', 'picture compact');
+      makeNode: function(aNode, reResult, div) {
+        div.innerHTML = `<a href="${aNode.href}"><img src="${aNode.href}"></a>`;
+        return div;
       }
     },
     {
       name: 'Use meta for other links (whitelist)',
       id: 'embed_whitelisted_domains',
+      className: 'other',
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/(?!juick\.com\b).*/i,
@@ -2405,89 +2186,56 @@ function getEmbeddableLinkTypes() {
         let thisType = this;
         let [url] = reResult;
         let domain = aNode.hostname;
-        div = div || document.createElement('div');
-        div.textContent = 'loading ' + naiveEllipsis(url, 60);
-        div.className = 'other embed loading ' + domain.replace(/\./g, '_');
 
-        let unembed = (reason) => {
-          if (reason) { console.log(`${reason} - ${url}`); }
-          div.innerHTML = '';
-          div.className = 'notEmbed';
-          aNode.classList.add('notEmbed');
+        const checkContentType = response => {
+          const headRe = /^([\w-]+): (.+)$/gmi;
+          let headerMatches = getAllMatchesAndCaptureGroups(headRe, response.responseHeaders);
+          let [, , contentType] = headerMatches.find(([, k, ]) => (k.toLowerCase() == 'content-type'));
+          if (contentType && contentType.match(/^text\/html\b/i)) {
+            return;
+          } else {
+            throw { reason: 'not text/html' };
+          }
         };
 
-        GM_xmlhttpRequest({
-          method: 'HEAD',
-          url: url,
-          timeout: 1000,
-          onload: function(response1) {
-            if (response1.status != 200) {
-              unembed(`Failed to load (${response1.status} - ${response1.statusText})`);
-              return;
-            }
-            const headRe = /^([\w-]+): (.+)$/gmi;
-            let headerMatches = getAllMatchesAndCaptureGroups(headRe, response1.responseHeaders);
-            let [, , contentType] = headerMatches.find(m => (m[1].toLowerCase() == 'content-type'));
-
-            if (contentType && contentType.match(/^text\/html\b/i)) {
-
-              GM_xmlhttpRequest({
-                method: 'GET',
-                url: url,
-                timeout: 1500,
-                onload: function(response) {
-                  if (response.status != 200) {
-                    unembed(`Failed to load (${response.status} - ${response.statusText})`);
-                    return;
-                  }
-
-                  const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*[\"']([^\"']+)[\"']\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
-                  const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
-                  let [, basicTitle] = titleRe.exec(response.responseText) || [];
-                  let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
-                  let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
-                  let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle || meta['sailthru.title'];
-                  let image = meta['twitter:image'] || meta['twitter:image:src'] || meta['og:image'] || meta['sailthru.image.full'];
-                  let description = longest([meta['og:description'], meta['twitter:description'], meta['description'], meta['sailthru.description']]);
-
-                  if (title && description && (title.length > 0) && (description.length > 0)) { // enough meta content to embed
-                    let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
-                    description = htmlDecode(description).replace(/\n+/g,'<br/>');
-                    div.innerHTML = `
-                      <div class="top">
-                        <div class="title">
-                          <a href="${url}">${title}</a>
-                        </div>
-                      </div>
-                      ${imageStr}
-                      <div class="desc">${description}</div>`;
-                    div.className = div.className.replace(' loading', '');
-                  } else {
-                    unembed();
-                  }
-                },
-                ontimeout: function(response) {
-                  unembed('timeout');
-                },
-                onerror: function(response) {
-                  unembed('some error');
-                }
-              }); // end of GET request
-
-            } else {
-              unembed('not text/html');
-              console.log(response1.responseHeaders);
-            }
-          },
-          ontimeout: function(response1) {
-            unembed('timeout');
-          },
-          onerror: function(response1) {
-            unembed('some error');
+        const callback = response => {
+          const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*[\"']([^\"']+)[\"']\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
+          const titleRe = /<title>([\s\S]+?)<\/title>/gmi;
+          let [, basicTitle] = titleRe.exec(response.responseText) || [];
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
+          let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
+          let title = meta['twitter:title'] || meta['og:title'] || meta['title'] || basicTitle || meta['sailthru.title'];
+          let image = meta['twitter:image'] || meta['twitter:image:src'] || meta['og:image'] || meta['sailthru.image.full'];
+          let description = longest([meta['og:description'], meta['twitter:description'], meta['description'], meta['sailthru.description']]);
+          let isEnoughContent = title && description && (title.length > 0) && (description.length > 0);
+          if (!isEnoughContent) {
+            throw { reason: 'not enough meta content to embed' };
           }
-        }); // end of HEAD request
+          let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
+          description = htmlDecode(description).replace(/\n+/g,'<br/>');
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                <a href="${url}">${title}</a>
+              </div>
+            </div>
+            ${imageStr}
+            <div class="desc">${description}</div>`;
+          div.classList.add(domain.replace(/\./g, '_'));
+        };
 
-        return div;
+        const unembed = e => {
+          if (e.reason) { console.log(`${e.reason} - ${url}`); }
+          div.remove();
+          aNode.className = '';
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType,
+                               () => xhrGetAsync(url, 1000, undefined, 'HEAD')
+                                  .then(checkContentType)
+                                  .then(() => { return xhrGetAsync(url, 1500).then(callback); })
+                                  .catch(e => unembed(e))
+        );
       }
     }
   ];
@@ -2536,13 +2284,7 @@ function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
         if (reResult) {
           if (linkType.match && (linkType.match(aNode, reResult) === false)) { return false; }
 
-          let isCts = alwaysCts || GM_getValue('cts_' + linkType.id, linkType.ctsDefault);
-          let newNode = (isCts)
-            ? makeCts(
-              () => linkType.makeNode(aNode, reResult, newNode),
-              'Click to show: ' + ((typeof linkType.makeTitle == 'function') ? linkType.makeTitle(aNode, reResult) : naiveEllipsis(aNode.href, 55))
-            )
-            : linkType.makeNode(aNode, reResult);
+          let newNode = makeNewNode(linkType, aNode, reResult, alwaysCts);
           if (!newNode) { return false; }
 
           newNode.setAttribute('data-linkid', linkId);
