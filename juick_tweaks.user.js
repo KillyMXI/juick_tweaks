@@ -1325,6 +1325,22 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'Яндекс.Музыка',
+      id: 'embed_yandex_music',
+      className: 'yandexMusic singleColumn',
+      onByDefault: true,
+      ctsDefault: true,
+      re: /^(?:https?:)?\/\/music\.yandex\.ru(?!$)(?:\/album\/(\d+))?(?:\/track\/(\d+))?/i,
+      makeNode: function(aNode, reResult, div) {
+        let [url, album, track] = reResult;
+        let isTrack = !!track;
+        let embedUrl = (isTrack)
+          ? `https://music.yandex.ru/iframe/#track/${track}/${album ? album + '/' : ''}`
+          : `https://music.yandex.ru/iframe/#album/${album}/`;
+        return replaceContent(div, makeIframe(embedUrl, '100%', isTrack ? '100px' : '420px'));
+      }
+    },
+    {
       name: 'Instagram',
       id: 'embed_instagram',
       className: 'instagram resizableV',
