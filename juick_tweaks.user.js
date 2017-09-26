@@ -332,7 +332,7 @@ function xhrGetAsync(url, timeout=3000, predicates=undefined, method='GET') {
     {
       msg: response => (response.statusText ? `${response.status} - ${response.statusText}` : `${response.status}`),
       test: response => response.status != 200,
-      permanent: response => response.status != 503
+      permanent: response => !([408, 500, 503].includes(response.status))
     }
   ];
   return new Promise(function(resolve, reject) {
