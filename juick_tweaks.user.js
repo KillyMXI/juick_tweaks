@@ -509,13 +509,7 @@ function addYearLinks() {
     {y: 2009, b: '?before=453764'},
     {y: 2008, b: '?before=20106'}
   ];
-  years.forEach(item => {
-    let anode = document.createElement('a');
-    anode.href = `/${userId}/${item.b}`;
-    anode.textContent = item.y;
-    linksContainer.appendChild(anode);
-    linksContainer.appendChild(document.createTextNode(' '));
-  });
+  linksContainer.innerHTML = years.map(item => `<a href="/${userId}/${item.b}">${item.y}</a>`).join(' ');
   asideColumn.insertBefore(hr2, hr1);
   asideColumn.insertBefore(linksContainer, hr1);
 }
