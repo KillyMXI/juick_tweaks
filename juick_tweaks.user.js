@@ -181,7 +181,7 @@ function insertAfter(newNode, referenceNode) {
   referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
 
-function replaceContent(containerNode, ...newNodes) {
+function setContent(containerNode, ...newNodes) {
   removeAllFrom(containerNode);
   newNodes.forEach(n => containerNode.appendChild(n));
   return containerNode;
@@ -685,7 +685,7 @@ function sortTagsPage() {
     return makeTagsContainer(tags, undefined, 'tag', uname, color);
   }).then(tagsContainer => {
     let contentSection = document.querySelector('section#content');
-    replaceContent(contentSection, tagsContainer);
+    setContent(contentSection, tagsContainer);
     return;
   }).catch( err => console.warn(err) );
 }
@@ -1179,7 +1179,7 @@ function getEmbeddableLinkTypes() {
         }
         let iframe = makeIframe(iframeUrl, '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1192,7 +1192,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//player.vimeo.com/video/' + reResult[1], '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1205,7 +1205,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//www.dailymotion.com/embed/video/' + reResult[1], '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1219,7 +1219,7 @@ function getEmbeddableLinkTypes() {
         let embedUrl = '//coub.com/embed/' + reResult[1] + '?muted=false&autostart=false&originalSize=false&startWithHD=false';
         let iframe = makeIframe(embedUrl, '100%', '360px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1236,7 +1236,7 @@ function getEmbeddableLinkTypes() {
           : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
         let iframe = makeIframe(url, '100%', '378px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1248,7 +1248,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/store\.steampowered\.com\/app\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//store.steampowered.com/widget/' + reResult[1] + '/', '100%', '190px');
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1274,7 +1274,7 @@ function getEmbeddableLinkTypes() {
           if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
           videoUrl = videoUrl.replace('/artwork=small', '');
           let iframe = makeIframe(videoUrl, '100%', '600px');
-          replaceContent(div, wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
+          setContent(div, wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
           let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
           iframe.onload = () => makeResizable(iframe, calcHeight);
           div.classList.remove('embed');
@@ -1292,7 +1292,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?\/\/(?:www\.)?soundcloud\.com\/(([\w\-\_]*)\/(?:sets\/)?(?!tracks$)([-%\w]*))(?:\/)?/i,
       makeNode: function(aNode, reResult, div) {
         let embedUrl = '//w.soundcloud.com/player/?url=//soundcloud.com/' + reResult[1] + '&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;visual=true';
-        return replaceContent(div, makeIframe(embedUrl, '100%', 450));
+        return setContent(div, makeIframe(embedUrl, '100%', 450));
       }
     },
     {
@@ -1329,7 +1329,7 @@ function getEmbeddableLinkTypes() {
         let embedUrl = (isTrack)
           ? `https://music.yandex.ru/iframe/#track/${track}/${album ? album + '/' : ''}`
           : `https://music.yandex.ru/iframe/#album/${album}/`;
-        return replaceContent(div, makeIframe(embedUrl, '100%', isTrack ? '100px' : '420px'));
+        return setContent(div, makeIframe(embedUrl, '100%', isTrack ? '100px' : '420px'));
       }
     },
     {
@@ -1342,7 +1342,7 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let iframe = makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', '100%', '722px');
         iframe.onload = () => makeResizable(iframe, w => w + 82);
-        return replaceContent(div, iframe);
+        return setContent(div, iframe);
       }
     },
     {
@@ -1471,7 +1471,7 @@ function getEmbeddableLinkTypes() {
       ctsDefault: true,
       re: /^(?:https?:)?\/\/(?:\w+\.)?gfycat\.com\/([a-zA-Z\d]+)$/i,
       makeNode: function(aNode, reResult, div) {
-        return replaceContent(div, makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480));
+        return setContent(div, makeIframe('//gfycat.com/ifr/' + reResult[1], '100%', 480));
       }
     },
     {
@@ -1541,7 +1541,7 @@ function getEmbeddableLinkTypes() {
           if (isVideo) {
             let { w, h } = fitToBounds(videoW, videoH, 620, 720);
             let ctsVideo = makeCts(
-              () => replaceContent(ctsVideo, makeIframe(videoUrl, w + 'px', h + 'px')),
+              () => setContent(ctsVideo, makeIframe(videoUrl, w + 'px', h + 'px')),
               `<img src="${images[0]}">${svgIconHtml('play')}`
             );
             div.appendChild(ctsVideo);
@@ -1783,7 +1783,7 @@ function getEmbeddableLinkTypes() {
       re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
       makeNode: function(aNode, reResult, div) {
         let embedUrl = reResult[1].replace(/[^\/]$/, '$&/') + 'embedded/';
-        return replaceContent(div, makeIframe(embedUrl, '100%', 500));
+        return setContent(div, makeIframe(embedUrl, '100%', 500));
       }
     },
     {
@@ -2691,59 +2691,63 @@ function showUserscriptSettings() {
     uiFieldset.appendChild(uiLegend);
 
     let list1 = document.createElement('ul');
-    let allSettings = getUserscriptSettings();
-    allSettings.forEach(item => {
-      let liNode = document.createElement('li');
-      let p = document.createElement('p');
-      p.appendChild(makeSettingsCheckbox(item.name, item.id, item.enabledByDefault));
-      liNode.appendChild(p);
-      list1.appendChild(liNode);
-    });
+    getUserscriptSettings()
+      .map(item => makeSettingsCheckbox(item.name, item.id, item.enabledByDefault))
+      .map(cb => wrapIntoTag(wrapIntoTag(cb, 'p'), 'li'))
+      .forEach(item => list1.appendChild());
     uiFieldset.appendChild(list1);
   }
 
   let embeddingFieldset = document.createElement('fieldset');
   { // Embedding
-    let legend2 = document.createElement('legend');
-    legend2.textContent = 'Embedding';
-    embeddingFieldset.appendChild(legend2);
+    let embeddingLegend = document.createElement('legend');
+    embeddingLegend.textContent = 'Embedding';
 
-    let table2 = document.createElement('table');
-    table2.style.width = '100%';
+    let embeddingTable = document.createElement('table');
+    embeddingTable.style.width = '100%';
     getEmbeddableLinkTypes().forEach(linkType => {
       let row = document.createElement('tr');
       row.appendChild(wrapIntoTag(makeSettingsCheckbox(linkType.name, linkType.id, linkType.onByDefault), 'td'));
       row.appendChild(wrapIntoTag(makeSettingsCheckbox('Click to show', 'cts_' + linkType.id, linkType.ctsDefault), 'td'));
-      table2.appendChild(row);
+      embeddingTable.appendChild(row);
     });
-    embeddingFieldset.appendChild(table2);
 
     let domainsWhitelist = makeSettingsTextbox('Domains whitelist ("*" wildcard is supported)', 'domains_whitelist', getDefaultDomainWhitelist().join('\n'), 'One domain per line. "*" wildcard is supported');
-    embeddingFieldset.appendChild(wrapIntoTag(domainsWhitelist, 'p'));
 
     let moveIntoViewOnSamePageCheckbox = makeSettingsCheckbox('Ссылки на ту же страницу не встраивать, а показывать при наведении', 'enable_move_into_view_on_same_page', true);
     let updateLinkTextCheckbox = makeSettingsCheckbox('Обновлять текст ссылок, если возможно (например, "juick.com" на #123456/7)', 'enable_link_text_update', true);
     let ctsUsersAndTags = makeSettingsTextbox('Всегда использовать "Click to show" для этих юзеров и тегов в ленте', 'cts_users_and_tags', '', '@users and *tags separated with space or comma');
     ctsUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
-    embeddingFieldset.appendChild(document.createElement('hr'));
-    embeddingFieldset.appendChild(wrapIntoTag(ctsUsersAndTags, 'p'));
-    embeddingFieldset.appendChild(wrapIntoTag(updateLinkTextCheckbox, 'p'));
-    embeddingFieldset.appendChild(wrapIntoTag(moveIntoViewOnSamePageCheckbox, 'p'));
+
+    setContent(
+      embeddingFieldset,
+      embeddingLegend,
+      embeddingTable,
+      wrapIntoTag(domainsWhitelist, 'p'),
+      document.createElement('hr'),
+      wrapIntoTag(ctsUsersAndTags, 'p'),
+      wrapIntoTag(updateLinkTextCheckbox, 'p'),
+      wrapIntoTag(moveIntoViewOnSamePageCheckbox, 'p')
+    );
   }
 
-  let filterinFieldset = document.createElement('fieldset');
+  let filteringFieldset = document.createElement('fieldset');
   { // Filtering
-    let legend4 = document.createElement('legend');
-    legend4.textContent = 'Filtering';
-    filterinFieldset.appendChild(legend4);
+    let filteringLegend = document.createElement('legend');
+    filteringLegend.textContent = 'Filtering';
 
     let filteringUsersAndTags = makeSettingsTextbox('Убирать посты этих юзеров или с этими тегами из общей ленты', 'filtered_users_and_tags', '', '@users and *tags separated with space or comma');
     filteringUsersAndTags.style = 'display: flex; flex-direction: column; align-items: stretch;';
     let keepHeadersCheckbox = makeSettingsCheckbox('Оставлять заголовки постов', 'filtered_posts_keep_header', true);
     let filterCommentsCheckbox = makeSettingsCheckbox('Также фильтровать комментарии этих юзеров', 'filter_comments_too', false);
-    filterinFieldset.appendChild(wrapIntoTag(filteringUsersAndTags, 'p'));
-    filterinFieldset.appendChild(wrapIntoTag(keepHeadersCheckbox, 'p'));
-    filterinFieldset.appendChild(wrapIntoTag(filterCommentsCheckbox, 'p'));
+
+    setContent(
+      filteringFieldset,
+      filteringLegend,
+      wrapIntoTag(filteringUsersAndTags, 'p'),
+      wrapIntoTag(keepHeadersCheckbox, 'p'),
+      wrapIntoTag(filterCommentsCheckbox, 'p')
+    );
   }
 
   let resetButton = document.createElement('button');
@@ -2759,22 +2763,20 @@ function showUserscriptSettings() {
 
   let versionInfoFieldset = document.createElement('fieldset');
   { // Version info
-    let legend3 = document.createElement('legend');
-    legend3.textContent = 'Version info';
+    let versionInfoLegend = document.createElement('legend');
+    versionInfoLegend.textContent = 'Version info';
     let ver1 = document.createElement('p');
     let ver2 = document.createElement('p');
     ver1.textContent = 'Greasemonkey (or your script runner) version: ' + GM_info.version;
     ver2.textContent = 'Userscript version: ' + GM_info.script.version;
-    versionInfoFieldset.appendChild(legend3);
-    versionInfoFieldset.appendChild(ver1);
-    versionInfoFieldset.appendChild(ver2);
+    setContent(versionInfoFieldset, versionInfoLegend, ver1, ver2);
   }
 
   let support = document.createElement('p');
   support.innerHTML = 'Feedback and feature requests <a href="//juick.com/killy/?tag=userscript">here</a>.';
 
   let contentBlock = document.querySelector('#content > article');
-  replaceContent(contentBlock, h1, uiFieldset, embeddingFieldset, filterinFieldset, resetButton, versionInfoFieldset, support);
+  setContent(contentBlock, h1, uiFieldset, embeddingFieldset, filteringFieldset, resetButton, versionInfoFieldset, support);
   contentBlock.className = 'tweaksSettings';
 }
 
@@ -2882,7 +2884,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
   } // recUpdate
 
   let contentBlock = document.querySelector('section#content');
-  replaceContent(contentBlock, article);
+  setContent(contentBlock, article);
   recUpdate(pagesPerCall, undefined, undefined);
 }
 
