@@ -2694,7 +2694,7 @@ function showUserscriptSettings() {
     getUserscriptSettings()
       .map(item => makeSettingsCheckbox(item.name, item.id, item.enabledByDefault))
       .map(cb => wrapIntoTag(wrapIntoTag(cb, 'p'), 'li'))
-      .forEach(item => list1.appendChild());
+      .forEach(item => list1.appendChild(item));
     uiFieldset.appendChild(list1);
   }
 
