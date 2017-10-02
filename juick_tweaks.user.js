@@ -165,7 +165,7 @@ function longest(arr) {
 }
 
 function intersect(a, b) {
-  if (b.length > a.length) { [a, b] = [b, a]; } // loop over shorter array
+  if (a.length > b.length) { [a, b] = [b, a]; } // filter shorter array
   return a.filter(item => (b.indexOf(item) !== -1));
 }
 
