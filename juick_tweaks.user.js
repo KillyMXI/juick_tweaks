@@ -786,6 +786,7 @@ function addUsersSortingButton() {
 }
 
 function turnIntoCts(node, makeNodeCallback) {
+  node.classList.add('cts');
   node.onclick = function(e){
     e.preventDefault();
     makeNodeCallback();
@@ -799,7 +800,6 @@ function makeCts(makeNodeCallback, titleHtml) {
   let placeholder = document.createElement('div');
   placeholder.className = 'placeholder';
   placeholder.innerHTML = titleHtml;
-  ctsNode.classList.add('cts');
   ctsNode.appendChild(placeholder);
   turnIntoCts(ctsNode, makeNodeCallback);
   return ctsNode;
