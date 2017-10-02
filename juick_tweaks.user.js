@@ -691,8 +691,7 @@ function sortTagsPage() {
     return makeTagsContainer(tags, undefined, 'tag', uname, color);
   }).then(tagsContainer => {
     let contentSection = document.querySelector('section#content');
-    removeAllFrom(contentSection);
-    contentSection.appendChild(tagsContainer);
+    replaceContent(contentSection, tagsContainer);
     return;
   }).catch( err => console.warn(err) );
 }
@@ -1281,8 +1280,7 @@ function getEmbeddableLinkTypes() {
           if (isAlbum) { videoUrl = videoUrl.replace('/tracklist=false', '/tracklist=true'); }
           videoUrl = videoUrl.replace('/artwork=small', '');
           let iframe = makeIframe(videoUrl, '100%', '600px');
-          removeAllFrom(div);
-          div.appendChild(wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
+          replaceContent(div, wrapIntoTag(iframe, 'div', 'bandcamp resizableV'));
           let calcHeight = w => w + videoH + (isAlbum ? 162 : 0);
           iframe.onload = () => makeResizable(iframe, calcHeight);
           div.classList.remove('embed');
@@ -2689,9 +2687,6 @@ function makeSettingsTextbox(caption, id, defaultString, placeholder) {
 }
 
 function showUserscriptSettings() {
-  let contentBlock = document.querySelector('#content > article');
-  removeAllFrom(contentBlock);
-
   let h1 = document.createElement('h1');
   h1.textContent = 'Tweaks';
 
@@ -2784,14 +2779,8 @@ function showUserscriptSettings() {
   let support = document.createElement('p');
   support.innerHTML = 'Feedback and feature requests <a href="//juick.com/killy/?tag=userscript">here</a>.';
 
-  contentBlock.appendChild(h1);
-  contentBlock.appendChild(uiFieldset);
-  contentBlock.appendChild(embeddingFieldset);
-  contentBlock.appendChild(filterinFieldset);
-  contentBlock.appendChild(resetButton);
-  contentBlock.appendChild(versionInfoFieldset);
-  contentBlock.appendChild(support);
-
+  let contentBlock = document.querySelector('#content > article');
+  replaceContent(contentBlock, h1, uiFieldset, embeddingFieldset, filterinFieldset, resetButton, versionInfoFieldset, support);
   contentBlock.className = 'tweaksSettings';
 }
 
@@ -2807,9 +2796,6 @@ function addTweaksSettingsButton() {
 }
 
 function updateUserRecommendationStats(userId, pagesPerCall) {
-  let contentBlock = document.querySelector('section#content');
-  removeAllFrom(contentBlock);
-
   let article = document.createElement('article');
   let userCounters = {};
   let totalRecs = 0;
@@ -2901,9 +2887,9 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 
   } // recUpdate
 
+  let contentBlock = document.querySelector('section#content');
+  replaceContent(contentBlock, article);
   recUpdate(pagesPerCall, undefined, undefined);
-
-  contentBlock.appendChild(article);
 }
 
 function addIRecommendLink() {
