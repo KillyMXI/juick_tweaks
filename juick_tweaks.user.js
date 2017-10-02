@@ -231,7 +231,7 @@ function naiveEllipsisRight(str, len, ellStr='...') {
   return (str.length <= len) ? str : str.substring(0, len - ellLen) + ellStr;
 }
 
-function wrapIntoTag(node, tagName, className) {
+function wrapIntoTag(node, tagName, className=undefined) {
   let tag = document.createElement(tagName);
   if (className) { tag.className = className; }
   tag.appendChild(node);
