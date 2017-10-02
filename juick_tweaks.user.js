@@ -2767,8 +2767,8 @@ function showUserscriptSettings() {
     versionInfoLegend.textContent = 'Version info';
     let ver1 = document.createElement('p');
     let ver2 = document.createElement('p');
-    ver1.textContent = 'Greasemonkey (or your script runner) version: ' + GM_info.version;
-    ver2.textContent = 'Userscript version: ' + GM_info.script.version;
+    ver1.textContent = 'Userscript version: ' + GM_info.script.version;
+    ver2.textContent = 'Greasemonkey (or your script runner) version: ' + GM_info.version;
     setContent(versionInfoFieldset, versionInfoLegend, ver1, ver2);
   }
 
