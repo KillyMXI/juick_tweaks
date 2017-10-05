@@ -2279,7 +2279,7 @@ function getDefaultDomainWhitelist() {
 
 function embedLink(aNode, linkTypes, container, alwaysCts, afterNode) {
   let anyEmbed = false;
-  let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/i,''));
+  let linkId = (aNode.href.replace(/^https?:/i, '').replace(/\'/gi,''));
   let sameEmbed = container.querySelector(`*[data-linkid='${linkId}']`); // do not embed the same thing twice
   if (sameEmbed) {
     if (GM_getValue('enable_arrows', true)) { aNode.classList.add('arrow'); }
