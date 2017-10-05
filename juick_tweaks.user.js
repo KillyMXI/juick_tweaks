@@ -2827,7 +2827,7 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         let [, oldestDatePart, oldestTimePart] = dateRe.exec(oldestArticle);
         oldestDate = new Date(`${oldestDatePart}T${oldestTimePart}`);
 
-        const userRe = /@<a href="\/([-\w]+)\/">/i;
+        const userRe = /<span itemprop="name">([-\w]+)<\/span>/i;
         const userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
         let authors = articles.map(article => {
           let postAuthorId = (userRe.exec(article))[1];
