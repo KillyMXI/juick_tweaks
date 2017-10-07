@@ -2525,12 +2525,12 @@ function checkReply(allPostsSelector, replySelector) {
 }
 
 function checkReplyArticles() {
-  if (!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  if (!GM_getValue('enable_unrepliable_styling', true)) { return; }
   checkReply('#content article[data-mid]', 'nav.l > a.a-comment');
 }
 
 function checkReplyPost() {
-  if (!GM_getValue('enable_blocklisters_styling', false)) { return; }
+  if (!GM_getValue('enable_unrepliable_styling', true)) { return; }
   checkReply('#content div.msg-cont', 'div.msg-comment');
 }
 
@@ -2616,8 +2616,8 @@ function getUserscriptSettings() {
     },
     {
       name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
-      id: 'enable_blocklisters_styling',
-      enabledByDefault: false
+      id: 'enable_unrepliable_styling',
+      enabledByDefault: true
     },
     {
       name: 'Для readonly поста отображать виртуальный тег (только на странице поста)',
