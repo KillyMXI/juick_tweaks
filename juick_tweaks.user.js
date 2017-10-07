@@ -97,6 +97,7 @@ if (isNewPostPage) {                     // на странице нового �
 if (isPost) {                            // на странице поста
   tryRun(filterPostComments);
   tryRun(checkReplyPost);
+  tryRun(markReadonlyPost);
   tryRun(addTagEditingLinkUnderPost);
   tryRun(addCommentRemovalLinks);
   tryRun(bringCommentsIntoViewOnHover);
@@ -2533,6 +2534,14 @@ function checkReplyPost() {
   checkReply('#content div.msg-cont', 'div.msg-comment');
 }
 
+function markReadonlyPost() {
+  if (!GM_getValue('enable_mark_readonly_post', true)) { return; }
+  if (document.title.match(/\B\*readonly\b/)) {
+    document.querySelector('#content .msg-cont .msg-tags')
+            .insertAdjacentHTML('beforeend', '<a class="virtualTag" href="#readonly">readonly</a>');
+  }
+}
+
 function getUserscriptSettings() {
   return [
     {
@@ -2609,6 +2618,11 @@ function getUserscriptSettings() {
       name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
       id: 'enable_blocklisters_styling',
       enabledByDefault: false
+    },
+    {
+      name: 'Для readonly поста отображать виртуальный тег (только на странице поста)',
+      id: 'enable_mark_readonly_post',
+      enabledByDefault: true
     },
     {
       name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
@@ -3083,6 +3097,7 @@ function addStyle() {
     .movableContainer .moved+.placeholder { display: block; }
     .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
     .users.sorted > span { width: 300px; }
+    a.virtualTag { border: 1px dotted ${color07}; border-radius: 15px; }
     #toggleBetaLink,
     #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
     .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
