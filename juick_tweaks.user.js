@@ -584,7 +584,6 @@ function easyTagsUnderNewMessageForm() {
     let messageBox = content.querySelector('textarea.newmessage');
     content.insertAdjacentElement('beforeend', tagsContainer);
     const addTag = (box, newTag) => {
-      let escapedTag = escapeRegExp(newTag);
       let re = new RegExp(`(^.* |^)(\\*${escapeRegExp(newTag)})($|\\s[\\s\\S]*$)`, 'g');
       if (re.test(box.value)) {
         box.value = box.value.replace(re, '$1$3').replace(/(^.*? )( +)/, '$1').replace(/^ /, '');
@@ -660,7 +659,7 @@ function addPostSharpForm() {
     let tagsField = messageForm.querySelector('div > .tags');
     tagsField.parentNode.appendChild(tagsContainer);
     const addTag = (tagsField, newTag) => {
-      let re = new RegExp(`(^|\\s)(${newTag})(\\s|$)`, 'g');
+      let re = new RegExp(`(^|\\s)(${escapeRegExp(newTag)})(\\s|$)`, 'g');
       if (re.test(tagsField.value)) {
         tagsField.value = tagsField.value.replace(re, '$1$3').replace(/\s\s+/g, ' ').trim();
       } else {
