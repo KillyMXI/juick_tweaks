@@ -601,6 +601,60 @@ function easyTagsUnderNewMessageForm() {
   ).catch( err => console.warn(err) );
 }
 
+function clearFileInput(inp) {
+  try {
+    inp.value = '';
+    if (inp.value) {
+      inp.type = '';
+      inp.type = 'file';
+    }
+  } catch (e) {
+    console.log(e);
+    console.log('old browser having problems with cleaning file input');
+  }
+}
+
+function clearImageInput(mode=undefined) {
+  let form = document.querySelector('#oldNewMessage');
+  if (!mode || mode == 'url') { form.querySelector('#image_url').value = ''; }
+  if (!mode || mode == 'file') { clearFileInput(form.querySelector('#image_upload')); }
+  form.classList.remove('withImage');
+  let image = document.querySelector('#imagePreview img');
+  if (image) { image.remove(); }
+}
+
+function showImagePreview(src) {
+  let form = document.querySelector('#oldNewMessage');
+  let preview = form.querySelector('#imagePreview');
+  let image = preview.querySelector('img') || document.createElement('img');
+  image.src = src;
+  image.onerror = () => clearImageInput();
+  preview.appendChild(image);
+  form.classList.add('withImage');
+}
+
+function updateImageUrlPreview(imageUrlInput) {
+  let form = document.querySelector('#oldNewMessage');
+  clearFileInput(form.querySelector('#image_upload')); // clear file input
+  setTimeout(() => showImagePreview(imageUrlInput.value), 0);
+}
+
+function updateImageFilePreview(imageInput) {
+  let form = document.querySelector('#oldNewMessage');
+  form.querySelector('#image_url').value = ''; // clear url input
+  if (imageInput.files.length === 0) {
+    clearImageInput();
+  } else {
+    let selFile = imageInput.files[0];
+    let validTypes = ['image/jpeg', 'image/png'];
+    if (validTypes.includes(selFile.type) && selFile.size < 10485760) {
+      showImagePreview(window.URL.createObjectURL(selFile));
+    } else {
+      clearImageInput();
+    }
+  }
+}
+
 function addPostSharpFormUser() {
   if (getColumnUserName() == getMyUserName()) {
     addPostSharpForm();
@@ -612,41 +666,59 @@ function addPostSharpForm() {
   let content = document.querySelector('#content');
   let newMessageForm = `
     <form id="oldNewMessage" action="/post" method="post" enctype="multipart/form-data">
-      <textarea name="body" placeholder="New message..."></textarea>
-      <div>
-        <input class="img" name="img" placeholder="Link to image (JPG/PNG up to 10 MB)"/>
-        or <a id="aUpload" href="#">Upload</a><br/>
-        <input class="tags" name="tags" placeholder="Tags (space separated)"/><br/>
-        <input type="submit" class="subm" value="Send"/>
+      <textarea name="body" rows="1" placeholder="New message..."></textarea>
+      <div id="charCounterBlock" class="empty"><div id="charCounter" style="width: 0%;"></div></div>
+      <div id="bottomBlock">
+        <div id="bottomLeftBlock">
+          <input class="tags txt" name="tags" placeholder="Tags (space separated)">
+          <div id="imgUploadBlock">
+            <label for="image_upload" class="btn_like">Choose file</label>
+            <input type="file" id="image_upload" name="attach" accept="image/jpeg,image/png">
+            <input class="imgLink txt" id="image_url" name="img" placeholder="or paste link">
+            <div class="info" title="JPG/PNG up to 10 MB"><svg class="icon__cnt"><use xlink:href="#ei-question-icon"></use></svg></div>
+          </div>
+          <div class="flexSpacer"></div>
+          <input type="submit" class="subm" value="Send" disabled>
+        </div>
+        <div id="imagePreview">
+          <a id="clear_button" href="javascript:void(0);" title="Remove attachment">
+            <svg class="icon__cnt"><use xlink:href="#ei-close-icon"></use></svg>
+          </a>
+        </div>
       </div>
     </form>`;
   content.insertAdjacentHTML('afterbegin', newMessageForm);
   let f = document.querySelector('#oldNewMessage');
   let ta = f.querySelector('textarea');
-  let aUpload = f.querySelector('#aUpload');
+  let urlInput = f.querySelector('#image_url');
+  let fileInput = f.querySelector('#image_upload');
+  let clearButton = f.querySelector('#clear_button');
+  let charCounter = f.querySelector('#charCounter');
+  let charCounterBlock = f.querySelector('#charCounterBlock');
+  let submitButton = f.querySelector('.subm');
+
+  urlInput.addEventListener('paste', () => updateImageUrlPreview(urlInput));
+  urlInput.addEventListener('change', () => updateImageUrlPreview(urlInput));
+  fileInput.addEventListener('change', () => updateImageFilePreview(fileInput));
+  clearButton.addEventListener('click', () => clearImageInput());
   ta.addEventListener('focus', () => {
     ta.parentNode.classList.add('active');
+    document.querySelector('#oldNewMessage textarea').rows = 2;
   });
-  autosize(ta);
-  aUpload.addEventListener('click', (e) => {
-    let fileInput = f.querySelector('input[type="file"]');
-    if (!fileInput) {
-      let inp = document.createElement('input');
-      inp.setAttribute('type', 'file');
-      inp.setAttribute('name', 'attach');
-      inp.setAttribute('accept', 'image/jpeg,image/png');
-      inp.style.visibility = 'hidden';
-      inp.style.float = 'left';
-      inp.style.width = 0;
-      inp.style.height = 0;
-      inp.addEventListener('change', () => aUpload.textContent = 'Upload (✓)');
-      f.appendChild(inp);
-      inp.click();
+  ta.addEventListener('input', () => {
+    const maxLen = 4096;
+    let len = ta.value.length;
+    submitButton.disabled = (len < 1 || len > maxLen);
+    charCounterBlock.classList.toggle('invalid', len > maxLen);
+    if (len <= maxLen) {
+      charCounter.style.width = '' + (100.0 * len / maxLen) + '%';
+      charCounter.textContent = '';
     } else {
-      fileInput.remove();
-      aUpload.textContent = 'Upload';
+      charCounter.style.width = '';
+      charCounter.textContent = '' + len;
     }
   });
+  autosize(ta);
 
   let uname = getMyUserName();
   getUidForUnameAsync(uname).then(uid => {
@@ -657,7 +729,7 @@ function addPostSharpForm() {
   }).then(tagsContainer => {
     let messageForm = document.getElementById('oldNewMessage');
     let tagsField = messageForm.querySelector('div > .tags');
-    tagsField.parentNode.appendChild(tagsContainer);
+    tagsField.parentNode.parentNode.parentNode.appendChild(tagsContainer);
     const addTag = (tagsField, newTag) => {
       let re = new RegExp(`(^|\\s)(${escapeRegExp(newTag)})(\\s|$)`, 'g');
       if (re.test(tagsField.value)) {
@@ -3103,13 +3175,44 @@ function addStyle() {
     .expandable:before { content:''; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
     .expandable > a.expandLink > span { border: 1px dotted ${color07}; border-radius: 15px; padding: 0 15px 2px; background: ${abg10}; }
-    #oldNewMessage { background: #e5e5e0; margin-bottom: 20px; padding: 15px; }
-    #oldNewMessage > textarea { border: 1px solid #ccc; box-sizing: border-box; margin: 0 0 5px; padding: 4px; width: 100%; }
-    #oldNewMessage input { border: 1px solid #ccc; margin: 5px 0; padding: 2px 4px }
-    #oldNewMessage .img, #oldNewMessage .tags { width: 500px }
-    #oldNewMessage .subm { background: #eeeee5; width: 150px }
-    #oldNewMessage > div { display: none; }
-    #oldNewMessage.active > div { display: block; }
+
+    #oldNewMessage { background: #e5e5e0; margin-bottom: 20px; padding: 0; display: flex; flex-direction: column; }
+    #oldNewMessage * { box-sizing: border-box; }
+    #oldNewMessage > textarea { resize: vertical; padding: 12px 16px; }
+    #oldNewMessage.active { padding: 8px; }
+    #oldNewMessage #bottomBlock { display: flex; flex-direction: row; }
+    #oldNewMessage:not(.active) #bottomBlock,
+    #oldNewMessage:not(.active) #charCounterBlock,
+    #oldNewMessage:not(.active) .tagsContainer { display: none; }
+    #oldNewMessage #bottomLeftBlock { flex-grow: 1; display: flex; flex-direction: column; max-width: 100%; }
+    #oldNewMessage .tags,
+    #oldNewMessage .tagsContainer,
+    #oldNewMessage .subm,
+    #oldNewMessage #charCounterBlock,
+    #oldNewMessage #imgUploadBlock { margin-top: 6px; }
+    #oldNewMessage.active textarea,
+    #oldNewMessage .txt { padding: 2px 4px; }
+    #oldNewMessage textarea,
+    #oldNewMessage .imgLink,
+    #oldNewMessage .tags { border: 1px solid #ccc; }
+    #oldNewMessage .subm,
+    #oldNewMessage .btn_like { background: #eeeee5; border: 1px solid #ccc; color: black; padding: 2px 4px; width: 150px; cursor: pointer; text-align: center; }
+    #oldNewMessage .subm[disabled] { color: #999; }
+    #imgUploadBlock > * { display: inline-block; }
+    #imgUploadBlock .info { width: 25px; height: 25px; vertical-align: text-bottom; }
+    #imgUploadBlock #image_upload { visibility: hidden; width: 0; position: absolute; }
+    #imgUploadBlock .imgLink { width: 150px; }
+    #oldNewMessage:not(.withImage) #imagePreview { display: none; }
+    #oldNewMessage #imagePreview { position: relative; margin: 6px 0 0 6px; }
+    #oldNewMessage #imagePreview img { display: block; max-height: 120px; max-width: 150px; }
+    #clear_button { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+    #clear_button > svg { position: absolute; right: 0%; top: 0%; width: 20%; height: 20%; }
+    #clear_button:hover { background: rgba(255, 255, 255, 0.25); }
+    .flexSpacer { flex-grow: 1; }
+    #charCounterBlock > div { height: 100; }
+    #charCounterBlock:not(.invalid) > div { background: #999; height: 1px; }
+    #charCounterBlock.invalid { text-align: right; }
+    #charCounterBlock.invalid > div { color: #c00; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
