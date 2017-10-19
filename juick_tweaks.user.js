@@ -2734,6 +2734,11 @@ function getUserscriptSettings() {
       name: 'Сворачивать длинные посты',
       id: 'enable_long_message_folding',
       enabledByDefault: true
+    },
+    {
+      name: 'Не растягивать шапку на всю ширину экрана (временный фикс)',
+      id: 'header_footer_max_width',
+      enabledByDefault: false
     }
   ];
 }
@@ -3217,6 +3222,11 @@ function addStyle() {
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
       pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 9pt; line-height: 120%; }
+      `);
+  }
+  if (GM_getValue('header_footer_max_width', false)) {
+    GM_addStyle(`
+      header, #footer { width: 1000px; max-width: 100%; margin: 0 auto; }
       `);
   }
 }
