@@ -442,14 +442,24 @@ function markNsfwPostsInFeed() {
 
 function addTagEditingLinkUnderPost() {
   if (!GM_getValue('enable_tags_editing_link', true)) { return; }
-  let postToolbar = document.querySelector('#content li.toolbar ul');
-  let canEdit = (postToolbar.innerHTML.indexOf('/post?body=D+%23') > -1);
-  if (!canEdit) { return; }
+  let post = document.querySelector('#content .msgthread');
+  let postToolbar = post.querySelector('nav.l');
+  let canEdit = !!document.querySelector('#column a[href="/logout"]');
   let mid = document.getElementById('content').getAttribute('data-mid');
-  postToolbar.insertAdjacentHTML(
-    'beforeend',
-    `<li><a href="/post?body=%23${mid}+%2ATag"><div style="background-position: -16px 0"></div>Теги</a></li>`
-  );
+  if (canEdit) {
+    postToolbar.insertAdjacentHTML(
+      'beforeend', `
+        <a href="/post?body=%23${mid}+%2ATag">Tags</a>
+        <a href="/post?body=D+%23${mid}">Delete</a>
+        `
+    );
+  } else {
+    postToolbar.insertAdjacentHTML(
+      'beforeend', `
+        <a href="/post?body=S+%23${mid}">Subscribe</a>
+        `
+    );
+  }
 }
 
 function addCommentRemovalLinks() {
@@ -2734,11 +2744,6 @@ function getUserscriptSettings() {
       name: 'Сворачивать длинные посты',
       id: 'enable_long_message_folding',
       enabledByDefault: true
-    },
-    {
-      name: 'Не растягивать шапку на всю ширину экрана (временный фикс)',
-      id: 'header_footer_max_width',
-      enabledByDefault: false
     }
   ];
 }
@@ -3222,11 +3227,6 @@ function addStyle() {
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
       pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 9pt; line-height: 120%; }
-      `);
-  }
-  if (GM_getValue('header_footer_max_width', false)) {
-    GM_addStyle(`
-      header, #footer { width: 1000px; max-width: 100%; margin: 0 auto; }
       `);
   }
 }
