@@ -3051,7 +3051,7 @@ function limitArticlesHeight () {
 }
 
 function addStyle() {
-  let article = document.querySelector('#content article');
+  let article = document.querySelector('#content article') || document.querySelector('#content .msg-cont');
   let [br, bg, bb] = parseRgbColor(getComputedStyle(document.documentElement).backgroundColor, [255,255,255]);
   let [tr, tg, tb] = parseRgbColor(getComputedStyle(document.body).color, [34,34,34]);
   let [ar, ag, ab] = (article) ? parseRgbColor(getComputedStyle(article).backgroundColor, [br, bg, bb]) : [br, bg, bb];
