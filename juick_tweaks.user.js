@@ -447,18 +447,7 @@ function addTagEditingLinkUnderPost() {
   let canEdit = !!document.querySelector('#column a[href="/logout"]');
   let mid = document.getElementById('content').getAttribute('data-mid');
   if (canEdit) {
-    postToolbar.insertAdjacentHTML(
-      'beforeend', `
-        <a href="/post?body=%23${mid}+%2ATag">Tags</a>
-        <a href="/post?body=D+%23${mid}">Delete</a>
-        `
-    );
-  } else {
-    postToolbar.insertAdjacentHTML(
-      'beforeend', `
-        <a href="/post?body=S+%23${mid}">Subscribe</a>
-        `
-    );
+    postToolbar.insertAdjacentHTML('beforeend', `<a href="/post?body=%23${mid}+%2ATag">${svgIconHtml('tag')}&nbsp;Tags</a>`);
   }
 }
 
