@@ -100,6 +100,7 @@ if (isPost) {                            // на странице поста
   tryRun(markReadonlyPost);
   tryRun(addTagEditingLinkUnderPost);
   tryRun(addCommentRemovalLinks);
+  tryRun(addCommentShareMenu);
   tryRun(bringCommentsIntoViewOnHover);
   tryRun(embedLinksToPost);
 }
@@ -482,6 +483,39 @@ function addCommentRemovalLinks() {
       });
     }
   });
+}
+
+function addCommentShareMenu() {
+  if (!GM_getValue('enable_comment_share_menu', true)) { return; }
+  let commentsBlock = document.querySelector('ul#replies');
+  if (commentsBlock) {
+    [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+      let linksBlock = linode.querySelector('div.msg-links');
+      let commentLink = linode.querySelector('div.msg-ts > a');
+      let postId = commentLink.pathname.replace('/','');
+      let commentId = commentLink.hash.replace('#','');
+      linksBlock.insertAdjacentHTML('beforeend', `
+        <div class="hoverPopup">
+          <div class="hoverTarget">${svgIconHtml('link')}&nbsp;Links</div>
+          <div class="hoverContainer">
+            <p>Click to copy:</p>
+            <a href="#copy_id" class="copyId">#${postId}/${commentId}</a>
+            <a href="#copy_url" class="copyUrl">${commentLink.href}</a>
+          </div>
+        </div>
+        `);
+      let copyIdLink = linksBlock.querySelector('.copyId');
+      let copyUrlLink = linksBlock.querySelector('.copyUrl');
+      const copyAction = el => e => {
+        e.preventDefault();
+        selectAndCopyElementContents(el, true);
+        el.classList.toggle('blinkOnce', true);
+        setTimeout(() => el.classList.toggle('blinkOnce', false), 1000);
+      };
+      copyIdLink.onclick = copyAction(copyIdLink);
+      copyUrlLink.onclick = copyAction(copyUrlLink);
+    });
+  }
 }
 
 function addTagPageToolbar() {
@@ -2657,6 +2691,11 @@ function getUserscriptSettings() {
       enabledByDefault: true
     },
     {
+      name: 'Копирование ссылок на комментарии',
+      id: 'enable_comment_share_menu',
+      enabledByDefault: true
+    },
+    {
       name: 'Ссылки для удаления комментариев',
       id: 'enable_comment_removal_links',
       enabledByDefault: true
@@ -3224,6 +3263,14 @@ function addStyle() {
     #charCounterBlock:not(.invalid) > div { background: #999; height: 1px; }
     #charCounterBlock.invalid { text-align: right; }
     #charCounterBlock.invalid > div { color: #c00; }
+    ul#replies li .hoverPopup { display: inline-block; float: right; }
+    .hoverPopup { position: relative; }
+    .hoverPopup .hoverContainer { visibility: hidden; position: absolute; z-index: 1; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; background: ${abg10}; box-shadow: 0 0 3px rgba(0,0,0,.16); }
+    .hoverPopup .hoverContainer > * { margin: 2px 4px; }
+    .hoverPopup:hover .hoverContainer { visibility: visible; }
+    .hoverPopup { margin-left: 15px; }
+    @keyframes highlight { 0% { outline-color: rgba(127, 127, 127 , 1.0); } 100% { outline-color: rgba(127, 127, 127 , 0.0); } }
+    .blinkOnce { outline-width: 1px; outline-style: solid; animation: highlight 1s; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
