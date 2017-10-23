@@ -525,8 +525,8 @@ function addTagPageToolbar() {
   let html = `
     <div id="ctitle" class="tag"><a href="/tag/${tag}">*${decodeURIComponent(tag)}</a></div>
     <ul class="toolbar">
-      <li><a href="/post?body=S+%2a${tag}" title="Подписаться"><div style="background-position: -16px 0"></div></a></li>
-      <li><a href="/post?body=BL+%2a${tag}" title="Заблокировать"><div style="background-position: -80px 0"></div></a></li>
+      <li><a href="/post?body=S+%2a${tag}" title="Подписаться">${svgIconHtml('plus')}Subscribe</a></li>
+      <li><a href="/post?body=BL+%2a${tag}" title="Заблокировать">${svgIconHtml('close')}Block</a></li>
     </ul>
     `;
   asideColumn.innerHTML = html + asideColumn.innerHTML;
