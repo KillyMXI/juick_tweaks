@@ -107,7 +107,7 @@ if (isPost) {                            // на странице поста
 if (isFeed) {                            // в ленте или любом списке постов
   if (isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
     tryRun(filterArticles);
-    tryRun(addPostSharpForm);
+    // tryRun(addPostSharpForm);
   }
   tryRun(limitArticlesHeight);
   tryRun(checkReplyArticles);
@@ -392,9 +392,21 @@ function svgIconHtml(name) {
   return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
 }
 
-function getMyUserName() {
-  let myUserIdLink = document.querySelector('nav#actions > ul > li:nth-child(2) > a');
-  return (myUserIdLink) ? myUserIdLink.textContent.replace('@', '') : null;
+function getMyAccountAsync() {
+  if (getMyUserNameAsync[0]) {
+    return Promise.resolve(getMyUserNameAsync[0]);
+  } else {
+    let hash = document.body.getAttribute('data-hash');
+    return xhrGetAsync(setProto('//api.juick.com/users?hash=' + hash), 500).then(response => {
+      let account = JSON.parse(response.responseText)[0];
+      getMyUserNameAsync[0] = account;
+      return account;
+    });
+  }
+}
+
+function getMyUserNameAsync() {
+  return getMyAccountAsync().then(account => account.uname);
 }
 
 function getColumnUserName() {
@@ -414,12 +426,6 @@ function getPostUserName(element) {
 function getPostUid(element) {
   let avatar = document.querySelector('div.msg-avatar > a > img');
   return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
-}
-
-function getUidForUnameAsync(uname) {
-  return xhrGetAsync(setProto('http://api.juick.com/users?uname=' + uname), 500).then(response => {
-    return JSON.parse(response.responseText)[0].uid;
-  });
 }
 
 function replacePostLink() {
@@ -453,27 +459,29 @@ function addTagEditingLinkUnderPost() {
 
 function addCommentRemovalLinks() {
   if (!GM_getValue('enable_comment_removal_links', true)) { return; }
-  let myUserId = getMyUserName();
-  let commentsBlock = document.querySelector('ul#replies');
-  if (commentsBlock && myUserId) {
-    [].forEach.call(commentsBlock.children, function(linode, i, arr) {
-      let postUserAvatar = linode.querySelector('div.msg-avatar > a > img');
-      if (postUserAvatar) {
-        let postUserId = postUserAvatar.alt;
-        if (postUserId == myUserId) {
-          let linksBlock = linode.querySelector('div.msg-links');
-          let commentLink = linode.querySelector('div.msg-ts > a');
-          let postId = commentLink.pathname.replace('/','');
-          let commentId = commentLink.hash.replace('#','');
-          let anode = document.createElement('a');
-          anode.href = `/post?body=D+%23${postId}%2F${commentId}`;
-          anode.innerHTML = 'Удалить';
-          anode.style.cssFloat = 'right';
-          linksBlock.appendChild(anode);
+  getMyUserNameAsync().then(uname => {
+    let commentsBlock = document.querySelector('ul#replies');
+    if (commentsBlock && uname) {
+      [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+        let postUserAvatar = linode.querySelector('div.msg-avatar > a > img');
+        if (postUserAvatar) {
+          let postUserId = postUserAvatar.alt;
+          if (postUserId == uname) {
+            let linksBlock = linode.querySelector('div.msg-links');
+            let commentLink = linode.querySelector('div.msg-ts > a');
+            let postId = commentLink.pathname.replace('/','');
+            let commentId = commentLink.hash.replace('#','');
+            let anode = document.createElement('a');
+            anode.href = `/post?body=D+%23${postId}%2F${commentId}`;
+            anode.innerHTML = `${svgIconHtml('close')}&nbsp;Delete`;
+            anode.style.cssFloat = 'right';
+            anode.style.marginLeft = '15px';
+            linksBlock.appendChild(anode);
+          }
         }
-      }
-    });
-  }
+      });
+    }
+  });
 }
 
 function addTagPageToolbar() {
@@ -516,17 +524,19 @@ function addYearLinks() {
 
 function addSettingsLink() {
   if (!GM_getValue('enable_settings_link', true)) { return; }
-  if (getColumnUserName() == getMyUserName()) {
-    let asideColumn = document.querySelector('aside#column');
-    let ctitle = asideColumn.querySelector('#ctitle');
-    let anode = document.createElement('a');
-    anode.innerHTML = svgIconHtml('gear');
-    anode.href = '/settings';
-    ctitle.appendChild(anode);
-    ctitle.style.display = 'flex';
-    ctitle.style.justifyContent = 'space-between';
-    ctitle.style.alignItems = 'baseline';
-  }
+  getMyUserNameAsync().then(uname => {
+    if (getColumnUserName() == uname) {
+      let asideColumn = document.querySelector('aside#column');
+      let ctitle = asideColumn.querySelector('#ctitle');
+      let anode = document.createElement('a');
+      anode.innerHTML = svgIconHtml('gear');
+      anode.href = '/settings';
+      ctitle.appendChild(anode);
+      ctitle.style.display = 'flex';
+      ctitle.style.justifyContent = 'space-between';
+      ctitle.style.alignItems = 'baseline';
+    }
+  });
 }
 
 function biggerAvatar() {
@@ -536,7 +546,8 @@ function biggerAvatar() {
 }
 
 function loadTagsAsync(uid) {
-  return xhrGetAsync(setProto('//api.juick.com/tags?user_id=' + uid), 1000).then(response => {
+  let hash = document.body.getAttribute('data-hash');
+  return xhrGetAsync(setProto(`//api.juick.com/tags?user_id=${uid}&hash=${hash}`), 1000).then(response => {
     return JSON.parse(response.responseText);
   });
 }
@@ -571,12 +582,11 @@ function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]
 
 function easyTagsUnderNewMessageForm() {
   if (!GM_getValue('enable_tags_on_new_post_page', true)) { return; }
-  let uname = getMyUserName();
-  getUidForUnameAsync(uname).then(uid => {
-    return loadTagsAsync(uid);
-  }).then(tags => {
+  getMyAccountAsync().then(account => {
+    return loadTagsAsync(account.uid).then(tags => [account, tags]);
+  }).then(([account, tags]) => {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
-    return makeTagsContainer(tags, 300, 'tag', uname, color);
+    return makeTagsContainer(tags, 300, 'tag', account.uname, color);
   }).then(tagsContainer => {
     Array.from(document.querySelectorAll('#content > a')).forEach(a => a.remove());
     let content = document.querySelector('#content');
@@ -655,9 +665,11 @@ function updateImageFilePreview(imageInput) {
 }
 
 function addPostSharpFormUser() {
-  if (getColumnUserName() == getMyUserName()) {
-    addPostSharpForm();
-  }
+  getMyUserNameAsync().then(uname => {
+    if (getColumnUserName() == uname) {
+      addPostSharpForm();
+    }
+  })
 }
 
 function addPostSharpForm() {
@@ -719,12 +731,11 @@ function addPostSharpForm() {
   });
   autosize(ta);
 
-  let uname = getMyUserName();
-  getUidForUnameAsync(uname).then(uid => {
-    return loadTagsAsync(uid);
-  }).then(tags => {
+  getMyAccountAsync().then(account => {
+    return loadTagsAsync(account.uid).then(tags => [account, tags]);
+  }).then(([account, tags]) => {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
-    return makeTagsContainer(tags, 60, 'tag', uname, color);
+    return makeTagsContainer(tags, 60, 'tag', account.uname, color);
   }).then(tagsContainer => {
     let messageForm = document.getElementById('oldNewMessage');
     let tagsField = messageForm.querySelector('div > .tags');
@@ -2588,10 +2599,11 @@ function bringCommentsIntoViewOnHover() {
 }
 
 function checkReply(allPostsSelector, replySelector) {
-  let userId = getMyUserName();
-  Array.from(document.querySelectorAll(allPostsSelector))
-       .filter(p => !p.querySelector(replySelector) && (getPostUserName(p) != userId))
-       .forEach(p => p.classList.add('readonly'));
+  getMyUserNameAsync().then(uname => {
+    Array.from(document.querySelectorAll(allPostsSelector))
+         .filter(p => !p.querySelector(replySelector) && (getPostUserName(p) != uname))
+         .forEach(p => p.classList.add('readonly'));
+  });
 }
 
 function checkReplyArticles() {
