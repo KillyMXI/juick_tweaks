@@ -421,7 +421,8 @@ function getColumnUid() {
 }
 
 function getPostUserName(element) {
-  return element.querySelector('div.msg-avatar > a > img').alt;
+  let avatar = element.querySelector('div.msg-avatar > a > img');
+  return (avatar) ? avatar.alt : null;
 }
 
 function getPostUid(element) {
@@ -492,6 +493,7 @@ function addCommentShareMenu() {
     [].forEach.call(commentsBlock.children, function(linode, i, arr) {
       let linksBlock = linode.querySelector('div.msg-links');
       let commentLink = linode.querySelector('div.msg-ts > a');
+      if (!commentLink || !linksBlock) { return; }
       let postId = commentLink.pathname.replace('/','');
       let commentId = commentLink.hash.replace('#','');
       linksBlock.insertAdjacentHTML('beforeend', `
@@ -576,7 +578,7 @@ function addSettingsLink() {
 function biggerAvatar() {
   if (!GM_getValue('enable_big_avatar', true)) { return; }
   let avatarImg = document.querySelector('div#ctitle a img');
-  avatarImg.src = avatarImg.src.replace('/as/', '/a/');
+  avatarImg.style.width = 'unset';
 }
 
 function loadTagsAsync(uid) {
@@ -2457,7 +2459,7 @@ function articleInfo(article) {
 
 function isFilteredX(x, filteredUsers, filteredTags) {
   let {userId, tags} = articleInfo(x);
-  return (filteredUsers && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
+  return (filteredUsers && userId && filteredUsers.indexOf(userId.toLowerCase()) !== -1)
          || (intersect(tags, filteredTags).length > 0);
 }
 
@@ -2526,11 +2528,11 @@ function filterPostComments() {
     if (isFilteredComment) {
       reply.classList.add('filteredComment');
       reply.querySelector('.msg-txt').remove();
-      reply.querySelector('.msg-comment').remove();
+      reply.querySelector('.msg-comment-target').remove();
       let linksDiv = reply.querySelector('.msg-links');
       linksDiv.querySelector('.a-thread-comment').remove();
       linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
-      let media = reply.querySelector('.msg-comment');
+      let media = reply.querySelector('.msg-media');
       if (media) { media.remove(); }
       if (!keepHeader) {
         reply.classList.add('headless');
@@ -2632,10 +2634,10 @@ function bringCommentsIntoViewOnHover() {
   });
 }
 
-function checkReply(allPostsSelector, replySelector) {
+function checkReply(allPostsSelector, ...replySelectors) {
   getMyUserNameAsync().then(uname => {
     Array.from(document.querySelectorAll(allPostsSelector))
-         .filter(p => !p.querySelector(replySelector) && (getPostUserName(p) != uname))
+         .filter(p => (getPostUserName(p) != uname) && (!replySelectors.some(s => p.querySelector(s))))
          .forEach(p => p.classList.add('readonly'));
   });
 }
@@ -2647,7 +2649,7 @@ function checkReplyArticles() {
 
 function checkReplyPost() {
   if (!GM_getValue('enable_unrepliable_styling', true)) { return; }
-  checkReply('#content div.msg-cont', 'div.msg-comment');
+  checkReply('#content div.msg-cont', 'a.a-thread-comment', '.msg-comment');
 }
 
 function markReadonlyPost() {
