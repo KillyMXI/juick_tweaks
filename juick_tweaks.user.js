@@ -386,6 +386,26 @@ function autosize(el) {
   el.addEventListener('input', () => resize(el));
 }
 
+function selectAndCopyElementContents(el, deselect=false) {
+  if (window.getSelection && document.createRange) {
+    let range = document.createRange();
+    range.selectNodeContents(el);
+    let sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      let successful = document.execCommand('copy');
+      if (!successful) { console.log('Copy command is not available or not enabled.'); }
+      if (deselect) { sel.removeAllRanges(); }
+      return successful;
+    } catch (err) {
+      console.log(err);
+      return false;
+    }
+  }
+  return false;
+}
+
 
 // function definitions =====================================================================================
 
