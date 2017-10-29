@@ -4,7 +4,6 @@
 // @description Feature testing
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
-// @match       *://localhost:8080/*
 // @author      Killy
 // @version     2.17.0
 // @date        2016.09.02 - 2017.09.26
@@ -70,9 +69,6 @@
 
 const isBeta = (window.location.hostname == 'beta.juick.com');
 if (isBeta && !GM_getValue('enable_beta', true)) { return; }
-
-const isLocal = (window.location.hostname == 'localhost');
-if (isLocal && !GM_getValue('enable_local', false)) { return; }
 
 const content = document.getElementById('content');
 const isPost = content && content.hasAttribute('data-mid');
@@ -145,7 +141,6 @@ if (isSettingsPage) {                    // на странице настрое
 
 tryRun(replacePostLink);
 tryRun(addToggleBetaLink);
-tryRun(addLocalWarning);
 
 
 // helpers ==================================================================================================
@@ -2788,11 +2783,6 @@ function getUserscriptSettings() {
       enabledByDefault: false
     },
     {
-      name: '(только для разработчиков) умвр',
-      id: 'enable_local',
-      enabledByDefault: false
-    },
-    {
       name: 'Take care of NSFW tagged posts in feed',
       id: 'enable_mark_nsfw_posts_in_feed',
       enabledByDefault: true
@@ -3076,7 +3066,6 @@ function addMentionsLink() {
 
 function addToggleBetaLink() {
   if (!GM_getValue('enable_toggle_beta', false)) { return; }
-  if (isLocal) { return; }
   let aNode = document.createElement('a');
   aNode.id = 'toggleBetaLink';
   aNode.href = '#toggleBeta';
@@ -3087,16 +3076,6 @@ function addToggleBetaLink() {
   });
 
   document.getElementById('body').appendChild(aNode);
-}
-
-function addLocalWarning () {
-  if (isLocal) {
-    let warn = document.createElement('div');
-    warn.id = 'localWarning';
-    warn.textContent = 'userscript is active';
-
-    document.getElementById('body').appendChild(warn);
-  }
 }
 
 function makeElementExpandable(element) {
@@ -3241,8 +3220,7 @@ function addStyle() {
     .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
     .users.sorted > span { width: 300px; }
     a.virtualTag { border: 1px dotted ${color07}; border-radius: 15px; }
-    #toggleBetaLink,
-    #localWarning { display: block; position: fixed; top: 5px; right: 5px; }
+    #toggleBetaLink { display: block; position: fixed; top: 5px; right: 5px; }
     .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
     .expandable:before { content:''; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
