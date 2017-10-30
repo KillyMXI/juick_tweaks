@@ -404,6 +404,7 @@ function selectAndCopyElementContents(el, deselect=false) {
 function keyboardClickable(el) {
   el.addEventListener('keydown', e => {
     if ((e.which === 13) || (e.which === 32)) { // 13 = Return, 32 = Space
+      e.preventDefault();
       el.click();
     }
   });
@@ -521,7 +522,7 @@ function addCommentShareMenu() {
       let commentId = commentLink.hash.replace('#','');
       linksBlock.insertAdjacentHTML('beforeend', `
         <div class="hoverPopup">
-          <div class="hoverTarget" tabindex="0" role="button">${svgIconHtml('link')}&nbsp;Links</div>
+          <div class="hoverTarget" tabindex="0">${svgIconHtml('link')}&nbsp;Links</div>
           <div class="hoverContainer">
             <p>Click to copy:</p>
             <a href="#copy_id" class="copyItem">#${postId}/${commentId}</a>
@@ -543,9 +544,12 @@ function addCommentShareMenu() {
       [].forEach.call(linksBlock.querySelectorAll('.copyItem'), copyItem => {
         copyItem.onclick = copyAction(copyItem);
       });
-      hoverTarget.addEventListener('click', e => hoverPopup.classList.toggle('expanded'));
+      hoverTarget.addEventListener('click', e => hoverPopup.classList.add('expanded'));
       hoverTarget.addEventListener('mouseenter', e => hoverPopup.classList.add('expanded'));
       hoverPopup.addEventListener('mouseleave', e => hoverPopup.classList.remove('expanded'));
+      hoverPopup.addEventListener('blur', e => {
+        if (!hoverPopup.contains(e.relatedTarget)) { hoverPopup.classList.remove('expanded'); }
+      }, true);
       keyboardClickable(hoverTarget);
     });
   }
