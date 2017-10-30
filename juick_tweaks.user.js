@@ -401,6 +401,14 @@ function selectAndCopyElementContents(el, deselect=false) {
   return false;
 }
 
+function keyboardClickable(el) {
+  el.addEventListener('keydown', e => {
+    if ((e.which === 13) || (e.which === 32)) { // 13 = Return, 32 = Space
+      el.click();
+    }
+  });
+}
+
 
 // function definitions =====================================================================================
 
@@ -505,7 +513,7 @@ function addCommentShareMenu() {
   if (!GM_getValue('enable_comment_share_menu', true)) { return; }
   let commentsBlock = document.querySelector('ul#replies');
   if (commentsBlock) {
-    [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+    [].forEach.call(commentsBlock.children, linode => {
       let linksBlock = linode.querySelector('div.msg-links');
       let commentLink = linode.querySelector('div.msg-ts > a');
       if (!commentLink || !linksBlock) { return; }
@@ -513,24 +521,32 @@ function addCommentShareMenu() {
       let commentId = commentLink.hash.replace('#','');
       linksBlock.insertAdjacentHTML('beforeend', `
         <div class="hoverPopup">
-          <div class="hoverTarget">${svgIconHtml('link')}&nbsp;Links</div>
+          <div class="hoverTarget" tabindex="0" role="button">${svgIconHtml('link')}&nbsp;Links</div>
           <div class="hoverContainer">
             <p>Click to copy:</p>
-            <a href="#copy_id" class="copyId">#${postId}/${commentId}</a>
-            <a href="#copy_url" class="copyUrl">${commentLink.href}</a>
+            <a href="#copy_id" class="copyItem">#${postId}/${commentId}</a>
+            <a href="#copy_url" class="copyItem">${commentLink.href}</a>
           </div>
         </div>
         `);
-      let copyIdLink = linksBlock.querySelector('.copyId');
-      let copyUrlLink = linksBlock.querySelector('.copyUrl');
+      let hoverPopup = linksBlock.querySelector('.hoverPopup');
+      let hoverTarget = linksBlock.querySelector('.hoverTarget');
       const copyAction = el => e => {
         e.preventDefault();
         selectAndCopyElementContents(el, true);
-        el.classList.toggle('blinkOnce', true);
-        setTimeout(() => el.classList.toggle('blinkOnce', false), 1000);
+        el.classList.add('blinkOnce');
+        setTimeout(() => {
+          el.classList.remove('blinkOnce');
+          hoverPopup.classList.remove('expanded');
+        }, 700);
       };
-      copyIdLink.onclick = copyAction(copyIdLink);
-      copyUrlLink.onclick = copyAction(copyUrlLink);
+      [].forEach.call(linksBlock.querySelectorAll('.copyItem'), copyItem => {
+        copyItem.onclick = copyAction(copyItem);
+      });
+      hoverTarget.addEventListener('click', e => hoverPopup.classList.toggle('expanded'));
+      hoverTarget.addEventListener('mouseenter', e => hoverPopup.classList.add('expanded'));
+      hoverPopup.addEventListener('mouseleave', e => hoverPopup.classList.remove('expanded'));
+      keyboardClickable(hoverTarget);
     });
   }
 }
@@ -3267,6 +3283,7 @@ function addStyle() {
     .hoverPopup { position: relative; }
     .hoverPopup .hoverContainer { visibility: hidden; position: absolute; z-index: 1; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; background: ${abg10}; box-shadow: 0 0 3px rgba(0,0,0,.16); }
     .hoverPopup .hoverContainer > * { margin: 2px 4px; }
+    .hoverPopup.expanded .hoverContainer,
     .hoverPopup:hover .hoverContainer { visibility: visible; }
     .hoverPopup { margin-left: 15px; }
     @keyframes highlight { 0% { outline-color: rgba(127, 127, 127 , 1.0); } 100% { outline-color: rgba(127, 127, 127 , 0.0); } }
