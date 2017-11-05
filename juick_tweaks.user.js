@@ -1996,12 +1996,27 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'lichess',
+      id: 'embed_lichess',
+      className: 'lichess singleColumn',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/lichess\.org\/(study|)(?:\/?embed)?\/?((?=[a-z]*[A-Z0-9])[A-Za-z0-9\/]{6,})/,
+      makeNode: function(aNode, reResult, div) {
+        let [, mode, rest] = reResult;
+        let embedUrl = ['https://lichess.org', mode, 'embed', rest].filter(a => !!a).join('/');
+        let iframe = makeIframe(embedUrl, '100%', '400px');
+        iframe.onload = () => makeResizableToRatio(iframe, 397.0 / 600.0);
+        return setContent(div, iframe);
+      }
+    },
+    {
       name: 'arXiv',
       id: 'embed_arxiv',
       className: 'arxiv singleColumn',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:\w+\.)?arxiv.org\/(?:abs|pdf)\/(\d+\.\d+)(v\d+)?/i,
+      re: /^(?:https?:)?\/\/(?:\w+\.)?arxiv\.org\/(?:abs|pdf)\/(\d+\.\d+)(v\d+)?/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, arxivId, rev] = reResult;
