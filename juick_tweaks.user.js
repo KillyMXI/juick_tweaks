@@ -982,7 +982,11 @@ function doFetchingEmbed(aNode, reResult, div, embedType, promiseCallback) {
     div,
     makeTitle(embedType, reResult),
     promiseCallback,
-    () => embedType.makeNode(aNode, reResult, div)
+    () => {
+      div.classList.add('loading');
+      div.classList.remove('failed');
+      embedType.makeNode(aNode, reResult, div);
+    }
   );
 }
 
