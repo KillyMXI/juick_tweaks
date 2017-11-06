@@ -2117,20 +2117,21 @@ function getEmbeddableLinkTypes() {
       className: 'gelbooru booru',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?(gelbooru\.com|safebooru\.org)\/index\.php\?((?:\w+=\w+&)*id=(\d+)(?:&\w+=\w+)*)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, domain, , illustId] = reResult;
-        let apiUrl = `http://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`;
+        let apiUrl = `https://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`;
 
         const callback = response => {
-          let count, id, previewUrl, rating, createdAt, change, hasNotes=false, hasComments=false;
+          let count, id, previewUrl, md5, rating, createdAt, change, hasNotes=false, hasComments=false;
           const attributeRe = /(\w+)="([^"]+)"/gmi;
           let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
           matches.forEach(([, attr, val]) => {
             if (attr == 'count') { count = +val; }
             if (attr == 'id') { id = val; }
             if (attr == 'preview_url') { previewUrl = val; }
+            if (attr == 'md5') { md5 = val; }
             if (attr == 'rating') { rating = val; }
             if (attr == 'created_at') { createdAt = new Date(val); }
             if (attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
@@ -2141,6 +2142,7 @@ function getEmbeddableLinkTypes() {
             throw { reason: illustId + ' is not available', response: response, permanent: true };
           }
 
+          let saucenaoUrl = `https://img3.saucenao.com/booru/${md5[0]}/${md5[1]}/${md5}_2.jpg`;
           let createdDateStr = createdAt.toLocaleDateString('ru-RU');
           let changedDateStr = change.toLocaleDateString('ru-RU');
           if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
@@ -2152,7 +2154,14 @@ function getEmbeddableLinkTypes() {
               </div>
               <div class="date">${createdDateStr}</div>
             </div>
-            <a href="${aNode.href}"><img class="rating_${rating}" src="${previewUrl}"></a>
+            <div class="bottom-right">
+              <div>
+                <a href="https://www.iqdb.org/?url=${previewUrl}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${previewUrl}">SauceNAO</a>
+              </div>
+            </div>
+            <a href="${aNode.href}">
+              <img class="rating_${rating}" src="${previewUrl}" onerror="this.onerror=null;this.src='${saucenaoUrl}';">
+            </a>
             `;
         };
 
@@ -2184,6 +2193,8 @@ function getEmbeddableLinkTypes() {
             return;
           }
 
+          let finalPreviewUrl = `https://${finalDomain}.donmai.us${json.preview_file_url}`;
+          let saucenaoUrl = `https://img3.saucenao.com/booru/${json.md5[0]}/${json.md5[1]}/${json.md5}_2.jpg`;
           let tagsStr = [json.tag_string_artist, json.tag_string_character, json.tag_string_copyright]
                           .filter(s => s != '')
                           .map(s => (s.count(' ') > 1) ? naiveEllipsisRight(s, 40) : `<a href="https://${finalDomain}.donmai.us/posts?tags=${encodeURIComponent(s)}">${s}</a>`)
@@ -2199,8 +2210,15 @@ function getEmbeddableLinkTypes() {
               <div class="title"><a href="${finalUrl}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
               <div class="date">${createdDateStr}</div>
             </div>
-            <div class="booru-tags">${tagsStr}</div>
-            <a href="${finalUrl}"><img class="rating_${json.rating}" src="https://${finalDomain}.donmai.us${json.preview_file_url}"></a>
+            <div class="bottom-right">
+              <div class="booru-tags">${tagsStr}</div>
+              <div>
+                <a href="https://www.iqdb.org/?url=${finalPreviewUrl}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${finalPreviewUrl}">SauceNAO</a>
+              </div>
+            </div>
+            <a href="${finalUrl}">
+              <img class="rating_${json.rating}" src="${finalPreviewUrl}" onerror="this.onerror=null;this.src='${saucenaoUrl}';">
+            </a>
             `;
         };
 
@@ -2224,7 +2242,7 @@ function getEmbeddableLinkTypes() {
         let [url, domain, id] = reResult;
         url = url.replace('.com/', '.net/');
         let unsafeUrl = url.replace('.net/', '.com/');
-        let apiUrl = 'https://konachan.net/post.json?tags=id:' + id;
+        let apiUrls = [ `https://konachan.net/post.json?tags=id:${id}`, `https://konachan.com/post.json?tags=id:${id}` ];
 
         const callback = response => {
           let json = (JSON.parse(response.responseText))[0];
@@ -2233,6 +2251,7 @@ function getEmbeddableLinkTypes() {
             return;
           }
 
+          let saucenaoUrl = `https://img3.saucenao.com/booru/${json.md5[0]}/${json.md5[1]}/${json.md5}_2.jpg`;
           let createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
           let ratingStr = (json.rating == 's') ? '' : ` (<a href="${unsafeUrl}">${json.rating}</a>)`;
           div.innerHTML = `
@@ -2240,11 +2259,16 @@ function getEmbeddableLinkTypes() {
               <div class="title"><a href="${url}">${id}</a>${ratingStr}</div>
               <div class="date">${createdDateStr}</div>
             </div>
-            <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>
+            <div class="bottom-right">
+              <div>
+                <a href="https://www.iqdb.org/?url=${json.preview_url}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${json.preview_url}">SauceNAO</a>
+              </div>
+            </div>
+            <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}" onerror="this.onerror=null;this.src='${saucenaoUrl}';"></a>
             `;
         };
 
-        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrFirstResponse(apiUrls, 3000).then(callback));
       },
       makeTitle: function([, , id]) { return `konachan (${id})`; },
       linkTextUpdate: function(aNode, [, , id]) { aNode.textContent += ` (${id})`; }
@@ -2278,6 +2302,11 @@ function getEmbeddableLinkTypes() {
             <div class="top">
               <div class="title"><a href="${url}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
               <div class="date">${createdDateStr}</div>
+            </div>
+            <div class="bottom-right">
+              <div>
+                <a href="https://www.iqdb.org/?url=${json.preview_url}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${json.preview_url}">SauceNAO</a>
+              </div>
             </div>
             <a href="${url}"><img class="rating_${json.rating}" src="${json.preview_url}"></a>`;
         };
@@ -2324,6 +2353,11 @@ function getEmbeddableLinkTypes() {
             <div class="top">
               <div class="title">
                 <a href="${url}">${id}</a>
+              </div>
+            </div>
+            <div class="bottom-right">
+              <div>
+                <a href="https://www.iqdb.org/?url=${imageUrl}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${imageUrl}">SauceNAO</a>
               </div>
             </div>
             <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
@@ -3211,9 +3245,10 @@ function addStyle() {
     .embedContainer > .danbooru.embed,
     .embedContainer > .konachan.embed,
     .embedContainer > .yandere.embed { width: 49%; position: relative; }
-    .danbooru.embed .booru-tags { display: none; position:absolute; bottom: 8px; right: 8px; font-size: small; text-align: right; color: ${color07}; }
-    .danbooru.embed.loaded { min-height: 110px; }
+    .danbooru.embed.loaded { min-height: 130px; }
+    .danbooru.embed .booru-tags { display: none; }
     .danbooru.embed:hover .booru-tags { display: block; }
+    .booru.embed .bottom-right { position:absolute; bottom: 8px; right: 8px; font-size: small; text-align: right; color: ${color07}; display: flex; flex-direction: column; }
     article.nsfw .embedContainer img,
     article.nsfw .embedContainer iframe,
     .embed .rating_e,
