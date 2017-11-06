@@ -2360,9 +2360,8 @@ function getEmbeddableLinkTypes() {
               </div>
             </div>
             <div class="bottom-right">
-              <div>
-                <a href="https://www.iqdb.org/?url=${imageUrl}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${imageUrl}">SauceNAO</a>
-              </div>
+              <a href="https://www.iqdb.org/?url=${imageUrl}">IQDB</a>
+              <a href="https://saucenao.com/search.php?url=${imageUrl}">SauceNAO</a>
             </div>
             <a href="${aNode.href}"><img src="${imageUrl}"></a>`;
         };
@@ -3248,7 +3247,8 @@ function addStyle() {
     .embedContainer > .gelbooru.embed,
     .embedContainer > .danbooru.embed,
     .embedContainer > .konachan.embed,
-    .embedContainer > .yandere.embed { width: 49%; position: relative; }
+    .embedContainer > .yandere.embed { width: 49%; }
+    .embedContainer > .booru.embed { position: relative; }
     .danbooru.embed.loaded { min-height: 130px; }
     .danbooru.embed .booru-tags { display: none; }
     .danbooru.embed:hover .booru-tags { display: block; }
