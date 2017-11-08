@@ -84,63 +84,203 @@ const isUsersTable = !!(document.querySelector('#content > div.users'));
 
 // userscript features =====================================================================================
 
-addStyle();                              // минимальный набор стилей, необходимый для работы скрипта
+addStyle();
 
-if (isNewPostPage) {                     // на странице нового сообщения (/post)
-  tryRun(easyTagsUnderNewMessageForm);
-}
-
-if (isPost) {                            // на странице поста
-  tryRun(filterPostComments);
-  tryRun(checkReplyPost);
-  tryRun(markReadonlyPost);
-  tryRun(addTagEditingLinkUnderPost);
-  tryRun(addCommentRemovalLinks);
-  tryRun(addCommentShareMenu);
-  tryRun(bringCommentsIntoViewOnHover);
-  tryRun(embedLinksToPost);
-}
-
-if (isFeed) {                            // в ленте или любом списке постов
-  if (isCommonFeed) {                    // в общих лентах (популярные, все, фото, теги)
-    tryRun(filterArticles);
-    // tryRun(addPostSharpForm);
+const userscriptFeatures = [
+  {
+    name: 'Форма нового сообщения в ленте (как старый /#post)',
+    id: 'enable_post_sharp',
+    enabledByDefault: false,
+    pageMatch: (isFeed && isUserColumn), // || (isFeed && isCommonFeed)
+    fun: addPostSharpFormUser
+  },
+  {
+    name: 'Открывать /post вместо диалога нового сообщения',
+    id: 'enable_replace_post_link',
+    enabledByDefault: false,
+    pageMatch: true,
+    fun: replacePostLink
+  },
+  {
+    name: 'Кликабельные теги на странице нового поста (/post)',
+    id: 'enable_tags_on_new_post_page',
+    enabledByDefault: true,
+    pageMatch: isNewPostPage,
+    fun: easyTagsUnderNewMessageForm
+  },
+  {
+    name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
+    id: 'enable_tags_page_coloring',
+    enabledByDefault: true,
+    pageMatch: isTagsPage,
+    fun: sortTagsPage
+  },
+  {
+    name: 'Заголовок и управление подпиской на странице тега /tag/...',
+    id: 'enable_tag_page_toolbar',
+    enabledByDefault: true,
+    pageMatch: isSingleTagPage,
+    fun: addTagPageToolbar
+  },
+  {
+    name: 'Min-width для тегов',
+    id: 'enable_tags_min_width',
+    enabledByDefault: true
+  },
+  {
+    name: 'Копирование ссылок на комментарии',
+    id: 'enable_comment_share_menu',
+    enabledByDefault: true,
+    pageMatch: isPost,
+    fun: addCommentShareMenu
+  },
+  {
+    name: 'Ссылки для удаления комментариев',
+    id: 'enable_comment_removal_links',
+    enabledByDefault: true,
+    pageMatch: isPost,
+    fun: addCommentRemovalLinks
+  },
+  {
+    name: 'Ссылка для редактирования тегов поста',
+    id: 'enable_tags_editing_link',
+    enabledByDefault: true,
+    pageMatch: isPost,
+    fun: addTagEditingLinkUnderPost
+  },
+  {
+    name: 'Большая аватарка в левой колонке',
+    id: 'enable_big_avatar',
+    enabledByDefault: true,
+    pageMatch: isUserColumn,
+    fun: biggerAvatar
+  },
+  {
+    name: 'Ссылки для перехода к постам пользователя за определённый год',
+    id: 'enable_year_links',
+    enabledByDefault: true,
+    pageMatch: isUserColumn,
+    fun: addYearLinks
+  },
+  {
+    name: 'Ссылка на настройки в левой колонке на своей странице',
+    id: 'enable_settings_link',
+    enabledByDefault: true,
+    pageMatch: isUserColumn,
+    fun: addSettingsLink
+  },
+  {
+    name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
+    id: 'enable_users_sorting',
+    enabledByDefault: true,
+    pageMatch: isUsersTable,
+    fun: addUsersSortingButton
+  },
+  {
+    name: 'Статистика рекомендаций',
+    id: 'enable_irecommend',
+    enabledByDefault: true,
+    pageMatch: isUserColumn,
+    fun: addIRecommendLink
+  },
+  {
+    name: 'Упоминания (ссылка на поиск)',
+    id: 'enable_mentions_search',
+    enabledByDefault: true,
+    pageMatch: isUserColumn,
+    fun: addMentionsLink
+  },
+  {
+    name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
+    id: 'enable_unrepliable_styling',
+    enabledByDefault: true,
+    pageMatch: isPost || isFeed,
+    fun: () => { if (isPost) { checkReplyPost(); } else { checkReplyArticles(); } }
+  },
+  {
+    name: 'Для readonly поста отображать виртуальный тег (только на странице поста)',
+    id: 'enable_mark_readonly_post',
+    enabledByDefault: true,
+    pageMatch: isPost,
+    fun: markReadonlyPost
+  },
+  {
+    name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
+    id: 'enable_move_comment_into_view',
+    enabledByDefault: true,
+    pageMatch: isPost,
+    fun: bringCommentsIntoViewOnHover
+  },
+  {
+    name: 'Стрелочки ("↓")',
+    id: 'enable_arrows',
+    enabledByDefault: true
+  },
+  {
+    name: 'Скрипт активен на beta.juick.com',
+    id: 'enable_beta',
+    enabledByDefault: true
+  },
+  {
+    name: 'Переключатель между juick.com и beta.juick.com',
+    id: 'enable_toggle_beta',
+    enabledByDefault: false,
+    pageMatch: true,
+    fun: addToggleBetaLink
+  },
+  {
+    name: 'Take care of NSFW tagged posts in feed',
+    id: 'enable_mark_nsfw_posts_in_feed',
+    enabledByDefault: true,
+    pageMatch: isFeed,
+    fun: markNsfwPostsInFeed
+  },
+  {
+    name: 'Сбросить стили для тега *code. Уменьшить шрифт взамен',
+    id: 'unset_code_style',
+    enabledByDefault: false
+  },
+  {
+    name: 'Сворачивать длинные посты',
+    id: 'enable_long_message_folding',
+    enabledByDefault: true,
+    pageMatch: isFeed,
+    fun: limitArticlesHeight
+  },
+  {
+    id: 'filter_comments_too', // not in the main feature list
+    enabledByDefault: false,
+    pageMatch: isPost,
+    fun: filterPostComments
+  },
+  {
+    pageMatch: isPost,
+    fun: embedLinksToPost
+  },
+  {
+    pageMatch: isFeed,
+    fun: embedLinksToArticles
+  },
+  {
+    pageMatch: isFeed && isCommonFeed,
+    fun: filterArticles
+  },
+  {
+    pageMatch: isSettingsPage,
+    fun: addTweaksSettingsButton
   }
-  tryRun(limitArticlesHeight);
-  tryRun(checkReplyArticles);
-  tryRun(markNsfwPostsInFeed);
-  tryRun(embedLinksToArticles);
-}
+];
 
-if (isUserColumn) {                      // если колонка пользователя присутствует слева
-  tryRun(addYearLinks);
-  tryRun(addSettingsLink);
-  tryRun(biggerAvatar);
-  tryRun(addMentionsLink);
-  tryRun(addIRecommendLink);
-  if (isFeed) {
-    tryRun(addPostSharpFormUser);
+userscriptFeatures.forEach(feature => {
+  let runnable = feature.pageMatch && !!feature.fun;
+  let enabled = !feature.id || !feature.enabledByDefault || GM_getValue(feature.id, feature.enabledByDefault);
+  if (runnable && enabled) {
+    try { feature.fun(); } catch (e) {
+      console.warn(`Failed to run ${feature.fun.name}()`);
+      console.warn(e);
+    }
   }
-}
-
-if (isTagsPage) {                        // на странице тегов пользователя
-  tryRun(sortTagsPage);
-}
-
-if (isSingleTagPage) {                   // на странице тега (/tag/...)
-  tryRun(addTagPageToolbar);
-}
-
-if (isUsersTable) {                      // на странице подписок или подписчиков
-  tryRun(addUsersSortingButton);
-}
-
-if (isSettingsPage) {                    // на странице настроек
-  tryRun(addTweaksSettingsButton);
-}
-
-tryRun(replacePostLink);
-tryRun(addToggleBetaLink);
+});
 
 
 // helpers ==================================================================================================
@@ -301,13 +441,6 @@ function fixWwwLink(url) {
   return url.replace(/^(?!([a-z]+:)?\/\/)/i, '//');
 }
 
-function tryRun(f) {
-  try { f(); } catch (e) {
-    console.warn(`Failed to run ${f.name}()`);
-    console.warn(e);
-  }
-}
-
 function waitAndRunAsync(test, count, tick=100, successCallback, failCallback) {
   return new Promise((resolve, reject) => {
     function r(c){
@@ -455,7 +588,6 @@ function getPostUid(element) {
 }
 
 function replacePostLink() {
-  if (!GM_getValue('enable_replace_post_link', false)) { return; }
   setTimeout(function() {
     let postLink = document.querySelector('#post');
     let cleanLink = postLink.cloneNode(true);
@@ -464,7 +596,6 @@ function replacePostLink() {
 }
 
 function markNsfwPostsInFeed() {
-  if (!GM_getValue('enable_mark_nsfw_posts_in_feed', true)) { return; }
   [].forEach.call(document.querySelectorAll('#content article[data-mid]'), function(article, i, arr) {
     let tagsDiv = article.querySelector('div.msg-tags');
     let isNsfw = tagsDiv && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
@@ -473,7 +604,6 @@ function markNsfwPostsInFeed() {
 }
 
 function addTagEditingLinkUnderPost() {
-  if (!GM_getValue('enable_tags_editing_link', true)) { return; }
   let post = document.querySelector('#content .msgthread');
   let postToolbar = post.querySelector('nav.l');
   let canEdit = !!document.querySelector('#column a[href="/logout"]');
@@ -484,7 +614,6 @@ function addTagEditingLinkUnderPost() {
 }
 
 function addCommentRemovalLinks() {
-  if (!GM_getValue('enable_comment_removal_links', true)) { return; }
   getMyUserNameAsync().then(uname => {
     let commentsBlock = document.querySelector('ul#replies');
     if (commentsBlock && uname) {
@@ -511,7 +640,6 @@ function addCommentRemovalLinks() {
 }
 
 function addCommentShareMenu() {
-  if (!GM_getValue('enable_comment_share_menu', true)) { return; }
   let commentsBlock = document.querySelector('ul#replies');
   if (commentsBlock) {
     [].forEach.call(commentsBlock.children, linode => {
@@ -556,7 +684,6 @@ function addCommentShareMenu() {
 }
 
 function addTagPageToolbar() {
-  if (!GM_getValue('enable_tag_page_toolbar', true)) { return; }
   let asideColumn = document.querySelector('aside#column');
   let tag = document.location.pathname.split('/').pop(-1);
   let html = `
@@ -570,7 +697,6 @@ function addTagPageToolbar() {
 }
 
 function addYearLinks() {
-  if (!GM_getValue('enable_year_links', true)) { return; }
   let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let hr1 = asideColumn.querySelector('form ~ hr');
@@ -594,7 +720,6 @@ function addYearLinks() {
 }
 
 function addSettingsLink() {
-  if (!GM_getValue('enable_settings_link', true)) { return; }
   getMyUserNameAsync().then(uname => {
     if (getColumnUserName() == uname) {
       let asideColumn = document.querySelector('aside#column');
@@ -611,7 +736,6 @@ function addSettingsLink() {
 }
 
 function biggerAvatar() {
-  if (!GM_getValue('enable_big_avatar', true)) { return; }
   let avatarImg = document.querySelector('div#ctitle a img');
   avatarImg.style.width = 'unset';
 }
@@ -652,7 +776,6 @@ function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]
 }
 
 function easyTagsUnderNewMessageForm() {
-  if (!GM_getValue('enable_tags_on_new_post_page', true)) { return; }
   getMyAccountAsync().then(account => {
     return loadTagsAsync(account.uid).then(tags => [account, tags]);
   }).then(([account, tags]) => {
@@ -744,7 +867,6 @@ function addPostSharpFormUser() {
 }
 
 function addPostSharpForm() {
-  if (!GM_getValue('enable_post_sharp', false)) { return; }
   let content = document.querySelector('#content');
   let newMessageForm = `
     <form id="oldNewMessage" action="/post" method="post" enctype="multipart/form-data">
@@ -830,7 +952,6 @@ function addPostSharpForm() {
 }
 
 function sortTagsPage() {
-  if (!GM_getValue('enable_tags_page_coloring', true)) { return; }
   let uid = getColumnUid();
   let uname = getColumnUserName();
   loadTagsAsync(uid).then(tags => {
@@ -922,7 +1043,6 @@ function sortUsers() {
 }
 
 function addUsersSortingButton() {
-  if (!GM_getValue('enable_users_sorting', true)) { return; }
   let contentBlock = document.getElementById('content');
   let usersTable = document.querySelector('div.users');
   let button = document.createElement('button');
@@ -2616,7 +2736,6 @@ function filterArticles() {
 }
 
 function filterPostComments() {
-  if (!GM_getValue('filter_comments_too', false)) { return; }
   let [filteredUsers, filteredTags] = splitUsersAndTagsLists(GM_getValue('filtered_users_and_tags', ''));
   let keepHeader = GM_getValue('filtered_posts_keep_header', true);
   Array.from(document.querySelectorAll('#content #replies .msg-cont')).forEach(reply => {
@@ -2717,7 +2836,6 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
 }
 
 function bringCommentsIntoViewOnHover() {
-  if (!GM_getValue('enable_move_comment_into_view', true)) { return; }
   let replies = Array.from(document.querySelectorAll('#replies li'));
   let nodes = {};
   replies.forEach(r => { nodes[r.id] = r.querySelector('div.msg-cont'); });
@@ -2739,146 +2857,18 @@ function checkReply(allPostsSelector, ...replySelectors) {
 }
 
 function checkReplyArticles() {
-  if (!GM_getValue('enable_unrepliable_styling', true)) { return; }
   checkReply('#content article[data-mid]', 'nav.l > a.a-comment');
 }
 
 function checkReplyPost() {
-  if (!GM_getValue('enable_unrepliable_styling', true)) { return; }
   checkReply('#content div.msg-cont', 'a.a-thread-comment', '.msg-comment');
 }
 
 function markReadonlyPost() {
-  if (!GM_getValue('enable_mark_readonly_post', true)) { return; }
   if (document.title.match(/\B\*readonly\b/)) {
     document.querySelector('#content .msg-cont .msg-tags')
             .insertAdjacentHTML('beforeend', '<a class="virtualTag" href="#readonly">readonly</a>');
   }
-}
-
-function getUserscriptSettings() {
-  return [
-    {
-      name: 'Форма нового сообщения в ленте (как старый /#post)',
-      id: 'enable_post_sharp',
-      enabledByDefault: false
-    },
-    {
-      name: 'Открывать /post вместо диалога нового сообщения',
-      id: 'enable_replace_post_link',
-      enabledByDefault: false
-    },
-    {
-      name: 'Кликабельные теги на странице нового поста (/post)',
-      id: 'enable_tags_on_new_post_page',
-      enabledByDefault: true
-    },
-    {
-      name: 'Сортировка и цветовое кодирование тегов на странице /user/tags',
-      id: 'enable_tags_page_coloring',
-      enabledByDefault: true
-    },
-    {
-      name: 'Заголовок и управление подпиской на странице тега /tag/...',
-      id: 'enable_tag_page_toolbar',
-      enabledByDefault: true
-    },
-    {
-      name: 'Min-width для тегов',
-      id: 'enable_tags_min_width',
-      enabledByDefault: true
-    },
-    {
-      name: 'Копирование ссылок на комментарии',
-      id: 'enable_comment_share_menu',
-      enabledByDefault: true
-    },
-    {
-      name: 'Ссылки для удаления комментариев',
-      id: 'enable_comment_removal_links',
-      enabledByDefault: true
-    },
-    {
-      name: 'Ссылка для редактирования тегов поста',
-      id: 'enable_tags_editing_link',
-      enabledByDefault: true
-    },
-    {
-      name: 'Большая аватарка в левой колонке',
-      id: 'enable_big_avatar',
-      enabledByDefault: true
-    },
-    {
-      name: 'Ссылки для перехода к постам пользователя за определённый год',
-      id: 'enable_year_links',
-      enabledByDefault: true
-    },
-    {
-      name: 'Ссылка на настройки в левой колонке на своей странице',
-      id: 'enable_settings_link',
-      enabledByDefault: true
-    },
-    {
-      name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
-      id: 'enable_users_sorting',
-      enabledByDefault: true
-    },
-    {
-      name: 'Статистика рекомендаций',
-      id: 'enable_irecommend',
-      enabledByDefault: true
-    },
-    {
-      name: 'Упоминания (ссылка на поиск)',
-      id: 'enable_mentions_search',
-      enabledByDefault: true
-    },
-    {
-      name: 'Посты и комментарии, на которые нельзя ответить, — более бледные',
-      id: 'enable_unrepliable_styling',
-      enabledByDefault: true
-    },
-    {
-      name: 'Для readonly поста отображать виртуальный тег (только на странице поста)',
-      id: 'enable_mark_readonly_post',
-      enabledByDefault: true
-    },
-    {
-      name: 'Показывать комментарии при наведении на ссылку "в ответ на /x"',
-      id: 'enable_move_comment_into_view',
-      enabledByDefault: true
-    },
-    {
-      name: 'Стрелочки ("↓")',
-      id: 'enable_arrows',
-      enabledByDefault: true
-    },
-    {
-      name: 'Скрипт активен на beta.juick.com',
-      id: 'enable_beta',
-      enabledByDefault: true
-    },
-    {
-      name: 'Переключатель между juick.com и beta.juick.com',
-      id: 'enable_toggle_beta',
-      enabledByDefault: false
-    },
-    {
-      name: 'Take care of NSFW tagged posts in feed',
-      id: 'enable_mark_nsfw_posts_in_feed',
-      enabledByDefault: true
-    },
-    {
-      name: 'Сбросить стили для тега *code. Уменьшить шрифт взамен',
-      id: 'unset_code_style',
-      enabledByDefault: false
-    },
-    {
-      name: 'Сворачивать длинные посты',
-      id: 'enable_long_message_folding',
-      enabledByDefault: true
-    }
-  ];
 }
 
 function makeSettingsCheckbox(caption, id, defaultState) {
@@ -2919,7 +2909,8 @@ function showUserscriptSettings() {
     uiFieldset.appendChild(uiLegend);
 
     let list1 = document.createElement('ul');
-    getUserscriptSettings()
+    userscriptFeatures
+      .filter(item => !!item.name && !!item.id)
       .map(item => makeSettingsCheckbox(item.name, item.id, item.enabledByDefault))
       .map(cb => wrapIntoTag(wrapIntoTag(cb, 'p'), 'li'))
       .forEach(item => list1.appendChild(item));
@@ -3117,7 +3108,6 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
 }
 
 function addIRecommendLink() {
-  if (!GM_getValue('enable_irecommend', true)) { return; }
   let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
@@ -3132,7 +3122,6 @@ function addIRecommendLink() {
 }
 
 function addMentionsLink() {
-  if (!GM_getValue('enable_mentions_search', true)) { return; }
   let userId = getColumnUserName();
   let asideColumn = document.querySelector('aside#column');
   let ustatsList = asideColumn.querySelector('#ustats > ul');
@@ -3146,7 +3135,6 @@ function addMentionsLink() {
 }
 
 function addToggleBetaLink() {
-  if (!GM_getValue('enable_toggle_beta', false)) { return; }
   let aNode = document.createElement('a');
   aNode.id = 'toggleBetaLink';
   aNode.href = '#toggleBeta';
@@ -3174,7 +3162,6 @@ function makeElementExpandable(element) {
 }
 
 function limitArticlesHeight () {
-  if (!GM_getValue('enable_long_message_folding', true)) { return; }
   let maxHeight = window.innerHeight * 0.7;
   Array.from(document.querySelectorAll('#content article[data-mid] > p')).forEach(p => {
     if (p.offsetHeight > maxHeight) {
