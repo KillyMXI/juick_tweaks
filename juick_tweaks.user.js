@@ -965,7 +965,9 @@ function makeNewNode(embedType, aNode, reResult, alwaysCts) {
     }
     return el;
   };
-  let isCts = alwaysCts || GM_getValue('cts_' + embedType.id, embedType.ctsDefault);
+  let isCts = alwaysCts
+              || GM_getValue('cts_' + embedType.id, embedType.ctsDefault)
+              || (embedType.ctsMatch && embedType.ctsMatch(aNode, reResult));
   if (isCts) {
     let div = makeCts(
       () => embedType.makeNode(aNode, reResult, div),
@@ -1173,6 +1175,12 @@ function getEmbeddableLinkTypes() {
       onByDefault: true,
       ctsDefault: false,
       re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
+      ctsMatch: function(aNode, reResult) {
+        let [url, userId, msgId, replyId] = reResult;
+        let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
+        let isSameThread = thisPageMsgMatch && thisPageMsgMatch[1] == msgId;
+        return !isSameThread && replyId && (+replyId) > 150;
+      },
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
@@ -1185,7 +1193,8 @@ function getEmbeddableLinkTypes() {
 
         if (GM_getValue('enable_move_into_view_on_same_page', true)) {
           let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
-          if (thisPageMsgMatch && thisPageMsgMatch[1] == msgId) {
+          let isSameThread = thisPageMsgMatch && thisPageMsgMatch[1] == msgId;
+          if (isSameThread) {
             let linkedItem = Array.from(document.querySelectorAll('li.msg'))
                                   .find(x => x.id == replyId || (mrid == 0 && x.id == 'msg-' + msgId));
             if (linkedItem) {
