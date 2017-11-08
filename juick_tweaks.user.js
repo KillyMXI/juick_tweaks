@@ -65,7 +65,7 @@
 // ==/UserScript==
 
 
-// pages and elements =====================================================================================
+// #region === Pages and elements ===========================================================================
 
 const isBeta = (window.location.hostname == 'beta.juick.com');
 if (isBeta && !GM_getValue('enable_beta', true)) { return; }
@@ -81,8 +81,10 @@ const isSettingsPage = window.location.pathname.endsWith('/settings');
 const isUserColumn = !!(document.querySelector('aside#column > div#ctitle:not(.tag)'));
 const isUsersTable = !!(document.querySelector('#content > div.users'));
 
+// #endregion
 
-// userscript features =====================================================================================
+
+// #region === Userscript features ==========================================================================
 
 addStyle();
 
@@ -282,8 +284,10 @@ userscriptFeatures.forEach(feature => {
   }
 });
 
+// #endregion
 
-// helpers ==================================================================================================
+
+// #region === Helpers ======================================================================================
 
 Object.values = Object.values || (obj => Object.keys(obj).map(key => obj[key]));
 
@@ -543,8 +547,10 @@ function keyboardClickable(el) {
   });
 }
 
+// #endregion
 
-// function definitions =====================================================================================
+
+// #region === Function definitions =========================================================================
 
 function svgIconHtml(name) {
   return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
@@ -3349,3 +3355,5 @@ function addStyle() {
       `);
   }
 }
+
+// #endregion
