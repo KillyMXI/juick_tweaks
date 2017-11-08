@@ -869,7 +869,7 @@ function addPostSharpFormUser() {
     if (getColumnUserName() == uname) {
       addPostSharpForm();
     }
-  })
+  });
 }
 
 function addPostSharpForm() {
@@ -2793,8 +2793,6 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
       let parentNodeRect = node.parentNode.getBoundingClientRect();
       let avoidNodeRect = avoidNode.getBoundingClientRect();
       let [w, h] = [node.offsetWidth, node.offsetHeight];
-      let s = getComputedStyle(node);
-      let [marginT, marginR, marginB, marginL] = [s.marginTop, s.marginRight, s.marginBottom, s.marginLeft];
       let vtop = parentNodeRect.top;
       let atop = avoidNodeRect.top - avoidMargin;
       let ah = avoidNodeRect.height + 2*avoidMargin;
@@ -2803,11 +2801,12 @@ function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0
       let moveAmount = isAbove ? (0-vtop-h+atop) : (0-vtop+atop+ah);
       let availableSpace = isAbove ? (atop - avoidMargin) : (wh - atop - ah + avoidMargin);
       if ((Math.abs(moveAmount) > threshold) && (availableSpace > threshold*2)) {
+        let s = getComputedStyle(node);
         node.classList.toggle('moved', true);
         node.style.marginTop = `${moveAmount}px`;
         node.parentNode
             .querySelector('.movable + .placeholder')
-            .setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${marginT} ${marginR} ${marginB} ${marginL};`);
+            .setAttribute('style', `width: ${w}px; height: ${h}px; margin: ${s.margin};`);
       }
     }
   }
