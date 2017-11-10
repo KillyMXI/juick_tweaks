@@ -76,7 +76,6 @@ const isFeed = document.querySelectorAll('#content article[data-mid]').length > 
 const isCommonFeed = !!(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href));
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
-const isSingleTagPage = window.location.pathname.indexOf('/tag/') != -1;
 const isSettingsPage = window.location.pathname.endsWith('/settings');
 const isUserColumn = !!(document.querySelector('aside#column > div#ctitle:not(.tag)'));
 const isUsersTable = !!(document.querySelector('#content > div.users'));
@@ -116,13 +115,6 @@ const userscriptFeatures = [
     enabledByDefault: true,
     pageMatch: isTagsPage,
     fun: sortTagsPage
-  },
-  {
-    name: 'Заголовок и управление подпиской на странице тега /tag/...',
-    id: 'enable_tag_page_toolbar',
-    enabledByDefault: true,
-    pageMatch: isSingleTagPage,
-    fun: addTagPageToolbar
   },
   {
     name: 'Min-width для тегов',
@@ -687,19 +679,6 @@ function addCommentShareMenu() {
       keyboardClickable(hoverTarget);
     });
   }
-}
-
-function addTagPageToolbar() {
-  let asideColumn = document.querySelector('aside#column');
-  let tag = document.location.pathname.split('/').pop(-1);
-  let html = `
-    <div id="ctitle" class="tag"><a href="/tag/${tag}">*${decodeURIComponent(tag)}</a></div>
-    <ul class="toolbar">
-      <li><a href="/post?body=S+%2a${tag}" title="Подписаться">${svgIconHtml('plus')}Subscribe</a></li>
-      <li><a href="/post?body=BL+%2a${tag}" title="Заблокировать">${svgIconHtml('close')}Block</a></li>
-    </ul>
-    `;
-  asideColumn.innerHTML = html + asideColumn.innerHTML;
 }
 
 function addYearLinks() {
