@@ -275,7 +275,7 @@ const userscriptFeatures = [
 
 userscriptFeatures.forEach(feature => {
   let runnable = feature.pageMatch && !!feature.fun;
-  let enabled = !feature.id || !feature.enabledByDefault || GM_getValue(feature.id, feature.enabledByDefault);
+  let enabled = !feature.id || GM_getValue(feature.id, feature.enabledByDefault);
   if (runnable && enabled) {
     try { feature.fun(); } catch (e) {
       console.warn(`Failed to run ${feature.fun.name}()`);
