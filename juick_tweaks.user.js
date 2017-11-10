@@ -77,7 +77,7 @@ const isCommonFeed = !!(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSettingsPage = window.location.pathname.endsWith('/settings');
-const isUserColumn = !!(document.querySelector('aside#column > div#ctitle:not(.tag)'));
+const isUserColumn = !!(document.querySelector('aside#column > div#ustats'));
 const isUsersTable = !!(document.querySelector('#content > div.users'));
 
 // #endregion
