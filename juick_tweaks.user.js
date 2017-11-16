@@ -3274,7 +3274,7 @@ function addStyle() {
     .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
     .users.sorted > span { width: 300px; }
     a.virtualTag { border: 1px dotted ${color07}; border-radius: 15px; }
-    #toggleBetaLink { display: block; position: fixed; top: 5px; right: 5px; }
+    #toggleBetaLink { display: block; position: fixed; top: 65px; right: 5px; }
     .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
     .expandable:before { content:''; pointer-events:none; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
