@@ -734,8 +734,8 @@ function loadTagsAsync(uid) {
 
 function makeTagsContainer(tags, numberLimit, sortBy='tag', uname, color=[0,0,0]) {
   const tagUrl = (uname)
-    ? t => `/${uname}/?tag=${t.tag}`
-    : t => `/tag/${t.tag}`;
+    ? t => `/${uname}/?tag=${encodeURIComponent(t.tag)}`
+    : t => `/tag/${encodeURIComponent(t.tag)}`;
 
   let [r, g, b] = color;
   let p0 = 0.7; // 70% of color range is used for color coding
