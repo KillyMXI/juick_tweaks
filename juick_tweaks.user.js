@@ -2119,7 +2119,7 @@ function getEmbeddableLinkTypes() {
       className: 'lichess singleColumn',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/lichess\.org\/(study|)(?:\/?embed)?\/?((?=[a-z]*[A-Z0-9])[A-Za-z0-9\/]{6,})/,
+      re: /^(?:https?:)?\/\/lichess\.org\/(study|)(?:\/?embed)?\/?((?=[a-z]*[A-Z0-9])[A-Za-z0-9\/]{8})/,
       makeNode: function(aNode, reResult, div) {
         let [, mode, rest] = reResult;
         let embedUrl = ['https://lichess.org', mode, 'embed', rest].filter(a => !!a).join('/');
