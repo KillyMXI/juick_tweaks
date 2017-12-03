@@ -549,13 +549,14 @@ function svgIconHtml(name) {
 }
 
 function getMyAccountAsync() {
-  if (getMyUserNameAsync[0]) {
-    return Promise.resolve(getMyUserNameAsync[0]);
+  if (getMyAccountAsync[0]) {
+    return Promise.resolve(getMyAccountAsync[0]);
   } else {
     let hash = document.body.getAttribute('data-hash');
+    if (!hash) { return Promise.reject('not logged in') }
     return xhrGetAsync(setProto('//api.juick.com/users?hash=' + hash), 500).then(response => {
       let account = JSON.parse(response.responseText)[0];
-      getMyUserNameAsync[0] = account;
+      getMyAccountAsync[0] = account;
       return account;
     });
   }
@@ -634,7 +635,7 @@ function addCommentRemovalLinks() {
         }
       });
     }
-  });
+  }).catch(err => console.info(err));
 }
 
 function addCommentShareMenu() {
@@ -717,7 +718,7 @@ function addSettingsLink() {
       ctitle.style.justifyContent = 'space-between';
       ctitle.style.alignItems = 'baseline';
     }
-  });
+  }).catch(err => console.info(err));
 }
 
 function biggerAvatar() {
@@ -848,7 +849,7 @@ function addPostSharpFormUser() {
     if (getColumnUserName() == uname) {
       addPostSharpForm();
     }
-  });
+  }).catch(err => console.info(err));
 }
 
 function addPostSharpForm() {
@@ -2837,7 +2838,7 @@ function checkReply(allPostsSelector, ...replySelectors) {
     Array.from(document.querySelectorAll(allPostsSelector))
          .filter(p => (getPostUserName(p) != uname) && (!replySelectors.some(s => p.querySelector(s))))
          .forEach(p => p.classList.add('readonly'));
-  });
+  }).catch(err => console.info(err));
 }
 
 function checkReplyArticles() {
