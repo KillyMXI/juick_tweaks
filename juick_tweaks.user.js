@@ -1594,7 +1594,7 @@ function getEmbeddableLinkTypes() {
       className: 'yandexMusic singleColumn',
       onByDefault: true,
       ctsDefault: true,
-      re: /^(?:https?:)?\/\/music\.yandex\.ru(?!$)(?:\/album\/(\d+))?(?:\/track\/(\d+))?/i,
+      re: /^(?:https?:)?\/\/music\.yandex\.ru(?!$|\/artist\/\d+$)(?:\/album\/(\d+))?(?:\/track\/(\d+))?/i,
       makeNode: function(aNode, reResult, div) {
         let [url, album, track] = reResult;
         let isTrack = !!track;
