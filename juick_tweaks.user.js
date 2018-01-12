@@ -1281,7 +1281,7 @@ function getEmbeddableLinkTypes() {
       className: 'juickEmbed',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]+\b)(?:#(\d+))?/i,
+      re: /^(?:https?:)?\/\/juick\.com\/(?!tag\/)(?:([\w-]+)\/)?([\d]{6,}\b)(?:#(\d+))?/i,
       ctsMatch: function(aNode, reResult) {
         let [url, userId, msgId, replyId] = reResult;
         let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
