@@ -605,10 +605,13 @@ function markNsfwPostsInFeed() {
 function addTagEditingLinkUnderPost() {
   let post = document.querySelector('#content .msgthread');
   let postToolbar = post.querySelector('nav.l');
-  let canEdit = !!document.querySelector('#column a[href="/logout"]');
+  let canEdit = !!postToolbar.querySelector('a[href*="?body=D+"]');
   let mid = document.getElementById('content').getAttribute('data-mid');
   if (canEdit) {
-    postToolbar.insertAdjacentHTML('beforeend', `<a href="/post?body=%23${mid}+%2ATag">${svgIconHtml('tag')}&nbsp;Tags</a>`);
+    postToolbar.insertAdjacentHTML(
+      'beforeend',
+      `<a href="/post?body=%23${mid}+%2ATag" class="msg-button">${svgIconHtml('tag')}<span>&nbsp;Tags</span></a>`
+    );
   }
 }
 
