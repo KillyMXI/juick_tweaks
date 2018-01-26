@@ -1756,7 +1756,7 @@ function getEmbeddableLinkTypes() {
       className: 'twi',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status\/([\d]+)/i,
+      re: /^(?:https?:)?\/\/(?:www\.)?(?:mobile\.)?twitter\.com\/([\w-]+)\/status(?:es)?\/([\d]+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, postId] = reResult;
