@@ -96,13 +96,6 @@ const userscriptFeatures = [
     fun: addPostSharpFormUser
   },
   {
-    name: 'Открывать /post вместо диалога нового сообщения',
-    id: 'enable_replace_post_link',
-    enabledByDefault: false,
-    pageMatch: true,
-    fun: replacePostLink
-  },
-  {
     name: 'Кликабельные теги на странице нового поста (/post)',
     id: 'enable_tags_on_new_post_page',
     enabledByDefault: true,
@@ -584,14 +577,6 @@ function getPostUserName(element) {
 function getPostUid(element) {
   let avatar = document.querySelector('div.msg-avatar > a > img');
   return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
-}
-
-function replacePostLink() {
-  setTimeout(function() {
-    let postLink = document.querySelector('#post');
-    let cleanLink = postLink.cloneNode(true);
-    postLink.parentNode.replaceChild(postLink.cloneNode(true), postLink);
-  }, 100);
 }
 
 function markNsfwPostsInFeed() {
