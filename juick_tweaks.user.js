@@ -757,8 +757,8 @@ function easyTagsUnderNewMessageForm() {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
     return makeTagsContainer(tags, 300, 'tag', account.uname, color);
   }).then(tagsContainer => {
-    Array.from(document.querySelectorAll('#content > a')).forEach(a => a.remove());
-    let content = document.querySelector('#content');
+    Array.from(document.querySelectorAll('#minimal_content > a')).forEach(a => a.remove());
+    let content = document.querySelector('#minimal_content');
     let messageBox = content.querySelector('textarea.newmessage');
     content.insertAdjacentElement('beforeend', tagsContainer);
     const addTag = (box, newTag) => {
