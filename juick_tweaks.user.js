@@ -96,7 +96,7 @@ const userscriptFeatures = [
     fun: addPostSharpFormUser
   },
   {
-    name: 'Кликабельные теги на странице нового поста (/post)',
+    name: 'Сортировка и цветовое кодирование тегов на странице нового поста (/post)',
     id: 'enable_tags_on_new_post_page',
     enabledByDefault: true,
     pageMatch: isNewPostPage,
