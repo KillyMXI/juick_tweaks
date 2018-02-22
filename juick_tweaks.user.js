@@ -79,6 +79,7 @@ const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSettingsPage = window.location.pathname.endsWith('/settings');
 const isUserColumn = !!(document.querySelector('aside#column > div#ustats'));
 const isUsersTable = !!(document.querySelector('#content > div.users'));
+const hasContentArticle = !!(document.querySelector('#content article'));
 
 // #endregion
 
@@ -255,6 +256,10 @@ const userscriptFeatures = [
   {
     pageMatch: isSettingsPage,
     fun: addTweaksSettingsButton
+  },
+  {
+    pageMatch: hasContentArticle,
+    fun: addTweaksSettingsFooterLink
   }
 ];
 
@@ -2968,9 +2973,13 @@ function showUserscriptSettings() {
   let support = document.createElement('p');
   support.innerHTML = 'Feedback and feature requests <a href="//juick.com/killy/?tag=userscript">here</a>.';
 
-  let contentBlock = document.querySelector('#content > article');
-  setContent(contentBlock, h1, uiFieldset, embeddingFieldset, filteringFieldset, resetButton, versionInfoFieldset, support);
-  contentBlock.className = 'tweaksSettings';
+  Array.from(document.querySelectorAll('#content article')).forEach(ar => ar.style.display = 'none');
+  let article = document.createElement('article');
+  let other = document.querySelector('#content article');
+  other.parentNode.insertBefore(article, other);
+  setContent(article, h1, uiFieldset, embeddingFieldset, filteringFieldset, resetButton, versionInfoFieldset, support);
+  article.className = 'tweaksSettings';
+  window.scrollTo(0, 0);
 }
 
 function addTweaksSettingsButton() {
@@ -2982,6 +2991,15 @@ function addTweaksSettingsButton() {
   aNode.onclick = (e => { e.preventDefault(); showUserscriptSettings(); });
   liNode.appendChild(aNode);
   tabsList.appendChild(liNode);
+}
+
+function addTweaksSettingsFooterLink() {
+  let footerLinks = document.querySelector('#footer-right');
+  let aNode = document.createElement('a');
+  aNode.textContent = 'Tweaks';
+  aNode.href = '#tweaks';
+  aNode.onclick = (e => { e.preventDefault(); showUserscriptSettings(); });
+  footerLinks.insertBefore(aNode, footerLinks.firstChild);
 }
 
 function updateUserRecommendationStats(userId, pagesPerCall) {
