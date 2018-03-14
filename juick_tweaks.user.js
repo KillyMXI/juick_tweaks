@@ -2124,6 +2124,43 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'Wikipedia',
+      id: 'embed_wikipedia',
+      className: 'wikipedia singleColumn',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/([a-z]+).wikipedia.org\/wiki\/([-A-Za-z0-9À-ž_+*&@#/%=~|$\(\),]+)$/,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, lang, entity] = reResult;
+        let embedUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${entity}`;
+
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          console.log(json);
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${url}">${json.displaytitle}</a></div>
+              <div class="lang">${json.lang}</div>
+            </div>
+            <div>
+              ${json.thumbnail ? `<img src="${json.thumbnail.source}" style="float: right;">` : ''}
+              <div class="extract">${json.extract_html}</div>
+            </div>`;
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(embedUrl, 3000).then(callback));
+      },
+      makeTitle: function(reResult) {
+        return 'Wikipedia: ' + decodeURIComponent(reResult[2].replace(/_/g, ' '));
+      },
+      linkTextUpdate: function(aNode, reResult) {
+        if (isDefaultLinkText(aNode)) {
+          aNode.textContent = 'Wikipedia: ' + decodeURIComponent(reResult[2].replace(/_/g, ' '));
+        }
+      }
+    },
+    {
       name: 'arXiv',
       id: 'embed_arxiv',
       className: 'arxiv singleColumn',
@@ -3197,6 +3234,7 @@ function addStyle() {
     .embed .top,
     .embed .bottom { display: flex; flex-shrink: 0; justify-content: space-between; }
     .embed .top { margin-bottom: 8px; }
+    .embed .lang,
     .embed .date,
     .embed .date > a,
     .embed .likes > a,
