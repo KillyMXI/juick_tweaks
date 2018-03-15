@@ -2129,7 +2129,7 @@ function getEmbeddableLinkTypes() {
       className: 'wikipedia singleColumn',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/([a-z]+).wikipedia.org\/wiki\/([-A-Za-z0-9À-ž_+*&@#/%=~|$\(\),]+)$/,
+      re: /^(?:https?:)?\/\/([a-z]+)\.wikipedia\.org\/wiki\/([-A-Za-z0-9À-ž_+*&@#/%=~|$\(\),]+)$/,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, lang, entity] = reResult;
