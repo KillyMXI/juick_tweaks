@@ -151,13 +151,6 @@ const userscriptFeatures = [
     fun: addYearLinks
   },
   {
-    name: 'Ссылка на настройки в левой колонке на своей странице',
-    id: 'enable_settings_link',
-    enabledByDefault: true,
-    pageMatch: isUserColumn,
-    fun: addSettingsLink
-  },
-  {
     name: 'Сортировка подписок/подписчиков по дате последнего сообщения',
     id: 'enable_users_sorting',
     enabledByDefault: true,
@@ -565,13 +558,19 @@ function getMyUserNameAsync() {
 }
 
 function getColumnUserName() {
-  let columnUserIdLink = document.querySelector('div#ctitle > a');
-  return (columnUserIdLink) ? columnUserIdLink.textContent.trim() : null;
+  let columnUserIdLink = document.querySelector('#column #ctitle > a');
+  if (columnUserIdLink) { return columnUserIdLink.textContent.trim(); }
+  let headerUserIdLink = document.querySelector('header #ctitle > a');
+  if (headerUserIdLink) { return headerUserIdLink.textContent.trim(); }
+  return null;
 }
 
 function getColumnUid() {
-  let avatar = document.querySelector('div#ctitle > a > img');
-  return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
+  let columnAvatar = document.querySelector('#column #ctitle > a > img');
+  if (columnAvatar) { return columnAvatar.src.match(/\/as?\/(\d+)\./i)[1]; }
+  let headerAvatar = document.querySelector('header #ctitle > a > img');
+  if (headerAvatar) { return headerAvatar.src.match(/\/as?\/(\d+)\./i)[1]; }
+  return null;
 }
 
 function getPostUserName(element) {
@@ -699,25 +698,11 @@ function addYearLinks() {
   asideColumn.insertBefore(linksContainer, hr1);
 }
 
-function addSettingsLink() {
-  getMyUserNameAsync().then(uname => {
-    if (getColumnUserName() == uname) {
-      let asideColumn = document.querySelector('aside#column');
-      let ctitle = asideColumn.querySelector('#ctitle');
-      let anode = document.createElement('a');
-      anode.innerHTML = svgIconHtml('gear');
-      anode.href = '/settings';
-      ctitle.appendChild(anode);
-      ctitle.style.display = 'flex';
-      ctitle.style.justifyContent = 'space-between';
-      ctitle.style.alignItems = 'baseline';
-    }
-  }).catch(err => console.info(err));
-}
-
 function biggerAvatar() {
-  let avatarImg = document.querySelector('div#ctitle a img');
-  avatarImg.style.width = 'unset';
+  let avatarImg = document.querySelector('#column #ctitle a img');
+  if (avatarImg) {
+    avatarImg.style.width = 'unset';
+  }
 }
 
 function loadTagsAsync(uid) {
