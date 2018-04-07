@@ -92,7 +92,7 @@ const userscriptFeatures = [
   {
     name: 'Форма нового сообщения в ленте (как старый /#post)',
     id: 'enable_post_sharp',
-    enabledByDefault: false,
+    enabledByDefault: true,
     pageMatch: (isFeed && isUserColumn), // || (isFeed && isCommonFeed)
     fun: addPostSharpFormUser
   },
