@@ -2122,7 +2122,6 @@ function getEmbeddableLinkTypes() {
 
         const callback = response => {
           let json = JSON.parse(response.responseText);
-          console.log(json);
           div.innerHTML = `
             <div class="top">
               <div class="title"><a href="${url}">${json.displaytitle}</a></div>
