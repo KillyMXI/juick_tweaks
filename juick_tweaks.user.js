@@ -544,7 +544,7 @@ function getMyAccountAsync() {
     return Promise.resolve(getMyAccountAsync[0]);
   } else {
     let hash = document.body.getAttribute('data-hash');
-    if (!hash) { return Promise.reject('not logged in') }
+    if (!hash) { return Promise.reject('not logged in'); }
     return xhrGetAsync(setProto('//api.juick.com/users?hash=' + hash), 500).then(response => {
       let account = JSON.parse(response.responseText)[0];
       getMyAccountAsync[0] = account;
