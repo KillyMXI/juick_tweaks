@@ -222,6 +222,11 @@ const userscriptFeatures = [
     enabledByDefault: false
   },
   {
+    name: 'Не скрывать шапку',
+    id: 'fixed_header',
+    enabledByDefault: false
+  },
+  {
     name: 'Сворачивать длинные посты',
     id: 'enable_long_message_folding',
     enabledByDefault: true,
@@ -3360,6 +3365,12 @@ function addStyle() {
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
       pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 9pt; line-height: 120%; }
+      `);
+  }
+  if (GM_getValue('fixed_header', false)) {
+    GM_addStyle(`
+      .header--hidden { -webkit-transform: unset; -ms-transform: unset; transform: unset; }
+      #wrapper { margin-top: 62px; }
       `);
   }
 }
