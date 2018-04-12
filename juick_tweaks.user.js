@@ -73,7 +73,8 @@ if (isBeta && !GM_getValue('enable_beta', true)) { return; }
 const content = document.getElementById('content');
 const isPost = content && content.hasAttribute('data-mid');
 const isFeed = document.querySelectorAll('#content article[data-mid]').length > 0;
-const isCommonFeed = !!(/^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.exec(window.location.href));
+const isCommonFeed = /^(?:https?:)?\/\/[a-z0-9.:]+\/(?:$|tag|#post|\?.*show=(?:all|photos))/i.test(window.location.href);
+const isAll = /\bshow=all\b/i.test(window.location.search);
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSettingsPage = window.location.pathname.endsWith('/settings');
@@ -93,7 +94,7 @@ const userscriptFeatures = [
     name: 'Форма нового сообщения в ленте (как старый /#post)',
     id: 'enable_post_sharp',
     enabledByDefault: true,
-    pageMatch: (isFeed && isUserColumn), // || (isFeed && isCommonFeed)
+    pageMatch: (isFeed && isUserColumn) || isAll,
     fun: addPostSharpFormUser
   },
   {
