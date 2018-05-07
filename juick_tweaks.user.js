@@ -2508,6 +2508,40 @@ function getEmbeddableLinkTypes() {
       linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
     },
     {
+      name: 'derpibooru.org',
+      id: 'embed_derpibooru',
+      className: 'derpibooru booru',
+      onByDefault: false,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/derpibooru\.org\/(?:images\/)?(\d+)/i,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, id] = reResult;
+        let apiUrl = 'https://derpibooru.org/images/oembed.json?url=' + encodeURI(url);
+
+        const callback = response => {
+          let json = JSON.parse(response.responseText);
+          if (!json || !json.thumbnail_url) {
+            div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
+            console.log(response);
+            return;
+          }
+
+          let scoreStr = (!json.derpibooru_score) ? '' : ` (${json.derpibooru_score})`;
+          let commentsStr = (json.derpibooru_comments > 0) ? ' (comments)' : '';
+          div.innerHTML = `
+            <div class="top">
+              <div class="title"><a href="${url}">${id} by ${json.author_name}</a>${scoreStr}${commentsStr}</div>
+            </div>
+            <a href="${url}"><img title="${json.title}" src="${json.thumbnail_url}"></a>`;
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
+      },
+      makeTitle: function([, id]) { return `derpibooru (${id})`; },
+      linkTextUpdate: function(aNode, [, id]) { aNode.textContent += ` (${id})`; }
+    },
+    {
       name: 'Яндекс.Фотки',
       id: 'embed_yandex_fotki',
       className: 'picture compact',
