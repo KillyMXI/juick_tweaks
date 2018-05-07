@@ -2008,7 +2008,7 @@ function getEmbeddableLinkTypes() {
       className: 'gistEmbed singleColumn',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/gist.github.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
+      re: /^(?:https?:)?\/\/gist\.github\.com\/(?:([\w-]+)\/)?([A-Fa-f0-9]+)\b/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, , id] = reResult;
@@ -2419,7 +2419,7 @@ function getEmbeddableLinkTypes() {
       className: 'yandere booru',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/yande.re\/post\/show\/(\d+)/i,
+      re: /^(?:https?:)?\/\/yande\.re\/post\/show\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, id] = reResult;
@@ -2462,7 +2462,7 @@ function getEmbeddableLinkTypes() {
       className: 'anime-pictures booru',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?\/\/anime-pictures.net\/pictures\/view_post\/(\d+)/i,
+      re: /^(?:https?:)?\/\/anime-pictures\.net\/pictures\/view_post\/(\d+)/i,
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, id] = reResult;
