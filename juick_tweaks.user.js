@@ -643,7 +643,7 @@ function addCommentShareMenu() {
       let linksBlock = linode.querySelector('div.msg-links');
       let commentLink = linode.querySelector('div.msg-ts > a');
       if (!commentLink || !linksBlock) { return; }
-      let postId = commentLink.pathname.replace('/','');
+      let postId = /(?:\/\w+)?\/(\d+)/.exec(commentLink.pathname);
       let commentId = commentLink.hash.replace('#','');
       linksBlock.insertAdjacentHTML('beforeend', `
         <div class="hoverPopup">
@@ -1223,7 +1223,7 @@ function urlReplaceInCode(match, p1, p2, p3) {
 function messageReplyReplace(messageId) {
   return function(match, mid, rid) {
     let replyPart = (rid && rid != '0') ? '#' + rid : '';
-    return `<a href="/${mid || messageId}${replyPart}">${match}</a>`;
+    return `<a href="/m/${mid || messageId}${replyPart}">${match}</a>`;
   };
 }
 
@@ -1275,12 +1275,13 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, userId, msgId, replyId] = reResult;
+        userId = userId || 'm';
         let apiUrl = setProto('//api.juick.com/thread?mid=' + msgId);
 
         let isReply = (replyId && replyId !== '0');
         let mrid = (isReply) ? parseInt(replyId, 10) : 0;
         let idStr = juickId(reResult);
-        let linkStr = '/' + msgId + (isReply ? '#' + mrid : '');
+        let linkStr = '/' + userId + '/' + msgId + (isReply ? '#' + mrid : '');
 
         if (GM_getValue('enable_move_into_view_on_same_page', true)) {
           let thisPageMsgMatch = /\/(\d+)$/.exec(window.location.pathname);
@@ -1315,7 +1316,7 @@ function getEmbeddableLinkTypes() {
           let tagsStr = (msg.tags) ? '<div class="msg-tags">' + msg.tags.map(x => `<a href="/${msg.user.uname}/?tag=${encodeURIComponent(x)}">${x}</a>`).join('') + '</div>' : '';
           let photoStr = (msg.photo) ? `<div><a href="${juickPhotoLink(msg.mid, msg.attach)}"><img ${(isNsfw ? 'class="nsfw" ' : '')}src="${unsetProto(msg.photo.small)}"/></a></div>` : '';
           let replyStr = (isReply)
-            ? ` in reply to <a class="whiteRabbit" href="/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
+            ? ` in reply to <a class="whiteRabbit" href="/${userId}/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
             : '';
           let likesDiv = (withLikes) ? `<div class="likes"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
           let commentsDiv = (withReplies) ? `<div class="replies"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
