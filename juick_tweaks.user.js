@@ -1845,6 +1845,42 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
+      name: 'Telegram',
+      id: 'embed_telegram',
+      className: 'telegram singleColumn',
+      onByDefault: false,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/t\.me\/(.+)\/(\d+)$/i,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [, channelId, postId] = reResult;
+
+        const promiseCallback = () => {
+          setTimeout(() => {
+            let script = document.createElement('script');
+            script.async = true;
+            script.type = 'text/javascript';
+            script.src = 'https://telegram.org/js/telegram-widget.js?4';
+            script.dataset.telegramPost = `${channelId}/${postId}`;
+            script.dataset.width = '100%';
+            div.appendChild(script);
+          }, 0);
+          return waitAndRunAsync(
+            () => !!div.querySelector('iframe'),
+            30,
+            100,
+            () => {},
+            () => ({ reason: 'timeout', permanent: false })
+          ).then(() => {
+            div.querySelector('span').remove();
+            div.classList.remove('embed');
+          });
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, promiseCallback);
+      }
+    },
+    {
       name: 'Google+',
       id: 'embed_google_plus',
       className: 'gplusEmbed',
