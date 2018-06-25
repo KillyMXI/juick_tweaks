@@ -2038,7 +2038,7 @@ function getEmbeddableLinkTypes() {
       className: 'jsfiddle',
       onByDefault: true,
       ctsDefault: false,
-      re: /^(?:https?:)?(\/\/(?:jsfiddle|fiddle.jshell)\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
+      re: /^(?:https?:)?(\/\/jsfiddle\.net\/(?:(?!embedded\b)[\w]+\/?)+)/i,
       makeNode: function(aNode, reResult, div) {
         let embedUrl = reResult[1].replace(/[^\/]$/, '$&/') + 'embedded/';
         return setContent(div, makeIframe(embedUrl, '100%', 500));
