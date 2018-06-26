@@ -60,6 +60,7 @@
 // @connect     nplus1.ru
 // @connect     elementy.ru
 // @connect     news.tut.by
+// @connect     pikabu.ru
 // @connect     imdb.com
 // @connect     *
 // ==/UserScript==
@@ -2588,6 +2589,38 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         div.innerHTML = `<a href="${aNode.href}"><img src="${aNode.href}"></a>`;
         return div;
+      }
+    },
+    {
+      name: 'pikabu',
+      id: 'embed_pikabu',
+      className: 'pikabu',
+      onByDefault: true,
+      ctsDefault: false,
+      re: /^(?:https?:)?\/\/pikabu\.ru\/story\/([a-z0-9_]+)/i,
+      makeNode: function(aNode, reResult, div) {
+        let thisType = this;
+        let [url, ] = reResult;
+
+        const callback = response => {
+          const metaRe = /<\s*meta\s+(?:(?:property|name)\s*=\s*[\"']([^\"']+)[\"']\s+)?content\s*=\s*\"([^\"]*)\"(?:\s+(?:property|name)\s*=\s*\"([^\"]+)\")?(?:\s*(?:\w+=\"[^\"]*\"))*\s*\/?>/gmi;
+          let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText).map(m => ({ k: (m[1] || m[3]).toLowerCase(), v: m[2] }));
+          let meta = {}; [].forEach.call(matches, m => { meta[m.k] = m.v; });
+          let title = htmlDecode(meta['twitter:title'] || meta['og:title']);
+          let description = htmlDecode(longest([meta['og:description'], meta['twitter:description'], '']));
+          let image = meta['twitter:image:src'];
+          let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
+          div.innerHTML = `
+            <div class="top">
+              <div class="title">
+                <a href="${url}">${title}</a>
+              </div>
+            </div>
+            ${imageStr}
+            <div class="desc">${description}</div>`;
+        };
+
+        return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(url, 3000).then(callback));
       }
     },
     {
