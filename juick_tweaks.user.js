@@ -586,7 +586,7 @@ function getPostUserName(element) {
 }
 
 function getPostUid(element) {
-  let avatar = document.querySelector('div.msg-avatar > a > img');
+  let avatar = element.querySelector('div.msg-avatar > a > img');
   return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
 }
 
