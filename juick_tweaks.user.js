@@ -552,8 +552,8 @@ function getMyAccountAsync() {
   } else {
     let hash = document.body.getAttribute('data-hash');
     if (!hash) { return Promise.reject('not logged in'); }
-    return xhrGetAsync(setProto('//api.juick.com/users?hash=' + hash), 500).then(response => {
-      let account = JSON.parse(response.responseText)[0];
+    return xhrGetAsync(setProto('//api.juick.com/me?hash=' + hash), 500).then(response => {
+      let account = JSON.parse(response.responseText);
       getMyAccountAsync[0] = account;
       return account;
     });
