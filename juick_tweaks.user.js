@@ -537,6 +537,19 @@ function keyboardClickable(el) {
   });
 }
 
+function onClickOutsideOnce(element, callback) {
+  const outsideClickListener = event => {
+    if (!element.contains(event.target)) {
+      callback();
+      removeClickListener();
+    }
+  };
+  const removeClickListener = () => {
+    document.removeEventListener('click', outsideClickListener);
+  };
+  document.addEventListener('click', outsideClickListener);
+}
+
 // #endregion
 
 
@@ -615,21 +628,53 @@ function addCommentRemovalLinks() {
   getMyUserNameAsync().then(uname => {
     let commentsBlock = document.querySelector('ul#replies');
     if (commentsBlock && uname) {
-      [].forEach.call(commentsBlock.children, function(linode, i, arr) {
+      [].forEach.call(commentsBlock.children, linode => {
         let postUserAvatar = linode.querySelector('div.msg-avatar > a > img');
         if (postUserAvatar) {
           let postUserId = postUserAvatar.alt;
           if (postUserId == uname) {
             let linksBlock = linode.querySelector('div.msg-links');
             let commentLink = linode.querySelector('div.msg-ts > a');
-            let postId = commentLink.pathname.replace('/','');
-            let commentId = commentLink.hash.replace('#','');
-            let anode = document.createElement('a');
-            anode.href = `/post?body=D+%23${postId}%2F${commentId}`;
-            anode.innerHTML = `${svgIconHtml('close')}&nbsp;Delete`;
-            anode.style.cssFloat = 'right';
-            anode.style.marginLeft = '15px';
-            linksBlock.appendChild(anode);
+            let mid = /\/(\d+)$/.exec(commentLink.pathname)[1];
+            let rid = commentLink.hash.replace('#','');
+
+            linksBlock.insertAdjacentHTML('beforeend', `
+              <div class="clickPopup">
+                <div class="clickTarget" tabindex="0">${svgIconHtml('close')}&nbsp;Delete</div>
+                <div class="clickContainer">
+                  <p>Click&nbsp;to&nbsp;confirm:</p>
+                  <a href="#confirm_delete" class="confirmationItem">Confirm&nbsp;delete</a>
+                </div>
+              </div>
+              `);
+            let clickPopup = linksBlock.querySelector('.clickPopup');
+            let clickTarget = linksBlock.querySelector('.clickTarget');
+            let confirmationItem = linksBlock.querySelector('.confirmationItem');
+            clickTarget.addEventListener('click', e => {
+              clickPopup.classList.add('expanded');
+              onClickOutsideOnce(clickPopup, () => clickPopup.classList.remove('expanded'));
+            });
+            clickPopup.addEventListener('blur', e => {
+              if (!clickPopup.contains(e.relatedTarget)) { clickPopup.classList.remove('expanded'); }
+            }, true);
+            keyboardClickable(clickTarget);
+
+            confirmationItem.onclick = e => {
+              e.preventDefault();
+              let hash = document.body.getAttribute('data-hash');
+              let apiUrl = setProto(`//api.juick.com/messages?mid=${mid}&rid=${rid}&hash=${hash}`);
+              xhrGetAsync(apiUrl, 3000, [], 'DELETE').then(response => {
+                if (response.status == 200) {
+                  linode.remove();
+                  console.log(`Removed reply /${rid} successfully.`);
+                } else {
+                  console.warn('Unexpected result.');
+                  console.warn(response);
+                  linode.style.outline = '1px solid red';
+                }
+              });
+              clickPopup.classList.remove('expanded');
+            };
           }
         }
       });
@@ -644,14 +689,14 @@ function addCommentShareMenu() {
       let linksBlock = linode.querySelector('div.msg-links');
       let commentLink = linode.querySelector('div.msg-ts > a');
       if (!commentLink || !linksBlock) { return; }
-      let postId = /(?:\/\w+)?\/(\d+)/.exec(commentLink.pathname);
-      let commentId = commentLink.hash.replace('#','');
+      let mid = /\/(\d+)$/.exec(commentLink.pathname)[1];
+      let rid = commentLink.hash.replace('#','');
       linksBlock.insertAdjacentHTML('beforeend', `
         <div class="hoverPopup">
           <div class="hoverTarget" tabindex="0">${svgIconHtml('link')}&nbsp;Links</div>
           <div class="hoverContainer">
             <p>Click to copy:</p>
-            <a href="#copy_id" class="copyItem">#${postId}/${commentId}</a>
+            <a href="#copy_id" class="copyItem">#${mid}/${rid}</a>
             <a href="#copy_url" class="copyItem">${commentLink.href}</a>
           </div>
         </div>
@@ -670,7 +715,10 @@ function addCommentShareMenu() {
       [].forEach.call(linksBlock.querySelectorAll('.copyItem'), copyItem => {
         copyItem.onclick = copyAction(copyItem);
       });
-      hoverTarget.addEventListener('click', e => hoverPopup.classList.add('expanded'));
+      hoverTarget.addEventListener('click', e => {
+        hoverPopup.classList.add('expanded');
+        onClickOutsideOnce(hoverPopup, () => hoverPopup.classList.remove('expanded'));
+      });
       hoverTarget.addEventListener('mouseenter', e => hoverPopup.classList.add('expanded'));
       hoverPopup.addEventListener('mouseleave', e => hoverPopup.classList.remove('expanded'));
       hoverPopup.addEventListener('blur', e => {
@@ -3457,15 +3505,24 @@ function addStyle() {
     #charCounterBlock:not(.invalid) > div { background: #999; height: 1px; }
     #charCounterBlock.invalid { text-align: right; }
     #charCounterBlock.invalid > div { color: #c00; }
+    ul#replies li .clickPopup,
     ul#replies li .hoverPopup { display: inline-block; float: right; }
+    .clickPopup,
     .hoverPopup { position: relative; }
+    .clickPopup .clickContainer,
     .hoverPopup .hoverContainer { visibility: hidden; position: absolute; z-index: 1; bottom: 100%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; background: ${abg10}; box-shadow: 0 0 3px rgba(0,0,0,.16); }
+    .clickPopup .clickContainer > *,
     .hoverPopup .hoverContainer > * { margin: 2px 4px; }
+    .clickPopup.expanded .clickContainer,
     .hoverPopup.expanded .hoverContainer,
     .hoverPopup:hover .hoverContainer { visibility: visible; }
+    .clickPopup,
     .hoverPopup { margin-left: 15px; }
+    .clickPopup:not(.expanded) { cursor: pointer; }
     @keyframes highlight { 0% { outline-color: rgba(127, 127, 127 , 1.0); } 100% { outline-color: rgba(127, 127, 127 , 0.0); } }
     .blinkOnce { outline-width: 1px; outline-style: solid; animation: highlight 1s; }
+    .confirmationItem { color: red; border: 1px solid red; padding: 2px 7px; }
+    .confirmationItem:hover { background: #ffeeee; }
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
