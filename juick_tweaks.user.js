@@ -1137,8 +1137,13 @@ function doFetchingEmbed2(div, title, promiseCallback, remakeCallback) {
   div.classList.add('embed', 'loading');
   promiseCallback()
     .then(() => { div.classList.remove('loading'); div.classList.add('loaded'); })
-    .catch(({ reason, response, permanent }) => {
-      console.log({reason: reason, response: response, permanent: permanent, div: div, title: title});
+    .catch(e => {
+      let { reason, response, permanent } = e;
+      console.log(
+        (!!reason || !!response)
+          ? { reason: reason, response: response, permanent: permanent, div: div, title: title }
+          : e
+      );
       if (permanent) {
         div.textContent = reason;
       } else {
