@@ -1372,7 +1372,8 @@ function getEmbeddableLinkTypes() {
           let replyStr = (isReply)
             ? ` in reply to <a class="whiteRabbit" href="/${userId}/${msg.mid}${isReplyToOp ? '' : '#' + msg.replyto}">#${msg.mid}${isReplyToOp ? '' : '/' + msg.replyto}</a>`
             : '';
-          let likesDiv = (withLikes) ? `<div class="likes" title="${msg.recommendations.join(', ')}"><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
+          let likesTitle = (!!msg.recommendations) ? `title="${msg.recommendations.join(', ')}"` : '';
+          let likesDiv = (withLikes) ? `<div class="likes" ${likesTitle}><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
           let commentsDiv = (withReplies) ? `<div class="replies" title="${[...new Set(threadInfo.slice(1).map(x => x.user.uname))].join(', ')}"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
           div.innerHTML = `
             <div class="top">
