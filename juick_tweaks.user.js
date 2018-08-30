@@ -556,7 +556,7 @@ function onClickOutsideOnce(element, callback) {
 // #region === Function definitions =========================================================================
 
 function svgIconHtml(name) {
-  return `<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
+  return /*html*/`<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
 }
 
 function getMyAccountAsync() {
@@ -638,7 +638,7 @@ function addCommentRemovalLinks() {
             let mid = /\/(\d+)$/.exec(commentLink.pathname)[1];
             let rid = commentLink.hash.replace('#','');
 
-            linksBlock.insertAdjacentHTML('beforeend', `
+            linksBlock.insertAdjacentHTML('beforeend', /*html*/`
               <div class="clickPopup">
                 <div class="clickTarget" tabindex="0">${svgIconHtml('close')}&nbsp;Delete</div>
                 <div class="clickContainer">
@@ -691,7 +691,7 @@ function addCommentShareMenu() {
       if (!commentLink || !linksBlock) { return; }
       let mid = /\/(\d+)$/.exec(commentLink.pathname)[1];
       let rid = commentLink.hash.replace('#','');
-      linksBlock.insertAdjacentHTML('beforeend', `
+      linksBlock.insertAdjacentHTML('beforeend', /*html*/`
         <div class="hoverPopup">
           <div class="hoverTarget" tabindex="0">${svgIconHtml('link')}&nbsp;Links</div>
           <div class="hoverContainer">
@@ -888,7 +888,7 @@ function addPostSharpFormUser() {
 
 function addPostSharpForm() {
   let content = document.querySelector('#content');
-  let newMessageForm = `
+  let newMessageForm = /*html*/`
     <form id="oldNewMessage" action="/post" method="post" enctype="multipart/form-data">
       <textarea name="body" rows="1" placeholder="New message..."></textarea>
       <div id="charCounterBlock" class="empty"><div id="charCounter" style="width: 0%;"></div></div>
@@ -1375,7 +1375,7 @@ function getEmbeddableLinkTypes() {
           let likesTitle = (!!msg.recommendations) ? `title="${msg.recommendations.join(', ')}"` : '';
           let likesDiv = (withLikes) ? `<div class="likes" ${likesTitle}><a href="${linkStr}">${svgIconHtml('heart')}${msg.likes}</a></div>` : '';
           let commentsDiv = (withReplies) ? `<div class="replies" title="${[...new Set(threadInfo.slice(1).map(x => x.user.uname))].join(', ')}"><a href="${linkStr}">${svgIconHtml('comment')}${msg.replies}</a></div>` : '';
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="msg-avatar"><a href="/${msg.user.uname}/"><img src="//i.juick.com/a/${msg.user.uid}.png" alt="${msg.user.uname}"></a></div>
               <div class="top-right">
@@ -1673,7 +1673,7 @@ function getEmbeddableLinkTypes() {
           let json = JSON.parse(response.responseText);
           let imageUrl = (json.url) ? json.url : json.thumbnail_url; //.replace('_b.', '_z.');
           let typeStr = (json.flickr_type == 'photo') ? '' : ` (${json.flickr_type})`;
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${json.web_page}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
@@ -1701,7 +1701,7 @@ function getEmbeddableLinkTypes() {
           let json = JSON.parse(response.responseText);
           let date = new Date(json.pubdate);
           let typeStr = (json.type == 'photo') ? '' : ` (${json.type})`;
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${url}">${json.title}</a>${typeStr} by <a href="${json.author_url}">${json.author_name}</a>
@@ -1842,7 +1842,7 @@ function getEmbeddableLinkTypes() {
           const timestampMsRe = /\bdata-time-ms\s*=\s*\"([^\"]+)\"/gi;
           let timestampMsResult = timestampMsRe.exec(response.responseText);
           let dateDiv = (timestampMsResult) ? `<div class="date">${new Date(+timestampMsResult[1]).toLocaleString('ru-RU')}</div>` : '';
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 ${title} (<a href="//twitter.com/${userId}">@${userId}</a>)
@@ -2053,7 +2053,7 @@ function getEmbeddableLinkTypes() {
 
         const callback = response => {
           let json = JSON.parse(response.responseText);
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 "<a href="${url}">${json.title}</a>" by <a href="${json.author.URL}">${json.author.name}</a>
@@ -2109,7 +2109,7 @@ function getEmbeddableLinkTypes() {
         const callback = response => {
           let json = JSON.parse(response.responseText);
           let date = new Date(json.created_at).toLocaleDateString('ru-RU');
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 "${json.description}" by <a href="https://gist.github.com/${json.owner}">${json.owner}</a>
@@ -2149,7 +2149,7 @@ function getEmbeddableLinkTypes() {
 
         const callback = response => {
           let json = JSON.parse(response.responseText);
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">"${json.title}" by <a href="${json.author_url}">${json.author_name}</a></div>
             </div>
@@ -2173,7 +2173,7 @@ function getEmbeddableLinkTypes() {
         const callback = response => {
           let [, title] = /<div id="ctitle">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
           let [, comic] = /<div id="comic">([\s\S]+?)<\/div>/.exec(response.responseText) || [];
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">${title}</div>
             </div>
@@ -2220,7 +2220,7 @@ function getEmbeddableLinkTypes() {
 
         const callback = response => {
           let json = JSON.parse(response.responseText);
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${url}">${json.displaytitle}</a></div>
               <div class="lang">${json.lang}</div>
@@ -2265,7 +2265,7 @@ function getEmbeddableLinkTypes() {
           let authors = getAllMatchesAndCaptureGroups(/<a href="(\/find.+?)">(.+?)<\/a>/gi, response.responseText).map(m => ({ url: m[1], name: m[2] }));
           let authorsStr = authors.map(a => `<a href="${a.url}">${a.name}</a>`).join(', ');
 
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${absUrl}">${title}</a> (<a href="${pdfUrl}">pdf</a>)</div>
               <div class="date">${dateline}</div>
@@ -2329,7 +2329,7 @@ function getEmbeddableLinkTypes() {
 
           let dateDiv = (dateStr) ? `<div class="date">${dateStr}</div>` : '';
           let authorStr = (authorId) ? ` by <a href="//www.pixiv.net/member_illust.php?id=${authorId}">${authorName}</a>` : '';
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 ${isMultipage ? '(multipage) ' : ''}<a href="${url}">${title}</a>${authorStr}
@@ -2379,7 +2379,7 @@ function getEmbeddableLinkTypes() {
           let changedDateStr = change.toLocaleDateString('ru-RU');
           if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
           let ratingStr = (rating == 's') ? '' : ` (${rating})`;
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${url}">${id}</a>${ratingStr}${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}
@@ -2437,7 +2437,7 @@ function getEmbeddableLinkTypes() {
           let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
           let updatedDateStr = (new Date(json.updated_at)).toLocaleDateString('ru-RU');
           if (createdDateStr != updatedDateStr) { createdDateStr += ` (${updatedDateStr})`; }
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${finalUrl}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
               <div class="date">${createdDateStr}</div>
@@ -2486,7 +2486,7 @@ function getEmbeddableLinkTypes() {
           let saucenaoUrl = `https://img3.saucenao.com/booru/${json.md5[0]}/${json.md5[1]}/${json.md5}_2.jpg`;
           let createdDateStr = (new Date(1000 * parseInt(json.created_at, 10))).toLocaleDateString('ru-RU');
           let ratingStr = (json.rating == 's') ? '' : ` (<a href="${unsafeUrl}">${json.rating}</a>)`;
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${url}">${id}</a>${ratingStr}</div>
               <div class="date">${createdDateStr}</div>
@@ -2530,7 +2530,7 @@ function getEmbeddableLinkTypes() {
           let createdDateStr = (new Date(1000 * json.created_at)).toLocaleDateString('ru-RU');
           let updatedDateStr = (new Date(1000 * json.updated_at)).toLocaleDateString('ru-RU');
           if (createdDateStr != updatedDateStr && json.updated_at != 0) { createdDateStr += ` (${updatedDateStr})`; }
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${url}">${id}</a>${ratingStr}${notesStr}${commentsStr}</div>
               <div class="date">${createdDateStr}</div>
@@ -2581,7 +2581,7 @@ function getEmbeddableLinkTypes() {
           let matches = getAllMatchesAndCaptureGroups(metaRe, response.responseText);
           let imageUrl = matches.find(m => (m[1] || m[3]) == 'og:image')[2];
 
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${url}">${id}</a>
@@ -2621,7 +2621,7 @@ function getEmbeddableLinkTypes() {
 
           let scoreStr = (!json.derpibooru_score) ? '' : ` (${json.derpibooru_score})`;
           let commentsStr = (json.derpibooru_comments > 0) ? ' (comments)' : '';
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title"><a href="${url}">${id} by ${json.author_name}</a>${scoreStr}${commentsStr}</div>
             </div>
@@ -2664,7 +2664,7 @@ function getEmbeddableLinkTypes() {
           let description = htmlDecode(longest([meta['og:description'], meta['twitter:description'], '']));
           let image = meta['twitter:image:src'];
           let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${url}">${title}</a>
@@ -2720,7 +2720,7 @@ function getEmbeddableLinkTypes() {
           }
           let imageStr = (image) ? `<a href="${url}"><img src="${image}" /></a>` : '';
           description = htmlDecode(description).replace(/\n+/g,'<br/>');
-          div.innerHTML = `
+          div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
                 <a href="${url}">${title}</a>
