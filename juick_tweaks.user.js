@@ -3260,7 +3260,9 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         let now = new Date();
         let days = ((now - oldestDate) / 1000 / 60 / 60 / 24);
         let avg = totalRecs / days;
-        avgPNode.textContent = '' + avg.toFixed(3) + ' recommendations per day';
+        avgPNode.textContent = avg > 1.0
+          ? '' + avg.toFixed(3) + ' recommendations per day'
+          : 'one recommendation in ' + (1 / avg).toFixed(2) + ' days';
         article.appendChild(avgPNode);
 
         let userStrings = sortedUsers.map(x => `<li><a href="/${x.id}/">${x.avatar}${x.id}</a> / ${x.recs}</li>`);
