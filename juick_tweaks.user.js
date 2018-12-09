@@ -587,9 +587,9 @@ function getColumnUserName() {
 
 function getColumnUid() {
   let columnAvatar = document.querySelector('#column #ctitle > a > img');
-  if (columnAvatar) { return columnAvatar.src.match(/\/as?\/(\d+)\./i)[1]; }
+  if (columnAvatar) { return columnAvatar.src.match(/\/i\/a\/(\d+)-[0-9a-fA-F]+\./i)[1]; }
   let headerAvatar = document.querySelector('header #ctitle > a > img');
-  if (headerAvatar) { return headerAvatar.src.match(/\/as?\/(\d+)\./i)[1]; }
+  if (headerAvatar) { return headerAvatar.src.match(/\/i\/a\/(\d+)-[0-9a-fA-F]+\./i)[1]; }
   return null;
 }
 
@@ -600,7 +600,7 @@ function getPostUserName(element) {
 
 function getPostUid(element) {
   let avatar = element.querySelector('div.msg-avatar > a > img');
-  return (avatar) ? avatar.src.match(/\/as?\/(\d+)\./i)[1] : null;
+  return (avatar) ? avatar.src.match(/\/i\/a\/(\d+)-[0-9a-fA-F]+\./i)[1] : null;
 }
 
 function markNsfwPostsInFeed() {
@@ -802,8 +802,8 @@ function easyTagsUnderNewMessageForm() {
     let color = parseRgbColor(computeStyle(document.createElement('a')).color);
     return makeTagsContainer(tags, 300, 'tag', account.uname, color);
   }).then(tagsContainer => {
-    Array.from(document.querySelectorAll('#minimal_content > a')).forEach(a => a.remove());
-    let content = document.querySelector('#minimal_content');
+    Array.from(document.querySelectorAll('section#content > a')).forEach(a => a.remove());
+    let content = document.querySelector('section#content');
     let messageBox = content.querySelector('textarea.newmessage');
     content.insertAdjacentElement('beforeend', tagsContainer);
     const addTag = (box, newTag) => {
@@ -3223,11 +3223,11 @@ function updateUserRecommendationStats(userId, pagesPerCall) {
         let [, oldestDatePart, oldestTimePart] = dateRe.exec(oldestArticle);
         oldestDate = new Date(`${oldestDatePart}T${oldestTimePart}`);
 
-        const userRe = /<span itemprop="name">([-\w]+)<\/span>/i;
-        const userAvatarRe = /<img src="\/\/i\.juick\.com\/a\/\d+\.png" alt="[^\"]+"\/?>/i;
+        const userRe = /<span>([-\w]+)<\/span>/i;
+        const userAvatarRe = /<img src="\/i\/a\/(\d+)-[0-9a-fA-F]+\.png" alt="[^\"]+"\/?>/i;
         let authors = articles.map(article => {
           let postAuthorId = (userRe.exec(article))[1];
-          let postAuthorAvatar = (userAvatarRe.exec(article))[0];
+          let postAuthorAvatar = (userAvatarRe.exec(article) || {0:''})[0];
           return {id: postAuthorId, avatar: postAuthorAvatar};
         });
         for (let i in authors) {
