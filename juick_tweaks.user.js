@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.2
-// @date        2016.09.02 - 2018.12.10
+// @version     2.20.3
+// @date        2016.09.02 - 2019.01.05
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -737,6 +737,7 @@ function addYearLinks() {
   let linksContainer = document.createElement('p');
   let years = [
     {y: (new Date()).getFullYear(), b: ''},
+    {y: 2018, b: '?before=2931524'},
     {y: 2017, b: '?before=2893675'},
     {y: 2016, b: '?before=2857956'},
     {y: 2015, b: '?before=2816362'},
