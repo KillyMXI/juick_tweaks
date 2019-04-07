@@ -62,6 +62,7 @@
 // @connect     news.tut.by
 // @connect     pikabu.ru
 // @connect     imdb.com
+// @connect     mastodon.social
 // @connect     *
 // ==/UserScript==
 
@@ -2773,7 +2774,8 @@ function getDefaultDomainWhitelist() {
     'nplus1.ru',
     'elementy.ru',
     'news.tut.by',
-    'imdb.com'
+    'imdb.com',
+    'mastodon.social'
   ];
 }
 
