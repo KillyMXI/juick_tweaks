@@ -1938,39 +1938,6 @@ function getEmbeddableLinkTypes() {
       }
     },
     {
-      name: 'Google+',
-      id: 'embed_google_plus',
-      className: 'gplusEmbed',
-      onByDefault: true,
-      ctsDefault: false,
-      re: /^(?:https?:)?\/\/plus\.google\.com\/(?:u\/0\/)?(\d+|\+[\w%]+)\/posts\/(\w+)/i,
-      makeNode: function(aNode, reResult, div) {
-        let thisType = this;
-        let [url, author, postId] = reResult;
-
-        const promiseCallback = () => {
-          let id = randomId();
-          div.insertAdjacentHTML('beforeend', `<div id="${id}" />`);
-          setTimeout(loadScript('https://apis.google.com/js/plusone.js', false, () => {
-            addScript('({"parsetags": "explicit"})', true);
-            addScript(`gapi.post.render("${id}", {href: "${url}"});`, false);
-          }, false), 0);
-          return waitAndRunAsync(
-            () => !!div.querySelector('div[style]'),
-            30,
-            100,
-            () => {},
-            () => ({ reason: 'Can\'t show this post', permanent: true })
-          ).then(() => {
-            div.querySelector('span').remove();
-            div.classList.remove('embed');
-          });
-        };
-
-        return doFetchingEmbed(aNode, reResult, div, thisType, promiseCallback);
-      }
-    },
-    {
       name: 'Tumblr',
       id: 'embed_tumblr',
       className: 'tumblr singleColumn',
