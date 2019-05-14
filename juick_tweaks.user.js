@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.5
-// @date        2016.09.02 - 2019.04.07
+// @version     2.20.6
+// @date        2016.09.02 - 2019.05.14
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -63,6 +63,7 @@
 // @connect     pikabu.ru
 // @connect     imdb.com
 // @connect     mastodon.social
+// @connect     mastodonsocial.ru
 // @connect     *
 // ==/UserScript==
 
@@ -2742,7 +2743,8 @@ function getDefaultDomainWhitelist() {
     'elementy.ru',
     'news.tut.by',
     'imdb.com',
-    'mastodon.social'
+    'mastodon.social',
+    'mastodonsocial.ru'
   ];
 }
 
