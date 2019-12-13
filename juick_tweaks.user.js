@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.6
-// @date        2016.09.02 - 2019.05.14
+// @version     2.20.7
+// @date        2016.09.02 - 2019.12.13
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -558,7 +558,7 @@ function onClickOutsideOnce(element, callback) {
 // #region === Function definitions =========================================================================
 
 function svgIconHtml(name) {
-  return /*html*/`<div class="icon icon--ei-${name} icon--s "><svg class="icon__cnt"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#ei-${name}-icon"></use></svg></div>`;
+  return /*html*/`<div class="icon icon--ei-${name} icon--s"><svg class="icon__cnt"><use xlink:href="/sprite.svg#ei-${name}-icon"></use></svg></div>`;
 }
 
 function getMyAccountAsync() {
@@ -902,15 +902,13 @@ function addPostSharpForm() {
             <label for="image_upload" class="btn_like">Choose file</label>
             <input type="file" id="image_upload" name="attach" accept="image/jpeg,image/png">
             <input class="imgLink txt" id="image_url" name="img" placeholder="or paste link">
-            <div class="info" title="JPG/PNG up to 10 MB"><svg class="icon__cnt"><use xlink:href="#ei-question-icon"></use></svg></div>
+            <div class="info" title="JPG/PNG up to 10 MB">${svgIconHtml('question')}</div>
           </div>
           <div class="flexSpacer"></div>
           <input type="submit" class="subm" value="Send" disabled>
         </div>
         <div id="imagePreview">
-          <a id="clear_button" href="javascript:void(0);" title="Remove attachment">
-            <svg class="icon__cnt"><use xlink:href="#ei-close-icon"></use></svg>
-          </a>
+          <a id="clear_button" href="javascript:void(0);" title="Remove attachment">${svgIconHtml('close')}</a>
         </div>
       </div>
     </form>`;
