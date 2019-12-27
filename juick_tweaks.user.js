@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.7
-// @date        2016.09.02 - 2019.12.13
+// @version     2.20.8
+// @date        2016.09.02 - 2019.12.27
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -2577,23 +2577,39 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, id] = reResult;
-        let apiUrl = 'https://derpibooru.org/images/oembed.json?url=' + encodeURI(url);
+        let apiUrl = 'https://derpibooru.org/api/v1/json/images/' + id;
 
         const callback = response => {
           let json = JSON.parse(response.responseText);
-          if (!json || !json.thumbnail_url) {
+          if (!json || !json.image) {
             div.innerHTML = `<span>Can't show <a href="${url}">${id}</a></span>`;
             console.log(response);
             return;
           }
+          json = json.image;
 
-          let scoreStr = (!json.derpibooru_score) ? '' : ` (${json.derpibooru_score})`;
-          let commentsStr = (json.derpibooru_comments > 0) ? ' (comments)' : '';
+          let createdDateStr = (new Date(json.created_at)).toLocaleDateString('ru-RU');
+          const tagEncode = t => t.replace(/ /g, '+').replace(/:/g, '-colon-');
+          let tagsStr = json.tags
+                            .map(t => `<a href="https://derpibooru.org/tags/${tagEncode(t)}">${t}</a>`)
+                            .join(', ');
           div.innerHTML = /*html*/`
             <div class="top">
-              <div class="title"><a href="${url}">${id} by ${json.author_name}</a>${scoreStr}${commentsStr}</div>
+              <div class="title"><a href="${url}">${json.description}</a></div>
+              <div class="date">${createdDateStr}</div>
             </div>
-            <a href="${url}"><img title="${json.title}" src="${json.thumbnail_url}"></a>`;
+            <a href="${url}"><img src="${json.representations.medium}"></a>
+            <div class="booru-tags">${tagsStr}</div>
+            <div class="bottom">
+              <div class="source">
+                <a href="${json.source_url}">Source</a>, uploaded by <a href="https://derpibooru.org/profiles/${json.uploader}">${json.uploader}</a>
+              </div>
+              <div class="right">
+                <div class="faves">${svgIconHtml('star')}${json.faves}</div>
+                <div class="votes">${svgIconHtml('heart')}${json.score} (${json.upvotes}↑ ${json.downvotes}↓)</div>
+                <div class="replies">${svgIconHtml('comment')}${json.comment_count}</div>
+            </div>
+            </div>`;
         };
 
         return doFetchingEmbed(aNode, reResult, div, thisType, () => xhrGetAsync(apiUrl, 3000).then(callback));
@@ -3362,8 +3378,12 @@ function addStyle() {
     .embed .title { color: ${color07}; }
     .embed .date { font-size: small; text-align: right; }
     .embed .likes,
+    .embed .faves,
+    .embed .votes,
     .embed .replies { font-size: small; white-space:nowrap; margin-left: 12px; }
     .embed .likes .icon,
+    .embed .faves .icon,
+    .embed .votes .icon,
     .embed .replies .icon { width: 20px; height: 20px; }
     .embed .desc { margin-bottom: 8px; max-height: 55vh; overflow-y: auto; }
     .twi.embed > .cts > .placeholder { display: inline-block; }
@@ -3399,6 +3419,8 @@ function addStyle() {
     .danbooru.embed .booru-tags { display: none; }
     .danbooru.embed:hover .booru-tags { display: block; }
     .booru.embed .bottom-right { position:absolute; bottom: 8px; right: 8px; font-size: small; text-align: right; color: ${color07}; display: flex; flex-direction: column; }
+    .derpibooru.embed > .bottom { margin-top: 5px; }
+    .derpibooru.embed > .bottom > .right { display: flex; flex: 0; }
     article.nsfw .embedContainer img,
     article.nsfw .embedContainer iframe,
     .embed .rating_e,
