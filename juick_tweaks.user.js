@@ -5,7 +5,7 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.9
+// @version     2.20.10
 // @date        2016.09.02 - 2020.01.31
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -2870,7 +2870,7 @@ function embedLinksToX(x, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTag
 function embedLinksToArticles() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = 'nav.l';
-  let allLinksSelector = 'p:not(.ir) a, pre a';
+  let allLinksSelector = '.msg-txt > a, pre a';
   setTimeout(function() {
     Array.from(document.querySelectorAll('#content article[data-mid]')).forEach(article => {
       embedLinksToX(article, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
@@ -2881,7 +2881,7 @@ function embedLinksToArticles() {
 function embedLinksToPost() {
   let [ctsUsers, ctsTags] = splitUsersAndTagsLists(GM_getValue('cts_users_and_tags', ''));
   let beforeNodeSelector = '.msg-txt + *';
-  let allLinksSelector = '.msg-txt a';
+  let allLinksSelector = '.msg-txt > a, pre a';
   setTimeout(function() {
     Array.from(document.querySelectorAll('#content .msg-cont')).forEach(msg => {
       embedLinksToX(msg, beforeNodeSelector, allLinksSelector, ctsUsers, ctsTags);
@@ -3346,7 +3346,7 @@ function makeElementExpandable(element) {
 
 function limitArticlesHeight () {
   let maxHeight = window.innerHeight * 0.7;
-  Array.from(document.querySelectorAll('#content article[data-mid] > p')).forEach(p => {
+  Array.from(document.querySelectorAll('#content article[data-mid] > .msg-txt')).forEach(p => {
     if (p.offsetHeight > maxHeight) {
       makeElementExpandable(p);
     }
@@ -3468,7 +3468,7 @@ function addStyle() {
     .filtered header { overflow: hidden; }
     .filtered .msg-avatar { margin-bottom: 0px; }
     .filteredComment.headless .msg-links { margin: 0px; }
-    article.readonly > p,
+    article.readonly > .msg-txt,
     div.readonly > .msg-txt { opacity: 0.55; }
     .movable { transition: all 0.2s ease-out 0.2s; transition-property: margin, margin-top; }
     .movable.moved { position: absolute; z-index: 10; }
