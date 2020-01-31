@@ -756,6 +756,7 @@ function addYearLinks() {
   let linksContainer = document.createElement('p');
   let years = [
     {y: (new Date()).getFullYear(), b: ''},
+    {y: 2019, b: '?before=2959522'},
     {y: 2018, b: '?before=2931524'},
     {y: 2017, b: '?before=2893675'},
     {y: 2016, b: '?before=2857956'},
