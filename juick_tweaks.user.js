@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.10
-// @date        2016.09.02 - 2020.01.31
+// @version     2.20.11
+// @date        2016.09.02 - 2020.02.21
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -3172,14 +3172,12 @@ function showUserscriptSettings() {
 }
 
 function addTweaksSettingsButton() {
-  let tabsList = document.querySelector('#pagetabs > ul');
-  let liNode = document.createElement('li');
+  let tabsList = document.querySelector('#pagetabs > div');
   let aNode = document.createElement('a');
   aNode.textContent = 'Tweaks';
   aNode.href = '#tweaks';
   aNode.onclick = (e => { e.preventDefault(); showUserscriptSettings(); });
-  liNode.appendChild(aNode);
-  tabsList.appendChild(liNode);
+  tabsList.appendChild(aNode);
 }
 
 function addTweaksSettingsFooterLink() {
