@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.11
-// @date        2016.09.02 - 2020.02.21
+// @version     2.20.12
+// @date        2016.09.02 - 2020.05.13
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -582,7 +582,7 @@ function getMyUserNameAsync() {
 function getColumnUserName() {
   let columnUserIdLink = document.querySelector('#column #ctitle > a');
   if (columnUserIdLink) { return columnUserIdLink.textContent.trim(); }
-  let headerUserIdLink = document.querySelector('header #ctitle > a');
+  let headerUserIdLink = document.querySelector('#header #ctitle > a');
   if (headerUserIdLink) { return headerUserIdLink.textContent.trim(); }
   return null;
 }
@@ -590,7 +590,7 @@ function getColumnUserName() {
 function getColumnUid() {
   let columnAvatar = document.querySelector('#column #ctitle > a > img');
   if (columnAvatar) { return columnAvatar.src.match(/\/i\/a\/(\d+)-[0-9a-fA-F]+\./i)[1]; }
-  let headerAvatar = document.querySelector('header #ctitle > a > img');
+  let headerAvatar = document.querySelector('#header #ctitle > a > img');
   if (headerAvatar) { return headerAvatar.src.match(/\/i\/a\/(\d+)-[0-9a-fA-F]+\./i)[1]; }
   return null;
 }
