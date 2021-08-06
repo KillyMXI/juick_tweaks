@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.20.12
-// @date        2016.09.02 - 2020.05.13
+// @version     2.21.0
+// @date        2016.09.02 - 2021.08.06
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -47,7 +47,6 @@
 // @connect     tass.ru
 // @connect     rublacklist.net
 // @connect     mk.ru
-// @connect     kp.ru
 // @connect     gazeta.ru
 // @connect     republic.ru
 // @connect     bash.im
@@ -81,7 +80,7 @@ const isAll = /\bshow=all\b/i.test(window.location.search);
 const isNewPostPage = window.location.pathname.endsWith('/post') && document.querySelector('textarea.newmessage');
 const isTagsPage = window.location.pathname.endsWith('/tags');
 const isSettingsPage = window.location.pathname.endsWith('/settings');
-const isUserColumn = !!(document.querySelector('aside#column > div#ustats'));
+const isUserColumn = !!(document.querySelector('aside#column div#ustats'));
 const isUsersTable = !!(document.querySelector('#content > div.users'));
 const hasContentArticle = !!(document.querySelector('#content article'));
 
@@ -223,11 +222,6 @@ const userscriptFeatures = [
   {
     name: 'Сбросить стили для тега *code. Уменьшить шрифт взамен',
     id: 'unset_code_style',
-    enabledByDefault: false
-  },
-  {
-    name: 'Не скрывать шапку',
-    id: 'fixed_header',
     enabledByDefault: false
   },
   {
@@ -471,11 +465,16 @@ function xhrGetAsync(url, timeout=3000, predicates=undefined, method='GET') {
         if (!match) {
           resolve(response);
         } else {
-          reject({ reason: match.msg(response), response: response, permanent: (match.permanent) ? match.permanent(response) : false });
+          reject({
+            reason: match.msg(response),
+            response: response,
+            permanent: (match.permanent) ? match.permanent(response) : false,
+            url: url
+          });
         }
       },
-      ontimeout: function(response) { reject({ reason: 'timeout', response: response, permanent: false }); },
-      onerror: function(response) { reject({ reason: 'unknown error', response: response, permanent: false }); }
+      ontimeout: function(response) { reject({ reason: 'timeout', response: response, permanent: false, url: url }); },
+      onerror: function(response) { reject({ reason: 'unknown error', response: response, permanent: false, url: url }); }
     });
   });
 }
@@ -567,7 +566,7 @@ function getMyAccountAsync() {
   } else {
     let hash = document.body.getAttribute('data-hash');
     if (!hash) { return Promise.reject('not logged in'); }
-    return xhrGetAsync(setProto('//api.juick.com/me?hash=' + hash), 500).then(response => {
+    return xhrGetAsync(setProto('//api.juick.com/me?hash=' + hash)).then(response => {
       let account = JSON.parse(response.responseText);
       getMyAccountAsync[0] = account;
       return account;
@@ -606,8 +605,8 @@ function getPostUid(element) {
 }
 
 function markNsfwPostsInFeed() {
-  [].forEach.call(document.querySelectorAll('#content article[data-mid]'), function(article, i, arr) {
-    let tagsDiv = article.querySelector('div.msg-tags');
+  [].forEach.call(document.querySelectorAll('#content article[data-mid]'), function(article) {
+    let tagsDiv = article.querySelector('.msg-tags');
     let isNsfw = tagsDiv && Array.from(tagsDiv.children).some(t => t.textContent.toUpperCase() == 'NSFW');
     if (isNsfw) { article.classList.add('nsfw'); }
   });
@@ -750,12 +749,12 @@ function addCommentShareMenu() {
 
 function addYearLinks() {
   let userId = getColumnUserName();
-  let asideColumn = document.querySelector('aside#column');
-  let hr1 = asideColumn.querySelector('form ~ hr');
-  let hr2 = document.createElement('hr');
+  let asideColumn = document.querySelector('aside#column > div');
+  let footer = asideColumn.querySelector('#footer');
   let linksContainer = document.createElement('p');
   let years = [
     {y: (new Date()).getFullYear(), b: ''},
+    {y: 2020, b: '?before=2984375'},
     {y: 2019, b: '?before=2959522'},
     {y: 2018, b: '?before=2931524'},
     {y: 2017, b: '?before=2893675'},
@@ -770,14 +769,14 @@ function addYearLinks() {
     {y: 2008, b: '?before=20106'}
   ];
   linksContainer.innerHTML = years.map(item => `<a href="/${userId}/${item.b}">${item.y}</a>`).join(' ');
-  asideColumn.insertBefore(hr2, hr1);
-  asideColumn.insertBefore(linksContainer, hr1);
+  asideColumn.insertBefore(linksContainer, footer);
 }
 
 function biggerAvatar() {
-  let avatarImg = document.querySelector('#column #ctitle a img');
+  let avatarImg = document.querySelector('#column #ctitle > a > img');
   if (avatarImg) {
-    avatarImg.style.width = 'unset';
+    avatarImg.style.maxWidth = 'none';
+    avatarImg.style.maxHeight = 'none';
   }
 }
 
@@ -1375,7 +1374,7 @@ function getEmbeddableLinkTypes() {
           let threadInfo = JSON.parse(response.responseText);
           let msg = (!isReply) ? threadInfo[0] : threadInfo.find(x => (x.rid == mrid));
           if (!msg) {
-            throw { reason: `${idStr} does not exist`, response: response, permanent: true };
+            throw { reason: `${idStr} does not exist`, response: response, permanent: true, url: apiUrl };
           }
 
           let withLikes = msg.likes && msg.likes > 0;
@@ -1564,8 +1563,8 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let [, channel, video] = reResult;
         let url = (video)
-          ? `https://player.twitch.tv/?video=v${video}&autoplay=false`
-          : `https://player.twitch.tv/?channel=${channel}&autoplay=false`;
+          ? `https://player.twitch.tv/?video=v${video}&parent=juick.com&autoplay=false`
+          : `https://player.twitch.tv/?channel=${channel}&parent=juick.com&autoplay=false`;
         let iframe = makeIframe(url, '100%', '378px');
         iframe.onload = () => makeResizableToRatio(iframe, 9.0 / 16.0);
         return setContent(div, iframe);
@@ -1662,19 +1661,6 @@ function getEmbeddableLinkTypes() {
           ? `https://music.yandex.ru/iframe/#track/${track}/${album ? album + '/' : ''}`
           : `https://music.yandex.ru/iframe/#album/${album}/`;
         return setContent(div, makeIframe(embedUrl, '100%', isTrack ? '100px' : '420px'));
-      }
-    },
-    {
-      name: 'Instagram',
-      id: 'embed_instagram',
-      className: 'instagram resizableV',
-      onByDefault: true,
-      ctsDefault: false,
-      re: /^(?:https?:)?\/\/(?:www\.)?instagram\.com\/p\/([-%\w]*)(?:\/)?(?:\/)?/i,
-      makeNode: function(aNode, reResult, div) {
-        let iframe = makeIframe('//www.instagram.com/p/' + reResult[1] + '/embed', '100%', '722px');
-        iframe.onload = () => makeResizable(iframe, w => w + 82);
-        return setContent(div, iframe);
       }
     },
     {
@@ -1776,14 +1762,14 @@ function getEmbeddableLinkTypes() {
             '24px',
             iframe => div.appendChild(iframe),
             iframe => [iframe, iframe.contentWindow.document],
-            e => ({ reason: e.message, permanent: false })
+            e => ({ reason: e.message, permanent: false, url: apiUrl })
           ).then(([iframe, doc]) => {
             return waitAndRunAsync(
               () => !!doc.querySelector('iframe'),
               50,
               100,
               () => ([iframe, doc]),
-              () => ({ reason: 'timeout', permanent: false })
+              () => ({ reason: 'timeout', permanent: false, url: apiUrl })
             );
           }).then(([iframe, doc]) => {
             div.replaceChild(doc.querySelector('iframe'), iframe);
@@ -1973,14 +1959,14 @@ function getEmbeddableLinkTypes() {
             '24px',
             iframe => div.appendChild(iframe),
             iframe => [iframe, iframe.contentWindow.document],
-            e => ({ reason: e.message, permanent: false })
+            e => ({ reason: e.message, permanent: false, url: apiUrl })
           ).then(([iframe, doc]) => {
             return waitAndRunAsync(
               () => !!doc.querySelector('iframe[height]'),
               50,
               100,
               () => ([iframe, doc]),
-              () => ({ reason: 'timeout', permanent: false })
+              () => ({ reason: 'timeout', permanent: false, url: apiUrl })
             );
           }).then(([iframe, doc]) => {
             div.replaceChild(doc.querySelector('iframe[height]'), iframe);
@@ -2013,7 +1999,7 @@ function getEmbeddableLinkTypes() {
             30,
             100,
             () => {},
-            () => ({ reason: 'timeout', permanent: false })
+            () => ({ reason: 'timeout', permanent: false, url: apiUrl })
           ).then(iframe => {
             div.querySelector('iframe').style.margin = '0px';
             div.querySelector('span').remove();
@@ -2357,7 +2343,7 @@ function getEmbeddableLinkTypes() {
             if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
           });
           if (count === 0) {
-            throw { reason: illustId + ' is not available', response: response, permanent: true };
+            throw { reason: illustId + ' is not available', response: response, permanent: true, url: apiUrl };
           }
 
           let saucenaoUrl = `https://img3.saucenao.com/booru/${md5[0]}/${md5[1]}/${md5}_2.jpg`;
@@ -2761,7 +2747,6 @@ function getDefaultDomainWhitelist() {
     'tass.ru',
     'rublacklist.net',
     'mk.ru',
-    'kp.ru',
     'gazeta.ru',
     'republic.ru',
     'bash.im',
@@ -3367,7 +3352,7 @@ function addStyle() {
   if (GM_getValue('enable_tags_min_width', true)) {
     GM_addStyle('.tagsContainer a { min-width: 25px; display: inline-block; text-align: center; }');
   }
-  GM_addStyle(`
+  GM_addStyle(/*css*/`
     .embedContainer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; padding: 0; margin: 30px -3px 15px -3px; }
     .embedContainer > * { box-sizing: border-box; flex-grow: 1; margin: 3px; min-width: 49%; }
     .embedContainer > .compact { flex-grow: 0; }
@@ -3484,7 +3469,7 @@ function addStyle() {
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
     .expandable > a.expandLink > span { border: 1px dotted ${color07}; border-radius: 15px; padding: 0 15px 2px; background: ${abg10}; }
 
-    #oldNewMessage { background: #e5e5e0; margin-bottom: 20px; padding: 0; display: flex; flex-direction: column; }
+    #oldNewMessage { background: ${abg10}; margin-bottom: 20px; padding: 0; display: flex; flex-direction: column; }
     #oldNewMessage * { box-sizing: border-box; }
     #oldNewMessage > textarea { resize: vertical; padding: 12px 16px; }
     #oldNewMessage.active { padding: 8px; }
@@ -3543,13 +3528,7 @@ function addStyle() {
     `);
   if (GM_getValue('unset_code_style', false)) {
     GM_addStyle(`
-      pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 9pt; line-height: 120%; }
-      `);
-  }
-  if (GM_getValue('fixed_header', false)) {
-    GM_addStyle(`
-      .header--hidden { -webkit-transform: unset; -ms-transform: unset; transform: unset; }
-      #wrapper { margin-top: 62px; }
+      pre { background: unset; color: unset; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; font-size: 9pt; line-height: 120%; }
       `);
   }
 }

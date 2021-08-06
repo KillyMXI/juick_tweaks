@@ -1,8 +1,12 @@
+# juick_tweaks
+
 Несколько фич для [juick.com](http://juick.com/)
+
+<https://greasyfork.org/en/scripts/22830-juick-tweaks>
 
 ## Контент
 
-* вставка картинок (jpg, png, gif, svg, instagram, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re) из ссылок в постах;
+* вставка картинок (jpg, png, gif, svg, imgur, flickr, deviantart, pixiv, gelbooru, danbooru, konachan, yande.re) из ссылок в постах;
 * вставка видео (webm, mp4, youtube, vimeo, dailymotion, coub, twitch);
 * вставка музыки (mp3, ogg, bandcamp, soundcloud, mixcloud);
 * вставка кода (gist, jsfiddle, codepen);
@@ -33,4 +37,4 @@
 
 Работает с Violentmonkey и Tampermonkey. Новое API Greasemonkey не поддерживается (пока что?)
 
-Подробности на http://juick.com/killy/?tag=userscript
+Подробности на <http://juick.com/killy/?tag=userscript>
