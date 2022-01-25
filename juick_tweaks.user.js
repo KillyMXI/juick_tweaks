@@ -5,8 +5,8 @@
 // @match       *://juick.com/*
 // @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.21.0
-// @date        2016.09.02 - 2021.08.06
+// @version     2.21.1
+// @date        2016.09.02 - 2022.01.26
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
