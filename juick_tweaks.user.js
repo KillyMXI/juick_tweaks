@@ -2326,46 +2326,34 @@ function getEmbeddableLinkTypes() {
       makeNode: function(aNode, reResult, div) {
         let thisType = this;
         let [url, domain, , illustId] = reResult;
-        let apiUrl = `https://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}`;
+        let apiUrl = `https://${domain}/index.php?page=dapi&s=post&q=index&id=${illustId}&json=1`;
 
         const callback = response => {
-          let count, id, previewUrl, md5, rating, createdAt, change, hasNotes=false, hasComments=false;
-          const attributeRe = /(\w+)="([^"]+)"/gmi;
-          let matches = getAllMatchesAndCaptureGroups(attributeRe, response.responseText);
-          matches.forEach(([, attr, val]) => {
-            if (attr == 'count') { count = +val; }
-            if (attr == 'id') { id = val; }
-            if (attr == 'preview_url') { previewUrl = val; }
-            if (attr == 'md5') { md5 = val; }
-            if (attr == 'rating') { rating = val; }
-            if (attr == 'created_at') { createdAt = new Date(val); }
-            if (attr == 'change') { change = new Date(1000 * parseInt(val, 10)); }
-            if (attr == 'has_notes') { hasNotes = String(val).toLowerCase() === 'true'; }
-            if (attr == 'has_comments') { hasComments = String(val).toLowerCase() === 'true'; }
-          });
-          if (count === 0) {
+          const json = JSON.parse(response.responseText);
+          if (json.count === 0) {
             throw { reason: illustId + ' is not available', response: response, permanent: true, url: apiUrl };
           }
 
-          let saucenaoUrl = `https://img3.saucenao.com/booru/${md5[0]}/${md5[1]}/${md5}_2.jpg`;
-          let createdDateStr = createdAt.toLocaleDateString('ru-RU');
-          let changedDateStr = change.toLocaleDateString('ru-RU');
+          const post = json.post[0];
+          const saucenaoUrl = `https://img3.saucenao.com/booru/${post.md5[0]}/${post.md5[1]}/${post.md5}_2.jpg`;
+          let createdDateStr = (new Date(post.created_at)).toLocaleDateString('ru-RU');
+          const changedDateStr = (new Date(1000 * parseInt(post.change, 10))).toLocaleDateString('ru-RU');
           if (createdDateStr != changedDateStr) { createdDateStr += ` (${changedDateStr})`; }
-          let ratingStr = (rating == 's') ? '' : ` (${rating})`;
+          const ratingStr = (post.rating == 's') ? '' : ` (${post.rating})`;
           div.innerHTML = /*html*/`
             <div class="top">
               <div class="title">
-                <a href="${url}">${id}</a>${ratingStr}${hasNotes ? ' (notes)' : ''}${hasComments ? ' (comments)' : ''}
+                <a href="${url}">${post.id}</a>${ratingStr}${post.has_notes ? ' (notes)' : ''}${post.has_comments ? ' (comments)' : ''}
               </div>
               <div class="date">${createdDateStr}</div>
             </div>
             <div class="bottom-right">
               <div>
-                <a href="https://www.iqdb.org/?url=${previewUrl}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${previewUrl}">SauceNAO</a>
+                <a href="https://www.iqdb.org/?url=${post.preview_url}">IQDB</a>, <a href="https://saucenao.com/search.php?url=${post.preview_url}">SauceNAO</a>
               </div>
             </div>
             <a href="${aNode.href}">
-              <img class="rating_${rating}" src="${previewUrl}" onerror="this.onerror=null;this.src='${saucenaoUrl}';">
+              <img class="rating_${post.rating}" src="${post.preview_url}" onerror="this.onerror=null;this.src='${saucenaoUrl}';">
             </a>
             `;
         };
