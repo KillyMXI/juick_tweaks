@@ -7,6 +7,7 @@
 // @author      Killy
 // @version     2.21.1
 // @date        2016.09.02 - 2022.01.26
+// @license     MIT
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
