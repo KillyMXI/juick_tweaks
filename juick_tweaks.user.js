@@ -3,10 +3,9 @@
 // @namespace   ForJuickCom
 // @description Feature testing
 // @match       *://juick.com/*
-// @match       *://beta.juick.com/*
 // @author      Killy
-// @version     2.21.1
-// @date        2016.09.02 - 2022.01.26
+// @version     2.21.2
+// @date        2016.09.02 - 2022.08.18
 // @license     MIT
 // @run-at      document-end
 // @grant       GM_xmlhttpRequest
@@ -69,9 +68,6 @@
 
 
 // #region === Pages and elements ===========================================================================
-
-const isBeta = (window.location.hostname == 'beta.juick.com');
-if (isBeta && !GM_getValue('enable_beta', true)) { return; }
 
 const content = document.getElementById('content');
 const isPost = content && content.hasAttribute('data-mid');
@@ -200,18 +196,6 @@ const userscriptFeatures = [
     name: 'Стрелочки ("↓")',
     id: 'enable_arrows',
     enabledByDefault: true
-  },
-  {
-    name: 'Скрипт активен на beta.juick.com',
-    id: 'enable_beta',
-    enabledByDefault: true
-  },
-  {
-    name: 'Переключатель между juick.com и beta.juick.com',
-    id: 'enable_toggle_beta',
-    enabledByDefault: false,
-    pageMatch: true,
-    fun: addToggleBetaLink
   },
   {
     name: 'Take care of NSFW tagged posts in feed',
@@ -2887,12 +2871,12 @@ function filterPostComments() {
     if (isFilteredComment) {
       reply.classList.add('filteredComment');
       reply.querySelector('.msg-txt').remove();
+      reply.querySelector('.embedContainer')?.remove();
+      reply.querySelector('.msg-media')?.remove();
       reply.querySelector('.msg-comment-target').remove();
       let linksDiv = reply.querySelector('.msg-links');
       linksDiv.querySelector('.a-thread-comment').remove();
       linksDiv.innerHTML = linksDiv.innerHTML.replace(' · ', '');
-      let media = reply.querySelector('.msg-media');
-      if (media) { media.remove(); }
       if (!keepHeader) {
         reply.classList.add('headless');
         reply.querySelector('.msg-header').remove();
@@ -2908,6 +2892,7 @@ function setHighlightOnHover(hoverTarget, highlightable) {
 }
 
 function setMoveIntoViewOnHover(hoverTarget, avoidTarget, movable, avoidMargin=0, threshold=0) {
+  if (!movable) { return; }
 
   function checkFullyVisible(node, threshold=0) {
     let rect = node.getBoundingClientRect();
@@ -3290,19 +3275,6 @@ function addMentionsLink() {
   insertAfter(liNode, li2);
 }
 
-function addToggleBetaLink() {
-  let aNode = document.createElement('a');
-  aNode.id = 'toggleBetaLink';
-  aNode.href = '#toggleBeta';
-  aNode.textContent = isBeta ? 'beta - go to prod' : 'prod - go to beta';
-  aNode.onclick = (e => {
-    e.preventDefault();
-    window.location.hostname = isBeta ? 'juick.com' : 'beta.juick.com';
-  });
-
-  document.getElementById('body').appendChild(aNode);
-}
-
 function makeElementExpandable(element) {
   let aNode = document.createElement('a');
   aNode.className = 'expandLink';
@@ -3453,7 +3425,6 @@ function addStyle() {
     .recUsers img { height: 32px; margin: 2px; margin-right: 6px; vertical-align: middle; width: 32px; }
     .users.sorted > span { width: 300px; }
     a.virtualTag { border: 1px dotted ${color07}; border-radius: 15px; }
-    #toggleBetaLink { display: block; position: fixed; top: 65px; right: 5px; }
     .expandable { max-height: 50vh; overflow-y: hidden; position: relative; }
     .expandable:before { content:''; pointer-events:none; position:absolute; left:0; top:0; width:100%; height:100%; background:linear-gradient(to top, ${abg10} 15px, transparent 120px); }
     .expandable > a.expandLink { display: block; position:absolute; width: 100%; bottom: 2px; text-align: center; font-size: 10pt; color: ${color07}; }
